@@ -19,17 +19,17 @@ https://docs.docker.com/engine/
 
 Install docker engine (not docker Desktop!!!)  (tested on v. 19.03, 20.10) 
 
-    Usually, this should work on Ubuntu distributions
+Usually, this should work on Ubuntu distributions
     
         sudo apt install docker.io
 
-    or install from binaries
+or install from binaries
 
         https://docs.docker.com/engine/install/binaries/
 
-    See also 
-    [Post-installation steps for Linux](https://docs.docker.com/install/linux/linux-postinstall/).
-    In particular, add your user to the `docker` group and log out and in again, before proceeding.
+See also 
+[Post-installation steps for Linux](https://docs.docker.com/install/linux/linux-postinstall/).
+In particular, add your user to the `docker` group and log out and in again, before proceeding.
 
         sudo usermod -aG docker $USER
         
@@ -40,9 +40,7 @@ https://docs.docker.com/compose/install/linux/
     DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
     mkdir -p $DOCKER_CONFIG/cli-plugins
     curl -SL https://github.com/docker/compose/releases/download/v2.37.0/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
-
     chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
-
 
 
 * For Nvidia drivers, install nvidia-docker2
