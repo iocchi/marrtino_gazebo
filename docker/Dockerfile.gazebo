@@ -1,0 +1,40 @@
+FROM marrtino2:system
+
+
+# install
+
+USER root
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        ros-${ROS_DISTRO}-ros-gz ros-${ROS_DISTRO}-ros-gz-sim ros-${ROS_DISTRO}-gz-ros2-control \
+        ros-${ROS_DISTRO}-gz-ros2-control-demos \
+        ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-ros2-control-cmake \
+        ros-${ROS_DISTRO}-ros2-controllers ros-${ROS_DISTRO}-controller-manager
+
+    #apt clean && \
+    #rm -rf /var/lib/apt/lists/*
+
+
+
+USER robot
+
+#RUN mkdir -p /home/robot/gazebo/
+
+#ADD ball_robot_gazebo /home/robot/gazebo/ball_robot_gazebo
+#ADD ddrive_robot_gazebo /home/robot/gazebo/ddrive_robot_gazebo
+
+#RUN cd ~/ros2_ws/src && ln -s ~/gazebo/ball_robot_gazebo .
+#RUN cd ~/ros2_ws/src && ln -s ~/gazebo/ddrive_robot_gazebo .
+
+#RUN bash -ci "cd ~/ros2_ws && colcon build"
+
+#RUN bash -ci "source ~/ros2_ws/install/setup.bash &&  echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc && echo \"export GZ_SIM_RESOURCE_PATH=\$GZ_SIM_RESOURCE_PATH:/home/robot/gazebo/models:/home/robot/gazebo/worlds:\$(ros2 pkg prefix ball_robot_gazebo)/share/ball_robot_gazebo/models:\$(ros2 pkg prefix ddrive_robot_gazebo)/share/ddrive_robot_gazebo/models\:\$(ros2 pkg prefix ddrive_robot_gazebo)/share/ddrive_robot_gazebo/worlds\"  >> ~/.bashrc  &&  echo \"export GZ_SIM_SYSTEM_PLUGIN_PATH=\$GZ_SIM_SYSTEM_PLUGIN_PATH:/opt/ros/jazzy/lib\" >> ~/.bashrc"
+
+WORKDIR /home/robot
+
+CMD [ "/usr/bin/tmux" ]
+
+
+
+

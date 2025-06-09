@@ -1,0 +1,124 @@
+# Docker file for MARRtino software
+# ROS2 Humble/Iron/Jazzy
+# System image
+
+# docker build -t marrtino2:system -f Dockerfile.system .
+
+# ros:iron-ros-base-jammy    22.04
+# ros:jazzy-ros-base-noble   24.04
+
+#FROM ros:humble-ros-base-jammy
+#FROM ros:iron-ros-base-jammy
+FROM ros:jazzy-ros-base-noble
+
+ARG MARRTINO_SYSTEM_VERSION=5.0
+
+ARG MACHTYPE=default
+ARG UID=1000
+ARG GID=1000
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+###### User root ######
+
+# install libraries and ros packages 
+
+# Remove ROS signatures 
+RUN rm -f /etc/apt/sources.list.d/ros2* && \
+    rm -f /usr/share/keyrings/ros* && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        tmux less sudo eom nano curl \
+        openssl shellinabox netcat-openbsd \
+        wget iputils-ping net-tools openssh-client nginx \
+        libwebsockets-dev
+        
+    #apt clean && \
+    #rm -rf /var/lib/apt/lists/*
+
+
+# ROS packages
+
+USER root
+
+# -k remove check insecure
+#RUN curl -k -sSL https://packages.ros.org/ros2/ros2.key | sudo apt-key add - 
+
+#RUN echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" >> /etc/apt/sources.list.d/ros2.list 
+
+
+RUN apt update && \
+    apt install -y software-properties-common && \
+    add-apt-repository universe
+
+RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') && \
+    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $UBUNTU_CODENAME)_all.deb" && \
+    apt install -y /tmp/ros2-apt-source.deb
+
+RUN apt update && apt install -y --no-install-recommends \
+        ros-${ROS_DISTRO}-turtlesim  ~nros-${ROS_DISTRO}-rqt*
+
+
+
+# User: robot (password: robot) with sudo power
+
+RUN useradd -ms /bin/bash robot && echo "robot:robot" | chpasswd && adduser robot sudo
+
+RUN deluser ubuntu
+
+RUN usermod -u $UID robot && groupmod -g $GID robot || true
+RUN chown -R robot:robot /home/robot
+
+RUN adduser robot audio
+RUN adduser robot video
+RUN adduser robot dialout
+
+RUN chown robot:robot /opt
+
+USER robot
+
+RUN echo "set -g mouse on" > $HOME/.tmux.conf 
+RUN touch ~/.sudo_as_admin_successful
+
+
+
+# Python packages
+
+USER robot
+
+#RUN pip install --user tornado==5.0.2
+
+
+
+# ROS2 workspace
+
+USER robot
+
+RUN  mkdir -p $HOME/ros2_ws/src && cd $HOME/ros2_ws
+
+
+
+# Set up .bashrc
+
+USER robot
+
+RUN echo "export MARRTINO_APPS_HOME=$HOME/src/marrtino_apps" >> $HOME/.bashrc
+
+RUN echo "export MARRTINO_VERSION=\"docker\"" >> $HOME/.bashrc
+
+RUN echo "docker $MARRTINO_SYSTEM_VERSION" >> $HOME/.marrtino_version
+
+RUN echo "export ROS_DOMAIN_ID=5" >> ~/.bashrc
+
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> $HOME/.bashrc
+
+
+USER robot
+
+WORKDIR /home/robot
+
+CMD [ "/usr/bin/tmux" ]
+
+
