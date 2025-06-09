@@ -9,7 +9,7 @@ https://docs.ros.org/en/jazzy/
 Gazebo Harmonic (LTS 2023-2028) 
 https://gazebosim.org/docs/harmonic/
 
-Docker
+
 
 # Install
 
@@ -45,7 +45,7 @@ https://docs.docker.com/compose/install/linux/
 
 * For Nvidia drivers, install nvidia-docker2
 
-        [Nvidia docker](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+[Nvidia docker](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
         
 
 # Build
