@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   marrtino_gazebo:
@@ -18,6 +16,7 @@ services:
       - /dev/dri/card0:/dev/dri/card0
       - /tmp/.X11-unix:/tmp/.X11-unix
       - $HOME/.Xauthority:/home/robot/.Xauthority
+      - $PWD/..:/home/robot/src/marrtino_gazebo
 
 
 #      - $PWD:/home/robot/gazebo

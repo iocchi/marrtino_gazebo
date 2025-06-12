@@ -1,6 +1,5 @@
 FROM marrtino2:system
 
-
 # install
 
 USER root
@@ -19,17 +18,13 @@ RUN apt update && \
 
 USER robot
 
-#RUN mkdir -p /home/robot/gazebo/
+ADD . /home/robot/src/marrtino_gazebo
 
-#ADD ball_robot_gazebo /home/robot/gazebo/ball_robot_gazebo
-#ADD ddrive_robot_gazebo /home/robot/gazebo/ddrive_robot_gazebo
+RUN cd ~/ros2_ws/src && ln -s ~/src/marrtino_gazebo .
 
-#RUN cd ~/ros2_ws/src && ln -s ~/gazebo/ball_robot_gazebo .
-#RUN cd ~/ros2_ws/src && ln -s ~/gazebo/ddrive_robot_gazebo .
+RUN bash -ci "cd ~/ros2_ws && colcon build"
 
-#RUN bash -ci "cd ~/ros2_ws && colcon build"
-
-#RUN bash -ci "source ~/ros2_ws/install/setup.bash &&  echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc && echo \"export GZ_SIM_RESOURCE_PATH=\$GZ_SIM_RESOURCE_PATH:/home/robot/gazebo/models:/home/robot/gazebo/worlds:\$(ros2 pkg prefix ball_robot_gazebo)/share/ball_robot_gazebo/models:\$(ros2 pkg prefix ddrive_robot_gazebo)/share/ddrive_robot_gazebo/models\:\$(ros2 pkg prefix ddrive_robot_gazebo)/share/ddrive_robot_gazebo/worlds\"  >> ~/.bashrc  &&  echo \"export GZ_SIM_SYSTEM_PLUGIN_PATH=\$GZ_SIM_SYSTEM_PLUGIN_PATH:/opt/ros/jazzy/lib\" >> ~/.bashrc"
+RUN bash -c "echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc"
 
 WORKDIR /home/robot
 

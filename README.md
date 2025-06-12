@@ -60,4 +60,22 @@ https://docs.docker.com/compose/install/linux/
 
 # Test
 
+Inside the container
+
+* Window 1
+
+    cd ros2_ws
+    
+    colcon build
+
+    ros2 launch marrtino_gazebo marrtino.launch.py
+    
+    
+* Window 2 (use CTRL-b c to create a new window in tmux)
+
+    cd src/marrtino_gazebo/src
+    
+    python3 control.py
+    
+Enjoy the robot moving on a square... and its odometry error !
 

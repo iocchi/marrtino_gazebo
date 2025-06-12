@@ -1,10 +1,13 @@
 #!/bin/bash
 
+DOCKER_RUNTIME="runc"
+
 if nvidia-detector 2> /dev/null; then
-  DOCKER_RUNTIME="nvidia"
-  echo "Using nvidia runtime !!!"
-else
-  DOCKER_RUNTIME="runc"
+  NVIDIA_DETECT=`nvidia-detector`
+  if [ "$NVIDIA_DETECT" != "None"  ]; then
+    DOCKER_RUNTIME="nvidia"
+    echo "Nvidia detect: ${NVIDIA_DETECT} Using nvidia runtime !!!"
+  fi
 fi
 
 
