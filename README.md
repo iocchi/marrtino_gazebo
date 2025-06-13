@@ -77,5 +77,10 @@ Inside the container
     
     python3 control.py
     
-Enjoy the robot moving on a square... and its odometry error !
+Enjoy the robot moving on a square... 
+and its trajectory error due to open-loop control !
+
+PLots about velocities, positions and the executed trajectory are shown.
+Close the plot windows to terminate the script.
+
 
