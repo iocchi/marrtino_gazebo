@@ -52,6 +52,12 @@ https://docs.docker.com/compose/install/linux/
 
     cd docker
     ./build.bash
+    
+In case of problems with building the image (possibly due to updates in the apt keys),
+use the script
+
+    ./build_no-cache.bash
+
 
 # Run
 
