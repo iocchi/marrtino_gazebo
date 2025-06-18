@@ -36,7 +36,7 @@ install(
 
 # Don't forget to also install your urdf, config, worlds, and models
 install(
-  DIRECTORY urdf config worlds models meshes
+  DIRECTORY urdf config worlds models
   DESTINATION share/${PROJECT_NAME}
 )
 
