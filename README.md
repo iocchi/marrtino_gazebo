@@ -50,6 +50,8 @@ https://docs.docker.com/compose/install/linux/
 
 # Build
 
+## Option 1: build images
+
     cd docker
     ./build.bash
     
@@ -58,11 +60,28 @@ use the script
 
     ./build_no-cache.bash
 
+# Option 2: pull images from dockerhub
+
+    cd docker
+    ./pull.bash
+
 
 # Run
 
+## Option 1: local graphic card
+
+This option autodetects if nvidia drivers are present and use nvidia runtime in docker
+
     cd docker
     ./run.bash
+
+## Option 2: vnc 
+
+    cd docker
+    ./run_vnc.bash
+
+Use a browser on `http://localhost:3000` to see the simulation.
+
 
 # Test
 
@@ -75,18 +94,26 @@ Inside the container
     colcon build
 
     ros2 launch marrtino_gazebo marrtino.launch.py
-    
+
+You should see the gazebo simulator environment running. 
+
+In case of issues about accesssing the hos X server (e.g., message `Cannot open display :0`)
+try disabling X access control in the host terminal
+
+    xhost -
+
     
 * Window 2 (use CTRL-b c to create a new window in tmux)
 
     cd src/marrtino_gazebo/src
     
     python3 control.py
-    
+
 Enjoy the robot moving on a square... 
 and its trajectory error due to open-loop control !
 
 PLots about velocities, positions and the executed trajectory are shown.
 Close the plot windows to terminate the script.
+
 
 

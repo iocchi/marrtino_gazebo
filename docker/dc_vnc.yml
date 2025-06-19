@@ -1,0 +1,37 @@
+version: "2.3"
+services:
+
+  xserver:
+    image: devrt/xserver
+    container_name: xserver
+    ipc: host
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - DISPLAY=:9
+    ports:
+      - "3000:80"
+
+
+  marrtino_gazebo:
+    image: marrtino2:gazebo
+    container_name: marrtino2_gazebo
+    runtime: runc
+    dns: 8.8.8.8
+    network_mode: "host"
+    tty: true
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - DISPLAY=:9
+    volumes_from:
+      - xserver
+    depends_on:
+      - xserver
+    volumes:
+      - $PWD/..:/home/robot/src/marrtino_gazebo
+
+
+
+
