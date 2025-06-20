@@ -1,0 +1,409 @@
+<?xml version="1.0"?>
+<robot name="smarrtino" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:arg name="namespace" default="" />
+
+  <xacro:property name="head_mass" value="0.10" />
+  <xacro:property name="body_mass" value="0.40" />
+  <xacro:property name="head_radius" value="0.05" />
+  <xacro:property name="body_radius" value="0.1" />
+
+
+  <xacro:property name="base_w" value="0.22" />
+  <xacro:property name="base_l" value="0.20" />
+  <xacro:property name="base_h" value="0.33" />
+
+  <xacro:property name="wheel_r" value="0.05" />
+  <xacro:property name="wheel_l" value="0.02" />
+
+  <xacro:property name="friction" value="0.02" />
+  <xacro:property name="damping" value="0.09" />
+  <xacro:property name="max_effort" value="1000.0" />
+  <xacro:property name="max_velocity" value="100.0" />
+
+  <xacro:property name="arm_mass" value="0.08" />
+  <xacro:property name="arm_radius" value="0.02" />
+  <xacro:property name="arm_length" value="0.10" />
+  <xacro:property name="arm_max_effort" value="30.0" />
+  <xacro:property name="arm_max_velocity" value="1.0" />
+
+  <xacro:property name="arm_friction" value="0.01" />
+  <xacro:property name="arm_damping" value="0.01" />
+
+  <xacro:include filename="$(find marrtino_gazebo)/urdf/inertia.xacro" />
+
+  <material name="orange"><color rgba="1.0 0.33 0.0 1.0"/></material>
+  <material name="red"><color rgba="0.8 0 0 1"/></material>
+  <material name="green"><color rgba="0 1 0 1"/></material>
+  <material name="blue"><color rgba="0 0 1 1"/></material>
+  <material name="black"><color rgba="0 0 0 1.0"/></material>
+  <material name="grey"><color rgba="0.7 0.7 0.7 1.0"/></material>
+  <material name="white"><color rgba="1 1 1 1.0"/></material>
+
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>      
+      <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_body.stl" scale="0.001 0.001 0.001"/>
+      </geometry>      
+      <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/> 
+      <mass value="${body_mass}"/>
+      <inertia
+        ixx="${(2/5) * body_mass * (base_w*base_w/4)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(2/5) * body_mass * (base_w*base_w/4)}"
+        iyz="0.0"
+        izz="${(2/5) * body_mass * (base_w*base_w/4)}"
+      />
+    </inertial>
+  </link>
+
+  <link name="left_wheel">
+    <visual>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
+        <material name="black"/>     
+    </visual>
+    <collision>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
+    </collision>
+    <xacro:cylinder_inertial_roll mass="0.1" radius="${wheel_r}" length="${wheel_l}" roll="${pi/2}"/>
+  </link>
+
+  <link name="right_wheel">
+    <visual>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
+        <material name="black"/>     
+    </visual>
+    <collision>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="${pi/2} 0.0 0.0"/>
+    </collision>
+    <xacro:cylinder_inertial_roll mass="0.1" radius="${wheel_r}" length="${wheel_l}" roll="${pi/2}"/>
+  </link>
+
+  <link name="caster_wheel">
+    <visual>
+        <geometry>
+            <sphere radius="${wheel_r/2}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="black"/>            
+    </visual>
+    <collision>
+        <geometry>
+            <sphere radius="${wheel_r/2}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <xacro:sphere_inertial mass="0.2" radius="${wheel_r/2}" />
+  </link>
+
+
+
+  <link name="head_link">
+    <visual>
+      <geometry>
+        <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_head.stl" scale="0.001 0.001 0.001"/>
+      </geometry>      
+      <origin xyz="0.02 0 -0.4" rpy="0 0 ${pi/2}"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_head.stl" scale="0.001 0.001 0.001"/>
+      </geometry>      
+      <origin xyz="0.02 0 -0.4" rpy="0 0 ${pi/2}"/>
+    </collision>
+    <xacro:sphere_inertial_roll mass="${head_mass}" radius="${head_radius}" roll="${pi/2}"/>
+  </link>
+
+  <link name="head_base_link">
+    <visual>
+        <geometry>      
+            <cylinder radius="0.03" length="0.02"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="blue"/>  
+    </visual>
+  </link>
+  
+  <link name="imu_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.0"/>
+      <geometry>
+        <box size="0.04 0.04 0.02"/>
+      </geometry>
+      <material name="green"/> 
+    </visual>
+  </link>
+
+  <link name="lidar_link">
+    <visual>
+        <geometry>      
+            <cylinder radius="0.02" length="0.03"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="blue"/>  
+    </visual>
+  </link>
+
+
+
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.02" rpy="0 0.0 0.0"/>  
+  </joint>
+
+  <joint name="head_pan_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="head_base_link"/>
+    <origin xyz="-0.06 0 ${base_h}" rpy="0 0 0"/>  
+    <axis xyz="0 0 1"/>
+    <dynamics damping="${arm_damping}" friction="${arm_friction}"/>
+    <limit effort="${arm_max_effort}" velocity="${arm_max_velocity}"
+           lower="${-pi/2}" upper="${pi/2}" />
+  </joint>
+
+  <joint name="head_base_joint" type="fixed">
+    <parent link="head_base_link"/>
+    <child link="head_link"/>
+    <origin xyz="0 0 0.07" rpy="0 0 0"/>  
+  </joint>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_footprint"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 ${base_w/2+wheel_l/2} ${wheel_r}" rpy="0 0.0 0.0"/>  
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${damping}" friction="${friction}"/>
+    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+  </joint>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_footprint"/>
+    <child link="right_wheel"/>
+    <origin xyz="0 ${-base_w/2-wheel_l/2} ${wheel_r}" rpy="0 0.0 0.0"/>  
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${damping}" friction="${friction}"/>
+    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+  </joint>
+
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="caster_wheel"/>
+    <origin xyz="${-0.12} 0.0 ${wheel_r/2}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="-0.02 0 ${base_h/2}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="base_lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="-0.02 0 0.05" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+
+  <link name="left_arm_body">
+    <visual>
+        <geometry>
+          <cylinder radius="0.01" length="0.02"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <material name="green"/>
+    </visual>
+    <collision>
+        <geometry>
+          <cylinder radius="0.01" length="0.02"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+    </collision>
+  </link>
+  
+  <link name="right_arm_body">
+    <visual>
+        <geometry>
+          <cylinder radius="0.01" length="0.02"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <material name="green"/>
+    </visual>
+    <collision>
+        <geometry>
+          <cylinder radius="0.01" length="0.02"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+    </collision>
+  </link>
+
+  <link name="left_arm">
+    <visual>
+        <geometry>
+          <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_left.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <origin xyz="0.065 -0.09 -0.265" rpy="0 0 ${pi/2}"/>
+        <material name="white"/>
+    </visual>
+    <collision>
+        <geometry>      
+          <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_left.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <origin xyz="0.065 -0.09 -0.265" rpy="0 0 ${pi/2}"/>
+    </collision>
+    <inertial>
+      <origin xyz="0 0.045 -0.07" rpy="0.3 0 0"/>
+      <mass value="${arm_mass}"/>
+      <inertia
+        ixx="${(1/12) * arm_mass * (3*arm_radius*arm_radius + arm_length*arm_length)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(1/12) * arm_mass * (3*arm_radius*arm_radius + arm_length*arm_length)}"
+        iyz="0.0"
+        izz="${(1/2) * arm_mass * (arm_radius*arm_radius)}"
+      />
+    </inertial>
+  </link>
+
+  <link name="right_arm">
+    <visual>
+        <geometry>
+          <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_right.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <origin xyz="0.065 0.09 -0.265" rpy="0 0 ${pi/2}"/>
+        <material name="white"/>
+    </visual>
+    <collision>
+        <geometry>      
+          <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_right.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <origin xyz="0.065 0.09 -0.265" rpy="0 0 ${pi/2}"/>
+    </collision>
+    <inertial>
+      <origin xyz="0 -0.045 -0.07" rpy="-0.3 0 0"/>
+      <mass value="${arm_mass}"/>
+      <inertia
+        ixx="${(1/12) * arm_mass * (3*arm_radius*arm_radius + arm_length*arm_length)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(1/12) * arm_mass * (3*arm_radius*arm_radius + arm_length*arm_length)}"
+        iyz="0.0"
+        izz="${(1/2) * arm_mass * (arm_radius*arm_radius)}"
+      />
+    </inertial>
+  </link>
+
+
+  <joint name="left_arm_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="left_arm_body"/>
+    <origin xyz="${-base_l*0.3} ${base_w*0.35} ${base_h*0.8}" rpy="0 0 0"/>  
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${arm_damping}" friction="${arm_friction}"/>
+    <limit effort="${arm_max_effort}" velocity="${arm_max_velocity}"
+           lower="${-5*pi/4}" upper="${pi/4}" />
+  </joint>
+
+  <joint name="right_arm_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_arm_body"/>
+    <origin xyz="${-base_l*0.3} ${-base_w*0.35} ${base_h*0.8}" rpy="0 0 0"/>
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${arm_damping}" friction="${arm_friction}"/>
+    <limit effort="${arm_max_effort}" velocity="${arm_max_velocity}"
+           lower="${-5*pi/4}" upper="${pi/4}" />
+  </joint>
+
+  <joint name="left_arm_body_joint" type="fixed">
+    <parent link="left_arm_body"/>
+    <child link="left_arm"/>
+    <origin xyz="0 0.02 0" rpy="0 0.0 0.0"/>
+  </joint>
+
+  <joint name="right_arm_body_joint" type="fixed">
+    <parent link="right_arm_body"/>
+    <child link="right_arm"/>
+    <origin xyz="0 -0.02 0" rpy="0 0.0 0.0"/>  
+  </joint>
+
+
+
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="left_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_arm_joint">
+      <command_interface name="effort">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_arm_joint">
+      <command_interface name="effort">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  
+  <gazebo>
+    <!-- Joint state publisher -->
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <ros>
+        <namespace>$(arg namespace)</namespace>
+      </ros>
+      <parameters>$(find gz_ros2_control_demos)/config/diff_drive_controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+  
+</robot>
+

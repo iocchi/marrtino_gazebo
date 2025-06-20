@@ -24,7 +24,10 @@ USER robot
 
 ADD . /home/robot/src/marrtino_gazebo
 
-RUN cd ~/ros2_ws/src && ln -s ~/src/marrtino_gazebo .
+RUN cd ~/ros2_ws/src && \
+    ln -s ~/src/marrtino_gazebo/marrtino_gazebo . && \
+    ln -s ~/src/marrtino_gazebo/marrtino_control .
+
 
 RUN bash -ci "cd ~/ros2_ws && colcon build"
 

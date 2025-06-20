@@ -1,0 +1,222 @@
+<?xml version="1.0"?>
+<robot name="marrtino" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:arg name="namespace" default="" />
+
+  <xacro:property name="base_w" value="0.40" />
+  <xacro:property name="base_l" value="0.30" />
+  <xacro:property name="base_h" value="0.20" />
+
+  <xacro:property name="wheel_r" value="0.06" />
+  <xacro:property name="wheel_l" value="0.03" />
+
+
+  <xacro:property name="friction" value="0.01" />
+  <xacro:property name="damping" value="0.05" />
+  <xacro:property name="max_effort" value="1000.0" />
+  <xacro:property name="max_velocity" value="10.0" />
+
+  <xacro:include filename="$(find marrtino_gazebo)/urdf/inertia.xacro" />
+
+  <material name="orange"><color rgba="1.0 0.33 0.0 1.0"/></material>
+  <material name="red"><color rgba="0.8 0 0 1"/></material>
+  <material name="green"><color rgba="0 1 0 1"/></material>
+  <material name="blue"><color rgba="0 0 1 1"/></material>
+  <material name="black"><color rgba="0 0 0 1.0"/></material>
+  <material name="grey"><color rgba="0.7 0.7 0.7 1.0"/></material>
+  <material name="white"><color rgba="1 1 1 1.0"/></material>
+
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+        <geometry>  
+            <box size="${base_l} ${base_w} ${base_h}"/> 
+        </geometry>   
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> 
+        <material name="red"/>
+    </visual>
+    <collision>
+        <geometry>  
+            <box size="${base_l} ${base_w} ${base_h}"/> 
+        </geometry>   
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> 
+    </collision>
+    <xacro:box_inertial mass="0.2" x_dim="${base_l}" y_dim="${base_w}" z_dim="${base_h}"/>
+  </link>
+
+  <!-- to balance weight on the bottom and between the wheels -->
+  <link name="battery_link">
+    <visual>
+        <geometry>
+            <box size="${base_l/4} ${base_w/4} ${base_h/4}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="black"/>
+    </visual>
+    <collision>
+        <geometry>
+            <box size="${base_l/4} ${base_w/4} ${base_h/4}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <xacro:box_inertial mass="0.3" x_dim="${base_l/4}" y_dim="${base_w/4}" z_dim="${base_h/4}"/>
+  </link>
+
+  <link name="left_wheel">
+    <visual>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+        <material name="black"/>     
+    </visual>
+    <collision>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+    </collision>
+    <xacro:cylinder_inertial mass="0.3" radius="${wheel_r}" length="${wheel_l}"/>
+  </link>
+
+  <link name="right_wheel">
+    <visual>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+        <material name="black"/>     
+    </visual>
+    <collision>
+        <geometry>
+            <cylinder radius="${wheel_r}" length="${wheel_l}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+    </collision>
+    <xacro:cylinder_inertial mass="0.3" radius="${wheel_r}" length="${wheel_l}"/>
+  </link>
+
+  <link name="caster_wheel">
+    <visual>
+        <geometry>
+            <sphere radius="${wheel_r/2}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="black"/>            
+    </visual>
+    <collision>
+        <geometry>
+            <sphere radius="${wheel_r/2}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <xacro:sphere_inertial mass="0.1" radius="${wheel_r/2}" />
+  </link>
+
+
+  <link name="imu_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.0"/>
+      <geometry>
+        <box size="0.04 0.04 0.02"/>
+      </geometry>
+      <material name="green"/> 
+    </visual>
+  </link>
+
+  <link name="lidar_link">
+    <visual>
+        <geometry>      
+            <cylinder radius="0.05" length="0.04"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="white"/>  
+    </visual>
+  </link>
+
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0.0 0.0 ${base_h/2+wheel_r}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="battery_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="battery_link"/>
+    <origin xyz="${base_l/4} 0.0 ${wheel_r*2}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="${base_l/4} ${base_w/2+wheel_l/2} ${-base_h/2}" rpy="0 0.0 0.0"/>  
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${damping}" friction="${friction}"/>
+    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+  </joint>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel"/>
+    <origin xyz="${base_l/4} ${-base_w/2-wheel_l/2} ${-base_h/2}" rpy="0 0.0 0.0"/>  
+    <axis xyz="0.0 1.0 0.0"/>
+    <dynamics damping="${damping}" friction="${friction}"/>
+    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+  </joint>
+
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="${-base_l/4} 0.0 ${-base_h/2-wheel_r/2}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="${-base_l/4} 0.0 ${base_h/2+0.01}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="base_lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="${base_l/4} 0.0 ${base_h/2+0.02}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="left_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <!-- Joint state publisher -->
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <ros>
+        <namespace>$(arg namespace)</namespace>
+      </ros>
+      <parameters>$(find gz_ros2_control_demos)/config/diff_drive_controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+  
+</robot>
+

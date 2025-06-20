@@ -105,9 +105,12 @@ try disabling X access control in the host terminal
     
 * Window 2 (use CTRL-b c to create a new window in tmux)
 
-    cd src/marrtino_gazebo/src
+    cd ros2_ws
     
-    python3 control.py
+    colcon build
+
+    ros2 launch marrtino_control control
+
 
 Enjoy the robot moving on a square... 
 and its trajectory error due to open-loop control !
