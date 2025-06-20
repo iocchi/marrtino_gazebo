@@ -70,7 +70,7 @@ use the script
 
 ## Option 1: local graphic card
 
-This option autodetects if nvidia drivers are present and use nvidia runtime in docker
+This option autodetects if nvidia drivers are present and uses nvidia runtime in docker
 
     cd docker
     ./run.bash

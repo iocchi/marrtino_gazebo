@@ -17,7 +17,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.actions import RegisterEventHandler, SetEnvironmentVariable
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -30,20 +30,38 @@ def generate_launch_description():
 
     pkg_share = FindPackageShare('marrtino_gazebo')
 
+
+    robot_name_arg = DeclareLaunchArgument(
+        'robot_name',
+        default_value=TextSubstitution(text='marrtino'),
+        description='Name of the robot to spawn.'
+    )
+
+    world_file_arg = DeclareLaunchArgument(
+        'world_file',
+        default_value=TextSubstitution(text='empty.world'),
+        description='Gazebo world to launch.'
+    )
+    
+    robot_name = LaunchConfiguration('robot_name')
+    world_file = LaunchConfiguration('world_file')   
+
     # Get URDF via xacro
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name='xacro')]),
             ' ',
             PathJoinSubstitution(
-                [ pkg_share, 'urdf', 'marrtino.urdf.xacro' ]
+                [ pkg_share, 'urdf', 
+                    PythonExpression( ["'", robot_name, ".urdf.xacro'" ]) ]
             ),
         ]
     )
     robot_description = {'robot_description': robot_description_content}
     
     robot_controllers = PathJoinSubstitution(
-        [ pkg_share, 'config', 'marrtino_controllers.yaml' ]
+        [ pkg_share, 'config', 
+            PythonExpression(["'", robot_name, "_controllers.yaml'"]) ]
     )
 
     node_robot_state_publisher = Node(
@@ -58,7 +76,7 @@ def generate_launch_description():
         executable='create',
         output='screen',
         arguments=['-topic', 'robot_description',
-                   '-name', 'marrtino', '-allow_renaming', 'true'],
+                   '-name', robot_name, '-allow_renaming', 'true'],
     )
     
     joint_state_broadcaster_spawner = Node(
@@ -71,7 +89,7 @@ def generate_launch_description():
         package='controller_manager',
         executable='spawner',
         arguments=[
-            'marrtino_controller',
+            PythonExpression(["'", robot_name, "_controller'"]),
             '--param-file',
             robot_controllers,
             ],
@@ -97,6 +115,8 @@ def generate_launch_description():
     '''
 
     return LaunchDescription([
+        robot_name_arg,
+        world_file_arg,
     
         # Launch gazebo environment
         IncludeLaunchDescription(
@@ -107,7 +127,7 @@ def generate_launch_description():
 
             launch_arguments = [ 
                 ('gz_args', [gz_args, ' -r -v 1 ', 
-                    PathJoinSubstitution([pkg_share, 'worlds/empty.world']) ]),
+                    PathJoinSubstitution([pkg_share, 'worlds/', world_file]) ]),
                 ('on_exit_shutdown', 'True' ),
              ] ),
 

@@ -43,7 +43,25 @@
         </geometry>   
         <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> 
     </collision>
-    <xacro:box_inertial mass="0.5" x_dim="${base_l}" y_dim="${base_w}" z_dim="${base_h}"/>
+    <xacro:box_inertial mass="0.2" x_dim="${base_l}" y_dim="${base_w}" z_dim="${base_h}"/>
+  </link>
+
+  <!-- to balance weight on the bottom and between the wheels -->
+  <link name="battery_link">
+    <visual>
+        <geometry>
+            <box size="${base_l/4} ${base_w/4} ${base_h/4}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <material name="black"/>
+    </visual>
+    <collision>
+        <geometry>
+            <box size="${base_l/4} ${base_w/4} ${base_h/4}"/>
+        </geometry>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <xacro:box_inertial mass="0.3" x_dim="${base_l/4}" y_dim="${base_w/4}" z_dim="${base_h/4}"/>
   </link>
 
   <link name="left_wheel">
@@ -123,6 +141,12 @@
     <parent link="base_footprint"/>
     <child link="base_link"/>
     <origin xyz="0.0 0.0 ${base_h/2+wheel_r}" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <joint name="battery_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="battery_link"/>
+    <origin xyz="${base_l/4} 0.0 ${wheel_r*2}" rpy="0.0 0.0 0.0"/>
   </joint>
 
   <joint name="left_wheel_joint" type="continuous">

@@ -30,7 +30,7 @@
         <pose>0 0 10 0 0 0</pose>
       </light>
     </state>
-    
+
     <model name='ground_plane'>
       <static>true</static>
       <link name='ground'>
@@ -38,7 +38,7 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>20 20</size>
             </plane>
           </geometry>
           <surface>
@@ -52,7 +52,9 @@
               </torsional>
             </friction>
             <contact>
-              <ode/>
+              <ode>
+                <min_depth>0.01</min_depth>
+              </ode>
             </contact>
             <bounce/>
           </surface>
@@ -63,7 +65,7 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>20 20</size>
             </plane>
           </geometry>
           <material>

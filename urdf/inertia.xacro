@@ -16,9 +16,38 @@
     </inertial>
   </xacro:macro>
 
+  <xacro:macro name="sphere_inertial_roll" params="mass radius roll">
+    <inertial>
+      <origin xyz="0 0 0" rpy="${roll} 0 0"/> <mass value="${mass}"/>
+      <inertia
+        ixx="${(2/5) * mass * (radius*radius)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(2/5) * mass * (radius*radius)}"
+        iyz="0.0"
+        izz="${(2/5) * mass * (radius*radius)}"
+      />
+    </inertial>
+  </xacro:macro>
+
   <xacro:macro name="cylinder_inertial" params="mass radius length">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${(1/12) * mass * (3*radius*radius + length*length)}"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="${(1/12) * mass * (3*radius*radius + length*length)}"
+        iyz="0.0"
+        izz="${(1/2) * mass * (radius*radius)}"
+      />
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertial_roll" params="mass radius length roll">
+    <inertial>
+      <origin xyz="0 0 0" rpy="${roll} 0 0"/>
       <mass value="${mass}"/>
       <inertia
         ixx="${(1/12) * mass * (3*radius*radius + length*length)}"
