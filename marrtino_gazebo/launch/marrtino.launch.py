@@ -18,6 +18,7 @@ from launch.actions import RegisterEventHandler, SetEnvironmentVariable
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
+from launch.conditions import IfCondition
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -93,18 +94,50 @@ def generate_launch_description():
     joint_state_broadcaster_spawner = Node(
         package='controller_manager',
         executable='spawner',
+        output='screen',
         arguments=['joint_state_broadcaster'],
     )
 
     marrtino_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
+        output='screen',
         arguments=[
             PythonExpression(["'", robot_name, "_controller'"]),
             '--param-file',
             robot_controllers,
             ],
     )
+
+
+    has_arms = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
+
+    arm_effort_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        output='screen',
+        arguments=[
+            'arm_effort_controller',
+            '--param-file',
+            robot_controllers,
+            ],
+        condition=IfCondition(has_arms),
+    )
+
+    has_head = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
+
+    head_effort_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        output='screen',
+        arguments=[
+            'head_effort_controller',
+            '--param-file',
+            robot_controllers,
+            ],
+        condition=IfCondition(has_head),
+    )
+
 
     # Bridge
     bridge = Node(
@@ -129,6 +162,7 @@ def generate_launch_description():
     return LaunchDescription([
         robot_name_arg,
         world_file_arg,
+
     
         # Launch gazebo environment
         IncludeLaunchDescription(
@@ -156,14 +190,31 @@ def generate_launch_description():
                 on_exit=[marrtino_controller_spawner],
             )
         ),
+
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=marrtino_controller_spawner,
+                on_exit=[arm_effort_controller_spawner],
+            )
+        ),
+
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=marrtino_controller_spawner,
+                on_exit=[head_effort_controller_spawner],
+            )
+        ),
+        
         bridge,
         node_marrtino_parameters,
         node_robot_state_publisher,
         gz_spawn_entity,
+
         # Launch Arguments
         DeclareLaunchArgument(
             'use_sim_time',
             default_value=use_sim_time,
             description='If true, use simulated clock'),
+
     ])
 

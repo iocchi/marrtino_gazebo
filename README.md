@@ -97,10 +97,15 @@ Inside the container
 
 You should see the gazebo simulator environment running. 
 
-In case of issues about accesssing the hos X server (e.g., message `Cannot open display :0`)
-try disabling X access control in the host terminal
+In case of issues about accesssing the hos X server (e.g., message `Cannot open display :0`), try disabling X access control in the host terminal
 
-    xhost -
+    xhost +
+
+then run the container again and repeat the above procedure.
+ 
+Note: if you edit anything in `marrtino_gazebo`, relaunch with
+
+    colcon build && ros2 launch marrtino_gazebo marrtino.launch.py
 
     
 * Window 2 (use CTRL-b c to create a new window in tmux)
@@ -109,7 +114,7 @@ try disabling X access control in the host terminal
     
     colcon build
 
-    ros2 launch marrtino_control control
+    ros2 run marrtino_control control
 
 
 Enjoy the robot moving on a square... 
@@ -118,5 +123,40 @@ and its trajectory error due to open-loop control !
 PLots about velocities, positions and the executed trajectory are shown.
 Close the plot windows to terminate the script.
 
+Note: if you edit anything in `marrtino_control`, relaunch with
+
+    colcon build && ros2 run marrtino_control control
+
+
+
+# Use
+
+Run the simulation
+
+    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> world_file:=<WORLD_FILE>
+
+
+    ROBOT_NAME options:
+    marrtino
+    smarrtino
+    marrtina   TODO
+
+    WORLD_FILE options:
+    empty
+
+
+
+Run the control program
+
+Note: robot name is collected from `marrtino_parameters`
+
+
+    ros2 run marrtino_control control --ros-args -p fn:=<FUNCTION>
+
+    FUNCTION options:
+    square
+    arms
+    head
+    all
 
 

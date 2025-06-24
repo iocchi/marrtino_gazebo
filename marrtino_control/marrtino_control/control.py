@@ -1,4 +1,4 @@
-import time, threading, math
+import time, threading, math, os
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped
@@ -7,31 +7,36 @@ from std_msgs.msg import Float64MultiArray
 
 from tf_transformations import euler_from_quaternion
 
+import rcl_interfaces.msg
+
 from rcl_interfaces.srv import GetParameters, ListParameters
 from rcl_interfaces.msg import ParameterType
+from rclpy.parameter import Parameter
 
 import matplotlib.pyplot as plt
 
-ROBOT_NAME='marrtino'
-
-
-
+NODE_NAME = 'marrtino_control_client'
 
 class MARRtinoController(Node):
 
     def __init__(self):
-        super().__init__('marrtino_control_client')
+        super().__init__(NODE_NAME)
 
-        # only node local access        
         robot_name = self.get_ext_parameters(['robot_name'])[0]
+        self.get_logger().info(f'robot_name: {robot_name}')
 
-        # self.set_parameters([Parameter('new_parameter', Parameter.Type.STRING, 'New value')])
+        self.declare_parameter('fn', 'square')
+        self.fn = self.get_parameter('fn').value
+        self.get_logger().info(f'control function: {self.fn}')
 
+        self.declare_parameter('plot', 'none')
+        self.toplot = self.get_parameter('plot').value
+        self.get_logger().info(f'plot: {self.toplot}')
 
-
-        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/{ROBOT_NAME}_controller/cmd_vel', 10)
+        
+        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/{robot_name}_controller/cmd_vel', 10)
         self.pub_arm_effort = self.create_publisher(Float64MultiArray, f'/arm_effort_controller/commands', 100)
-        self.get_logger().info(f'{ROBOT_NAME} controller node initialized ')
+        self.pub_head_effort = self.create_publisher(Float64MultiArray, f'/head_effort_controller/commands', 100)
 
         self.rate10 = self.create_rate(10) # Hz
         self.rate100 = self.create_rate(100) # Hz
@@ -49,16 +54,37 @@ class MARRtinoController(Node):
 
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
-            f'/{ROBOT_NAME}_controller/odom',      # Topic name
+            f'/{robot_name}_controller/odom',      # Topic name
             self.odom_callback, # Callback function
             10                  # QoS (Quality of Service) history depth
         )
         self.sub_cmd_vel = self.create_subscription(
             TwistStamped,           # Message type
-            f'/{ROBOT_NAME}_controller/cmd_vel',      # Topic name
+            f'/{robot_name}_controller/cmd_vel',      # Topic name
             self.cmd_vel_callback,  # Callback function
             10                      # QoS (Quality of Service) history depth
         )
+
+        # Spin in a separate thread
+        thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
+        thread.start()
+
+        self.rate10.sleep()
+
+    
+        os.system(f"ros2 param set {NODE_NAME} use_sim_time True")
+
+        '''  DOES NOT WORK !!!
+        pp = Parameter('use_sim_time', ParameterType.PARAMETER_BOOL, True)
+        self.set_parameters([pp])
+        '''    
+
+        self.rate10.sleep()
+ 
+        current_use_sim_time = self.get_parameter('use_sim_time').value
+        self.get_logger().info(f"Current use_sim_time value: {current_use_sim_time}")
+
+        self.get_logger().info(f'{robot_name} controller node initialized ')
 
 
 
@@ -105,8 +131,6 @@ class MARRtinoController(Node):
                 elif param_type == ParameterType.PARAMETER_STRING:
                     param_value = param.string_value
                 # Add more types if needed (e.g., array types)
-
-                self.get_logger().info(f'  {param_name}: {param_value}')
                 
                 values.append(param_value)
 
@@ -148,7 +172,7 @@ class MARRtinoController(Node):
         msg.twist.linear.x = lx
         msg.twist.angular.z = az
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
-        for _ in range(int(ts*100+10)):
+        for _ in range(int(ts*100)):
             self.pub_cmd_vel.publish(msg)
             self.rate100.sleep()
         for _ in range(10):   # wait to complete the movement
@@ -157,15 +181,25 @@ class MARRtinoController(Node):
     def publish_arm_effort(self, fl, fr, ts=1):
         msg = Float64MultiArray()
         msg.data = [fl, fr]
-        self.get_logger().info(f'Publishing effort: {fl:.3f} {fr:.3f}')
+        self.get_logger().info(f'Publishing arm effort: {fl:.3f} {fr:.3f}')
         for _ in range(int(ts*100)):
             self.pub_arm_effort.publish(msg)
             self.rate100.sleep()
         for _ in range(10):   # wait to complete the movement
             self.rate100.sleep()
 
+    def publish_head_effort(self, hpan, htilt, ts=1):
+        msg = Float64MultiArray()
+        msg.data = [hpan, htilt]
+        self.get_logger().info(f'Publishing head effort: {hpan:.3f} {htilt:.3f}')
+        for _ in range(int(ts*100)):
+            self.pub_head_effort.publish(msg)
+            self.rate100.sleep()
+        for _ in range(10):   # wait to complete the movement
+            self.rate100.sleep()
+
     def sleep(self, ts=1):
-        for _ in range(ts*10):
+        for _ in range(int(ts*10)):
             self.rate10.sleep()
     
 
@@ -207,51 +241,71 @@ class MARRtinoController(Node):
         plt.show()
         self.get_logger().info("Plot displayed. Close the plot window to terminate the script.")
 
-    def test1(self):
+    def run(self):
+        eval(f'self.{self.fn}()')
+
+    def stop(self):
+        self.publish_cmd_vel(0.0,0.0)
+        self.publish_arm_effort(0.0, 0.0)
+        self.rate10.sleep()
+
+    def square(self):
         for _ in range(4):
-            self.publish_cmd_vel(0.3,0.0,5)
+            self.publish_cmd_vel(0.2,0.0,5)
             self.publish_cmd_vel(0.0,0.0,0.5)
-            self.publish_cmd_vel(0.0,math.pi/12,6)
+            self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
 
-    def test2(self):
+    def arms(self):
         self.publish_arm_effort(-0.2, -0.2, 5)
         self.publish_arm_effort(0.1, 0.1, 7)
         self.publish_arm_effort(0.0, 0.0)
 
-    def test3(self):
+    def head(self):
+        self.publish_head_effort(-0.1, 0, 2)
+        self.publish_head_effort(+0.1, 0, 4)
+        self.publish_head_effort(-0.1, 0, 2)
+        self.publish_head_effort(0, -0.1, 1)
+        self.publish_head_effort(0, +0.1, 2)
+        self.publish_head_effort(0, 0)
+
+
+
+    def all(self):
         k = 1
         self.publish_arm_effort(0.1, 0.1, 3)
         self.publish_arm_effort(0, 0, 0.5)
         for _ in range(4):
             self.publish_cmd_vel(0.2,0.0,5)
             self.publish_cmd_vel(0.0,0.0,0.5)
-            self.publish_cmd_vel(0.0,math.pi/12,6)
+            self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
             self.publish_arm_effort(-k*0.2, k*0.2, 5)
             self.publish_arm_effort(0, 0, 0.5)
+            self.publish_head_effort(-0.1, 0, 1)
+            self.publish_head_effort(+0.1, 0, 2)
+            self.publish_head_effort(-0.1, 0, 1)
+            self.publish_head_effort(0, 0)
             k *= -1        
 
         # lower both arms
         self.publish_arm_effort(0.1, 0.1, 3)
         self.publish_arm_effort(0, 0, 0.5)
 
+        self.publish_head_effort(0, -0.1, 1)
+        self.publish_head_effort(0, +0.1, 2)
+        self.publish_head_effort(0, 0)
+
 def main(args=None):
     rclpy.init(args=args)
     marrtino_controller = MARRtinoController()
 
-    # Spin in a separate thread
-    thread = threading.Thread(target=rclpy.spin, args=(marrtino_controller, ), daemon=True)
-    thread.start()
+    marrtino_controller.run()
+    marrtino_controller.stop()
 
-    marrtino_controller.test1()
-    
-    marrtino_controller.publish_cmd_vel(0.0,0.0)
-    marrtino_controller.publish_arm_effort(0.0, 0.0)
 
     marrtino_controller.destroy_node()
     rclpy.shutdown()
-    thread.join()
 
     #marrtino_controller.plot_ctrl()
     #marrtino_controller.plot_traj()
