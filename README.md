@@ -151,12 +151,17 @@ Run the control program
 Note: robot name is collected from `marrtino_parameters`
 
 
-    ros2 run marrtino_control control --ros-args -p fn:=<FUNCTION>
+    ros2 run marrtino_control control --ros-args -p fn:=<FUNCTION> [ --ros-args -p plot:=<PLOT_STRING> ]
 
-    FUNCTION options:
+    `FUNCTION` options:
     square
     arms
     head
     all
+
+    Optional `PLOT_STRING` values (multiple values can be used)
+    velctrl
+    odom
+    
 
 

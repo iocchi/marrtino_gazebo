@@ -25,7 +25,7 @@ class MARRtinoController(Node):
         robot_name = self.get_ext_parameters(['robot_name'])[0]
         self.get_logger().info(f'robot_name: {robot_name}')
 
-        self.declare_parameter('fn', 'square')
+        self.declare_parameter('fn', 'none')
         self.fn = self.get_parameter('fn').value
         self.get_logger().info(f'control function: {self.fn}')
 
@@ -212,7 +212,7 @@ class MARRtinoController(Node):
     
 
 
-    def plot_ctrl(self):
+    def plot_velctrl(self):
 
         fig, axs = plt.subplots(7, 1, sharex=True, figsize=(14, 8))
         fig.suptitle(f'Input/Output Velocities & Positions')
@@ -232,9 +232,9 @@ class MARRtinoController(Node):
         self.get_logger().info("Plot displayed. Close the plot window to terminate the script.")
 
 
-    def plot_traj(self):
+    def plot_odom(self):
 
-        plt.title(f'Trajectory')
+        plt.title(f'Odometry')
         
         plt.plot(self.poses[0], self.poses[1])
 
@@ -242,11 +242,15 @@ class MARRtinoController(Node):
         self.get_logger().info("Plot displayed. Close the plot window to terminate the script.")
 
     def run(self):
-        eval(f'self.{self.fn}()')
+        if self.fn != 'none':
+            eval(f'self.{self.fn}()')
+        else:
+            print('No control function!')
 
     def stop(self):
-        self.publish_cmd_vel(0.0,0.0)
+        self.publish_cmd_vel(0.0, 0.0)
         self.publish_arm_effort(0.0, 0.0)
+        self.publish_head_effort(0.0, 0.0)
         self.rate10.sleep()
 
     def square(self):
@@ -255,11 +259,22 @@ class MARRtinoController(Node):
             self.publish_cmd_vel(0.0,0.0,0.5)
             self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
+        self.stop()
+        
+        if 'velctrl' in self.toplot:
+            self.plot_velctrl()
+        if 'odom' in self.toplot:
+            self.plot_odom()
+        
+        
 
     def arms(self):
         self.publish_arm_effort(-0.2, -0.2, 5)
         self.publish_arm_effort(0.1, 0.1, 7)
         self.publish_arm_effort(0.0, 0.0)
+
+        self.stop()
+
 
     def head(self):
         self.publish_head_effort(-0.1, 0, 2)
@@ -269,6 +284,7 @@ class MARRtinoController(Node):
         self.publish_head_effort(0, +0.1, 2)
         self.publish_head_effort(0, 0)
 
+        self.stop()
 
 
     def all(self):
@@ -296,19 +312,23 @@ class MARRtinoController(Node):
         self.publish_head_effort(0, +0.1, 2)
         self.publish_head_effort(0, 0)
 
+        self.stop()
+
+        if 'velctrl' in self.toplot:
+            self.plot_velctrl()
+        if 'odom' in self.toplot:
+            self.plot_odom()
+
+
 def main(args=None):
     rclpy.init(args=args)
     marrtino_controller = MARRtinoController()
 
     marrtino_controller.run()
-    marrtino_controller.stop()
-
 
     marrtino_controller.destroy_node()
     rclpy.shutdown()
 
-    #marrtino_controller.plot_ctrl()
-    #marrtino_controller.plot_traj()
 
 if __name__ == '__main__':
     main()
