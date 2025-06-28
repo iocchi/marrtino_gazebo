@@ -17,7 +17,7 @@
   <xacro:property name="friction" value="0.001" />
   <xacro:property name="damping" value="0.001" />
   <xacro:property name="max_effort" value="1000.0" />
-  <xacro:property name="max_velocity" value="100.0" />
+  <xacro:property name="max_velocity" value="10.0" />
 
   <xacro:property name="arm_mass" value="0.08" />
   <xacro:property name="arm_radius" value="0.02" />
