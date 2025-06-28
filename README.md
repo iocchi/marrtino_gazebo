@@ -155,6 +155,7 @@ Note: robot name is collected from `marrtino_parameters`
 
     `FUNCTION` options:
     square
+    circle
     arms
     head
     all

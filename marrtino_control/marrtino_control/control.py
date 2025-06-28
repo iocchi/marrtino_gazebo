@@ -175,8 +175,6 @@ class MARRtinoController(Node):
         for _ in range(int(ts*100)):
             self.pub_cmd_vel.publish(msg)
             self.rate100.sleep()
-        for _ in range(10):   # wait to complete the movement
-            self.rate100.sleep()
 
     def publish_arm_effort(self, fl, fr, ts=1):
         msg = Float64MultiArray()
@@ -185,8 +183,6 @@ class MARRtinoController(Node):
         for _ in range(int(ts*100)):
             self.pub_arm_effort.publish(msg)
             self.rate100.sleep()
-        for _ in range(10):   # wait to complete the movement
-            self.rate100.sleep()
 
     def publish_head_effort(self, hpan, htilt, ts=1):
         msg = Float64MultiArray()
@@ -194,8 +190,6 @@ class MARRtinoController(Node):
         self.get_logger().info(f'Publishing head effort: {hpan:.3f} {htilt:.3f}')
         for _ in range(int(ts*100)):
             self.pub_head_effort.publish(msg)
-            self.rate100.sleep()
-        for _ in range(10):   # wait to complete the movement
             self.rate100.sleep()
 
     def sleep(self, ts=1):
@@ -266,6 +260,21 @@ class MARRtinoController(Node):
         if 'odom' in self.toplot:
             self.plot_odom()
         
+
+    def circle(self):
+        tm = 10
+        r = 1.0
+        vx = 0.2
+        tm = 2 * math.pi * r / vx
+        az = 2 * math.pi / tm
+
+        self.publish_cmd_vel(vx,az,tm)
+        self.stop()
+        
+        if 'velctrl' in self.toplot:
+            self.plot_velctrl()
+        if 'odom' in self.toplot:
+            self.plot_odom()
         
 
     def arms(self):
