@@ -98,19 +98,19 @@ def generate_launch_description():
         arguments=['joint_state_broadcaster'],
     )
 
-    marrtino_controller_spawner = Node(
+    diff_drive_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
         output='screen',
         arguments=[
-            PythonExpression(["'", robot_name, "_controller'"]),
+            'diff_drive_controller',
             '--param-file',
             robot_controllers,
             ],
     )
 
 
-    has_arms = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
+    has_arms = PythonExpression(["'", robot_name, "' in ['smarrtino','marrtino_2_arms']" ])
 
     arm_effort_controller_spawner = Node(
         package='controller_manager',
@@ -187,20 +187,20 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner,
-                on_exit=[marrtino_controller_spawner],
+                on_exit=[diff_drive_controller_spawner],
             )
         ),
 
         RegisterEventHandler(
             event_handler=OnProcessExit(
-                target_action=marrtino_controller_spawner,
+                target_action=diff_drive_controller_spawner,
                 on_exit=[arm_effort_controller_spawner],
             )
         ),
 
         RegisterEventHandler(
             event_handler=OnProcessExit(
-                target_action=marrtino_controller_spawner,
+                target_action=diff_drive_controller_spawner,
                 on_exit=[head_effort_controller_spawner],
             )
         ),

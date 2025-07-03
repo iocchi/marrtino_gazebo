@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<robot name="ddrive_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:arg name="namespace" default="" />
+
+  <xacro:include filename="$(find marrtino_gazebo)/urdf/marrtino_base.urdf.xacro" />
+
+  <xacro:marrtino_base />
+
+  <xacro:marrtino_sensors />
+
+  <xacro:marrtino_arms />
+
+  <gazebo>
+    <!-- Joint state publisher -->
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <ros>
+        <namespace>$(arg namespace)</namespace>
+      </ros>
+      <parameters>$(find gz_ros2_control_demos)/config/diff_drive_controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+  <xacro:property name="max_wheel_velocity" value="10.0" />
+  <xacro:property name="max_arm_effort" value="100.0" />
+
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="left_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">${-max_wheel_velocity}</param>
+        <param name="max">${max_wheel_velocity}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">${-max_wheel_velocity}</param>
+        <param name="max">${max_wheel_velocity}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_arm_joint">
+      <command_interface name="effort">
+        <param name="min">${-max_arm_effort}</param>
+        <param name="max">${max_arm_effort}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${-pi}</param>
+        <param name="max">${pi}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_arm_joint">
+      <command_interface name="effort">
+        <param name="min">${-max_arm_effort}</param>
+        <param name="max">${max_arm_effort}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${-pi}</param>
+        <param name="max">${pi}</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+
+</robot>
+

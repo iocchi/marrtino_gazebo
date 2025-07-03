@@ -8,7 +8,11 @@ controller_manager:
     diff_drive_controller:
       type: diff_drive_controller/DiffDriveController
 
+    arm_effort_controller:
+      type: effort_controllers/JointGroupEffortController
 
+    arm_position_controller:
+      type: forward_command_controller/ForwardCommandController
 
 diff_drive_controller:
   ros__parameters:
@@ -16,9 +20,9 @@ diff_drive_controller:
     left_wheel_names: ["left_wheel_joint"]
     right_wheel_names: ["right_wheel_joint"]
 
-    wheel_separation: 0.43
-    wheels_per_side: 1  # 1 wheel for each side of the robot
-    wheel_radius: 0.06 
+    wheel_separation: 0.465
+    #wheels_per_side: 1  # actually 2, but both are controlled by 1 signal
+    wheel_radius: 0.1
 
     wheel_separation_multiplier: 1.0
     left_wheel_radius_multiplier: 1.0
@@ -53,8 +57,47 @@ diff_drive_controller:
     angular.z.has_jerk_limits: false
     angular.z.max_velocity: 2.0
     angular.z.min_velocity: -2.0
-    angular.z.max_acceleration: 20.0
+    angular.z.max_acceleration: 10.0
+    angular.z.min_acceleration: -10.0
     angular.z.max_jerk: 0.0
     angular.z.min_jerk: 0.0
 
+
+arm_effort_controller:
+  ros__parameters:
+    type: effort_controllers/JointGroupEffortController
+    joints:
+      - left_arm_joint
+      - right_arm_joint
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
+      - velocity
+
+
+
+arm_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: position
+    joints:
+      - left_arm_joint
+      - right_arm_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    gains: # PID gains for each joint
+      left_arm_joint:
+        p: 100.0
+        i: 0.1
+        d: 1.0
+        i_clamp: 10.0 # Optional: clamp for integral windup
+      right_arm_joint:
+        p: 100.0
+        i: 0.1
+        d: 1.0
+        i_clamp: 5.0
 

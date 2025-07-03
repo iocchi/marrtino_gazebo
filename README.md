@@ -138,6 +138,7 @@ Run the simulation
 
     ROBOT_NAME options:
     marrtino
+    marrtino_2_arms
     smarrtino
     marrtina   TODO
 
