@@ -34,7 +34,7 @@ class MARRtinoController(Node):
         self.get_logger().info(f'plot: {self.toplot}')
 
         
-        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/{robot_name}_controller/cmd_vel', 10)
+        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/diff_drive_controller/cmd_vel', 10)
         self.pub_arm_effort = self.create_publisher(Float64MultiArray, f'/arm_effort_controller/commands', 100)
         self.pub_head_effort = self.create_publisher(Float64MultiArray, f'/head_effort_controller/commands', 100)
 

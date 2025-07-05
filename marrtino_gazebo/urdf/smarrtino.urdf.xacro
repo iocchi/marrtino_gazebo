@@ -45,6 +45,7 @@
   <material name="black"><color rgba="0 0 0 1.0"/></material>
   <material name="grey"><color rgba="0.7 0.7 0.7 1.0"/></material>
   <material name="white"><color rgba="1 1 1 1.0"/></material>
+  <material name="green_t"><color rgba="0 1 0 0.5"/></material>
 
 
   <link name="base_footprint"/>
@@ -147,6 +148,21 @@
       </geometry>      
       <origin xyz="0.045 0 0.01" rpy="0 ${pi/2} 0"/>
       <material name="black"/>
+    </visual>
+
+    <visual>
+      <geometry>
+          <cylinder radius="0.06" length="0.002"/>
+      </geometry>      
+      <origin xyz="0.045 0 0.01" rpy="0 ${pi/2} 0"/>
+      <material name="black"/>
+    </visual>
+
+    <visual name="front">
+      <origin xyz="0.047 0 -0.04" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="$(find marrtino_gazebo)/urdf/meshes/face.dae" scale="0.01 0.20 0.20" />
+      </geometry>
     </visual>
     
     <collision>

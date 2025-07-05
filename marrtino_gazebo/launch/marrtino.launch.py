@@ -88,7 +88,8 @@ def generate_launch_description():
         executable='create',
         output='screen',
         arguments=['-topic', 'robot_description',
-                   '-name', robot_name, '-allow_renaming', 'true'],
+                   '-name', robot_name, '-allow_renaming', 'true',
+                   '-yaw', '3.14' ],
     )
     
     joint_state_broadcaster_spawner = Node(
