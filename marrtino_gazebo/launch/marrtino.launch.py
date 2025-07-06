@@ -170,8 +170,8 @@ def generate_launch_description():
 
     return LaunchDescription([
         robot_name_arg,
+        control_interface_args,
         world_file_arg,
-
     
         # Launch gazebo environment
         IncludeLaunchDescription(
