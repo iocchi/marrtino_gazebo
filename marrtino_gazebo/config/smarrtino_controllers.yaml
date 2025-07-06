@@ -9,10 +9,22 @@ controller_manager:
       type: diff_drive_controller/DiffDriveController
 
     arm_effort_controller:
-      type: effort_controllers/JointGroupEffortController
+      type: forward_command_controller/ForwardCommandController
+
+    arm_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    arm_position_controller:
+      type: forward_command_controller/ForwardCommandController
 
     head_effort_controller:
-      type: effort_controllers/JointGroupEffortController
+      type: forward_command_controller/ForwardCommandController
+
+    head_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    head_position_controller:
+      type: forward_command_controller/ForwardCommandController
 
 
 diff_drive_controller:
@@ -63,7 +75,7 @@ diff_drive_controller:
     angular.z.min_jerk: 0.0
 
 
-arm_effort_controller:
+arm_effort_controller_old:
   ros__parameters:
     type: effort_controllers/JointGroupEffortController
     joints:
@@ -75,7 +87,7 @@ arm_effort_controller:
       - position
       - velocity
 
-head_effort_controller:
+head_effort_controller_old:
   ros__parameters:
     type: effort_controllers/JointGroupEffortController
     joints:
@@ -87,4 +99,51 @@ head_effort_controller:
       - position
       - velocity
 
+arm_effort_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: effort
+    joints:
+      - left_arm_joint
+      - right_arm_joint
+
+arm_velocity_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: velocity
+    joints:
+      - left_arm_joint
+      - right_arm_joint
+
+arm_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: position
+    joints:
+      - left_arm_joint
+      - right_arm_joint
+
+head_effort_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: effort
+    joints:
+      - pan_head_joint
+      - tilt_head_joint
+
+head_velocity_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: velocity
+    joints:
+      - pan_head_joint
+      - tilt_head_joint
+
+head_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: position
+    joints:
+      - pan_head_joint
+      - tilt_head_joint
 

@@ -29,13 +29,17 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
     gz_args = LaunchConfiguration('gz_args', default='')
 
-    pkg_share = FindPackageShare('marrtino_gazebo')
-
 
     robot_name_arg = DeclareLaunchArgument(
         'robot_name',
         default_value=TextSubstitution(text='marrtino'),
         description='Name of the robot to spawn.'
+    )
+
+    control_interface_args = DeclareLaunchArgument(
+        'control_interface',
+        default_value=TextSubstitution(text='effort'),
+        description='control interface [effort|velocity|position]'
     )
 
     world_file_arg = DeclareLaunchArgument(
@@ -45,7 +49,10 @@ def generate_launch_description():
     )
     
     robot_name = LaunchConfiguration('robot_name')
+    control_interface = LaunchConfiguration('control_interface')
     world_file = LaunchConfiguration('world_file')   
+
+    pkg_share = FindPackageShare('marrtino_gazebo')
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -79,7 +86,9 @@ def generate_launch_description():
         emulate_tty=True,   # Crucial for some Python nodes to ensure proper I/O and executable lookup
         parameters=[
             {'robot_name': PythonExpression( [ "'", robot_name, "'" ])}, 
-            {'test': 'test1'}, ]
+            {'control_interface': PythonExpression( [ "'", control_interface, "'" ])}, 
+            {'world': PythonExpression( [ "'", world_file, "'" ])}, 
+            ]
     )
 
 
@@ -88,8 +97,7 @@ def generate_launch_description():
         executable='create',
         output='screen',
         arguments=['-topic', 'robot_description',
-                   '-name', robot_name, '-allow_renaming', 'true',
-                   '-yaw', '3.14' ],
+                   '-name', robot_name, '-allow_renaming', 'true',],
     )
     
     joint_state_broadcaster_spawner = Node(
@@ -113,12 +121,12 @@ def generate_launch_description():
 
     has_arms = PythonExpression(["'", robot_name, "' in ['smarrtino','marrtino_2_arms']" ])
 
-    arm_effort_controller_spawner = Node(
+    arm_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
         output='screen',
         arguments=[
-            'arm_effort_controller',
+            PythonExpression( ["'arm_", control_interface, "_controller'" ] ),
             '--param-file',
             robot_controllers,
             ],
@@ -127,12 +135,12 @@ def generate_launch_description():
 
     has_head = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
 
-    head_effort_controller_spawner = Node(
+    head_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
         output='screen',
         arguments=[
-            'head_effort_controller',
+            PythonExpression( ["'head_", control_interface, "_controller'" ] ),
             '--param-file',
             robot_controllers,
             ],
@@ -191,18 +199,17 @@ def generate_launch_description():
                 on_exit=[diff_drive_controller_spawner],
             )
         ),
-
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=diff_drive_controller_spawner,
-                on_exit=[arm_effort_controller_spawner],
+                on_exit=[arm_controller_spawner],
             )
         ),
 
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=diff_drive_controller_spawner,
-                on_exit=[head_effort_controller_spawner],
+                on_exit=[head_controller_spawner],
             )
         ),
         

@@ -9,7 +9,10 @@ controller_manager:
       type: diff_drive_controller/DiffDriveController
 
     arm_effort_controller:
-      type: effort_controllers/JointGroupEffortController
+      type: forward_command_controller/ForwardCommandController
+
+    arm_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
 
     arm_position_controller:
       type: forward_command_controller/ForwardCommandController
@@ -63,7 +66,7 @@ diff_drive_controller:
     angular.z.min_jerk: 0.0
 
 
-arm_effort_controller:
+arm_effort_controller_old:
   ros__parameters:
     type: effort_controllers/JointGroupEffortController
     joints:
@@ -75,7 +78,21 @@ arm_effort_controller:
       - position
       - velocity
 
+arm_effort_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: effort
+    joints:
+      - left_arm_joint
+      - right_arm_joint
 
+arm_velocity_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: velocity
+    joints:
+      - left_arm_joint
+      - right_arm_joint
 
 arm_position_controller:
   ros__parameters:
@@ -84,20 +101,6 @@ arm_position_controller:
     joints:
       - left_arm_joint
       - right_arm_joint
-    command_interfaces:
-      - position
-    state_interfaces:
-      - position
-      - velocity
-    gains: # PID gains for each joint
-      left_arm_joint:
-        p: 100.0
-        i: 0.1
-        d: 1.0
-        i_clamp: 10.0 # Optional: clamp for integral windup
-      right_arm_joint:
-        p: 100.0
-        i: 0.1
-        d: 1.0
-        i_clamp: 5.0
+
+
 

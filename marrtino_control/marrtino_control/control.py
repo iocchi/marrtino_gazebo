@@ -22,8 +22,11 @@ class MARRtinoController(Node):
     def __init__(self):
         super().__init__(NODE_NAME)
 
-        robot_name = self.get_ext_parameters(['robot_name'])[0]
-        self.get_logger().info(f'robot_name: {robot_name}')
+        params = self.get_ext_parameters(['robot_name', 'control_interface'])
+        self.robot_name = params[0]
+        self.get_logger().info(f'robot_name: {self.robot_name}')
+        self.control_interface = params[1]
+        self.get_logger().info(f'control_interface: {self.control_interface}')
 
         self.declare_parameter('fn', 'none')
         self.fn = self.get_parameter('fn').value
@@ -32,12 +35,23 @@ class MARRtinoController(Node):
         self.declare_parameter('plot', 'none')
         self.toplot = self.get_parameter('plot').value
         self.get_logger().info(f'plot: {self.toplot}')
-
         
+        # publishers
         self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/diff_drive_controller/cmd_vel', 10)
-        self.pub_arm_effort = self.create_publisher(Float64MultiArray, f'/arm_effort_controller/commands', 100)
-        self.pub_head_effort = self.create_publisher(Float64MultiArray, f'/head_effort_controller/commands', 100)
+        self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
+        self.pub_head_cmd = self.create_publisher(Float64MultiArray, f'/head_{self.control_interface}_controller/commands', 100)
 
+        # position joint limits
+        self.head_pan_limit = math.pi/2 - 0.001
+        self.head_tilt_limit = math.pi/4 - 0.001
+        if self.robot_name == 'smarrtino':
+            self.arm_lower_limit = -5*math.pi/4 + 0.001
+            self.arm_upper_limit = math.pi/4 - 0.001
+        else:
+            self.arm_lower_limit = -5*math.pi/4 + 0.001
+            self.arm_upper_limit = math.pi/4 - 0.001
+
+        # rates
         self.rate10 = self.create_rate(10) # Hz
         self.rate100 = self.create_rate(100) # Hz
 
@@ -54,13 +68,13 @@ class MARRtinoController(Node):
 
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
-            f'/{robot_name}_controller/odom',      # Topic name
+            f'/{self.robot_name}_controller/odom',      # Topic name
             self.odom_callback, # Callback function
             10                  # QoS (Quality of Service) history depth
         )
         self.sub_cmd_vel = self.create_subscription(
             TwistStamped,           # Message type
-            f'/{robot_name}_controller/cmd_vel',      # Topic name
+            f'/{self.robot_name}_controller/cmd_vel',      # Topic name
             self.cmd_vel_callback,  # Callback function
             10                      # QoS (Quality of Service) history depth
         )
@@ -84,7 +98,7 @@ class MARRtinoController(Node):
         current_use_sim_time = self.get_parameter('use_sim_time').value
         self.get_logger().info(f"Current use_sim_time value: {current_use_sim_time}")
 
-        self.get_logger().info(f'{robot_name} controller node initialized ')
+        self.get_logger().info(f'{self.robot_name} controller node initialized ')
 
 
 
@@ -176,21 +190,60 @@ class MARRtinoController(Node):
             self.pub_cmd_vel.publish(msg)
             self.rate100.sleep()
 
-    def publish_arm_effort(self, fl, fr, ts=1):
-        msg = Float64MultiArray()
-        msg.data = [fl, fr]
-        self.get_logger().info(f'Publishing arm effort: {fl:.3f} {fr:.3f}')
-        for _ in range(int(ts*100)):
-            self.pub_arm_effort.publish(msg)
-            self.rate100.sleep()
+    def publish_arm_command(self, fl, fr, ts=1, interface=None):
+        if interface is None:
+            interface = self.control_interface
+        if self.control_interface == interface:
+        
+            if interface=='position':
+                if fl < self.arm_lower_limit:
+                    fl = self.arm_lower_limit
+                if fl > self.arm_upper_limit:
+                    fl = self.arm_upper_limit
+                if fr < self.arm_lower_limit:
+                    fr = self.arm_lower_limit
+                if fr > self.arm_upper_limit:
+                    fr = self.arm_upper_limit
 
-    def publish_head_effort(self, hpan, htilt, ts=1):
-        msg = Float64MultiArray()
-        msg.data = [hpan, htilt]
-        self.get_logger().info(f'Publishing head effort: {hpan:.3f} {htilt:.3f}')
-        for _ in range(int(ts*100)):
-            self.pub_head_effort.publish(msg)
-            self.rate100.sleep()
+            msg = Float64MultiArray()
+            msg.data = [float(fl), float(fr)]
+            self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
+            for _ in range(int(ts*100)):
+                self.pub_arm_cmd.publish(msg)
+                self.rate100.sleep()
+        else:
+            self.get_logger().warning(f'Cannot send arm {interface} command! Current controller is {self.control_interface}.')
+
+
+    def publish_head_command(self, hpan, htilt, ts=1, interface=None):
+        if interface is None:
+            interface = self.control_interface
+            
+
+
+        if self.control_interface == interface:
+        
+            if interface=='position':
+                if hpan < -self.head_pan_limit:
+                    hpan = -self.head_pan_limit
+                if hpan > self.head_pan_limit:
+                    hpan = self.head_pan_limit
+                if htilt < -self.head_tilt_limit:
+                    htilt = -self.head_tilt_limit
+                if htilt > self.head_tilt_limit:
+                    htilt = self.head_tilt_limit
+
+            msg = Float64MultiArray()
+            msg.data = [float(hpan), float(htilt)]
+            self.get_logger().info(f'Publishing head {interface}: {hpan:.3f} {htilt:.3f}')
+            for _ in range(int(ts*100)):
+                self.pub_head_cmd.publish(msg)
+                self.rate100.sleep()
+        else:
+            self.get_logger().warning(f'Cannot send head {interface} command! Current controller is {self.control_interface}.')
+
+
+
 
     def sleep(self, ts=1):
         for _ in range(int(ts*10)):
@@ -243,8 +296,9 @@ class MARRtinoController(Node):
 
     def stop(self):
         self.publish_cmd_vel(0.0, 0.0)
-        self.publish_arm_effort(0.0, 0.0)
-        self.publish_head_effort(0.0, 0.0)
+        if self.control_interface in ['effort', 'velocity']:
+            self.publish_arm_command(0.0, 0.0)
+            self.publish_head_command(0.0, 0.0)
         self.rate10.sleep()
 
     def square(self):
@@ -278,20 +332,46 @@ class MARRtinoController(Node):
         
 
     def arms(self):
-        self.publish_arm_effort(-0.2, -0.2, 5)
-        self.publish_arm_effort(0.1, 0.1, 7)
-        self.publish_arm_effort(0.0, 0.0)
+        if self.control_interface == 'effort':
+            self.publish_arm_command(-0.2, -0.2, 5)
+            self.publish_arm_command(0.1, 0.1, 7)
+            self.publish_arm_command(0.0, 0.0)
+
+        elif self.control_interface == 'velocity':
+            self.publish_arm_command(-0.5, -0.5, 5)
+            self.publish_arm_command(0.5, 0.5, 7)
+            self.publish_arm_command(0.0, 0.0)
+
+        if self.control_interface == 'position':
+            self.publish_arm_command(self.arm_lower_limit, self.arm_lower_limit, 5)
+            self.publish_arm_command(self.arm_upper_limit, self.arm_upper_limit, 7)
+            self.publish_arm_command(0.0, 0.0, 2)
 
         self.stop()
 
 
     def head(self):
-        self.publish_head_effort(-0.1, 0, 2)
-        self.publish_head_effort(+0.1, 0, 4)
-        self.publish_head_effort(-0.1, 0, 2)
-        self.publish_head_effort(0, -0.1, 1)
-        self.publish_head_effort(0, +0.1, 2)
-        self.publish_head_effort(0, 0)
+        if self.control_interface == 'effort':
+            self.publish_head_command(-0.1, 0, 2)
+            self.publish_head_command(+0.1, 0, 4)
+            self.publish_head_command(-0.1, 0, 2)
+            self.publish_head_command(0, -0.1, 1)
+            self.publish_head_command(0, +0.1, 2)
+            self.publish_head_command(0, 0)
+        elif self.control_interface == 'velocity':
+            self.publish_head_command(-0.7, 0, 2)
+            self.publish_head_command(+0.7, 0, 4)
+            self.publish_head_command(-0.7, 0, 2)
+            self.publish_head_command(0, -0.5, 1)
+            self.publish_head_command(0, +0.5, 2)
+            self.publish_head_command(0, 0)
+        elif self.control_interface == 'position':
+            self.publish_head_command(-self.head_pan_limit, 0, 3)
+            self.publish_head_command(+self.head_pan_limit, 0, 6)
+            self.publish_head_command(0, 0, 3)
+            self.publish_head_command(0, -self.head_tilt_limit, 2)
+            self.publish_head_command(0, +self.head_tilt_limit, 5)
+            self.publish_head_command(0, 0, 2)
 
         self.stop()
 
@@ -305,21 +385,21 @@ class MARRtinoController(Node):
             self.publish_cmd_vel(0.0,0.0,0.5)
             self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
-            self.publish_arm_effort(-k*0.2, k*0.2, 5)
-            self.publish_arm_effort(0, 0, 0.5)
-            self.publish_head_effort(-0.1, 0, 1)
-            self.publish_head_effort(+0.1, 0, 2)
-            self.publish_head_effort(-0.1, 0, 1)
-            self.publish_head_effort(0, 0)
+            self.publish_arm_command(-k*0.2, k*0.2, 5)
+            self.publish_arm_command(0, 0, 0.5)
+            self.publish_head_command(-0.1, 0, 1)
+            self.publish_head_command(+0.1, 0, 2)
+            self.publish_head_command(-0.1, 0, 1)
+            self.publish_head_command(0, 0)
             k *= -1        
 
         # lower both arms
         self.publish_arm_effort(0.1, 0.1, 3)
         self.publish_arm_effort(0, 0, 0.5)
 
-        self.publish_head_effort(0, -0.1, 1)
-        self.publish_head_effort(0, +0.1, 2)
-        self.publish_head_effort(0, 0)
+        self.publish_head_command(0, -0.1, 1)
+        self.publish_head_command(0, +0.1, 2)
+        self.publish_head_command(0, 0)
 
         self.stop()
 

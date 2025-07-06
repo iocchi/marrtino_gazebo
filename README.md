@@ -133,7 +133,7 @@ Note: if you edit anything in `marrtino_control`, relaunch with
 
 Run the simulation
 
-    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> world_file:=<WORLD_FILE>
+    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> control_interface:=<CONTROL_INTERFACE> world_file:=<WORLD_FILE> 
 
 
     ROBOT_NAME options:
@@ -142,6 +142,11 @@ Run the simulation
     smarrtino
     marrtina   TODO
 
+    CONTROL_INTERFACE options:
+    effort
+    velocity
+    position
+
     WORLD_FILE options:
     empty
 
@@ -149,7 +154,7 @@ Run the simulation
 
 Run the control program
 
-Note: robot name is collected from `marrtino_parameters`
+Note: robot_name and control_interface are collected from `marrtino_parameters`
 
 
     ros2 run marrtino_control control --ros-args -p fn:=<FUNCTION> [ --ros-args -p plot:=<PLOT_STRING> ]

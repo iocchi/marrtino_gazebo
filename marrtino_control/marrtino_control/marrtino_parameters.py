@@ -13,8 +13,8 @@ class MarrtinoParametersNode(Node):
         # 1. Declare parameters with default values
         # These defaults will be overridden by the launch file if provided
         self.declare_parameter('robot_name', 'marrtino')
-        self.declare_parameter('world', 'empty')
-        self.declare_parameter('test', 'test1')
+        self.declare_parameter('control_interface', 'effort')
+        self.declare_parameter('world', 'default')
 
 
 def main(args=None):

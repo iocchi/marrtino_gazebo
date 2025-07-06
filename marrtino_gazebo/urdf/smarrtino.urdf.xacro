@@ -14,10 +14,10 @@
   <xacro:property name="wheel_r" value="0.05" />
   <xacro:property name="wheel_l" value="0.02" />
 
-  <xacro:property name="friction" value="0.001" />
-  <xacro:property name="damping" value="0.001" />
-  <xacro:property name="max_effort" value="1000.0" />
-  <xacro:property name="max_velocity" value="10.0" />
+  <xacro:property name="wheel_friction" value="0.001" />
+  <xacro:property name="wheel_damping" value="0.001" />
+  <xacro:property name="wheel_max_effort" value="100.0" />
+  <xacro:property name="wheel_max_velocity" value="${1 / wheel_r}" /> <!-- 1/r rad/s -> 1 m/s -->
 
   <xacro:property name="arm_mass" value="0.08" />
   <xacro:property name="arm_radius" value="0.02" />
@@ -27,13 +27,19 @@
   <xacro:property name="arm_max_velocity" value="1.0" />
   <xacro:property name="arm_friction" value="0.001" />
   <xacro:property name="arm_damping" value="0.01" />
-
+  <xacro:property name="arm_lower_limit" value="${-5*pi/4}" />
+  <xacro:property name="arm_upper_limit" value="${pi/4}" />
+           
   <xacro:property name="head_mass" value="0.10" />
   <xacro:property name="head_radius" value="0.05" />
   <xacro:property name="head_max_effort" value="30.0" />
   <xacro:property name="head_max_velocity" value="1.0" />
   <xacro:property name="head_friction" value="0.02" />
   <xacro:property name="head_damping" value="0.02" />
+  <xacro:property name="head_pan_lower_limit" value="${-pi/2}" />
+  <xacro:property name="head_pan_upper_limit" value="${pi/2}" />
+  <xacro:property name="head_tilt_lower_limit" value="${-pi/4}" />
+  <xacro:property name="head_tilt_upper_limit" value="${pi/4}" />
 
 
   <xacro:include filename="$(find marrtino_gazebo)/urdf/inertia.xacro" />
@@ -237,7 +243,7 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="${head_damping}" friction="${head_friction}"/>
     <limit effort="${head_max_effort}" velocity="${head_max_velocity}"
-           lower="${-pi/4}" upper="${pi/4}" />
+           lower="${head_tilt_lower_limit}" upper="${head_tilt_upper_limit}" />
   </joint>
 
 
@@ -248,7 +254,7 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="${head_damping}" friction="${head_friction}"/>
     <limit effort="${head_max_effort}" velocity="${head_max_velocity}"
-           lower="${-pi/2}" upper="${pi/2}" />
+           lower="${head_pan_lower_limit}" upper="${head_pan_upper_limit}" />
   </joint>
 
 
@@ -263,8 +269,8 @@
     <child link="left_wheel"/>
     <origin xyz="0 ${base_w/2+wheel_l/2} ${wheel_r}" rpy="0 0.0 0.0"/>  
     <axis xyz="0.0 1.0 0.0"/>
-    <dynamics damping="${damping}" friction="${friction}"/>
-    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+    <dynamics damping="${wheel_damping}" friction="${wheel_friction}"/>
+    <limit effort="${wheel_max_effort}" velocity="${wheel_max_velocity}"/>
   </joint>
 
   <joint name="right_wheel_joint" type="continuous">
@@ -272,8 +278,8 @@
     <child link="right_wheel"/>
     <origin xyz="0 ${-base_w/2-wheel_l/2} ${wheel_r}" rpy="0 0.0 0.0"/>  
     <axis xyz="0.0 1.0 0.0"/>
-    <dynamics damping="${damping}" friction="${friction}"/>
-    <limit effort="${max_effort}" velocity="${max_velocity}"/>
+    <dynamics damping="${wheel_damping}" friction="${wheel_friction}"/>
+    <limit effort="${wheel_max_effort}" velocity="${wheel_max_velocity}"/>
   </joint>
 
   <joint name="caster_wheel_joint" type="fixed">
@@ -391,7 +397,7 @@
     <axis xyz="0.0 1.0 0.0"/>
     <dynamics damping="${arm_damping}" friction="${arm_friction}"/>
     <limit effort="${arm_max_effort}" velocity="${arm_max_velocity}"
-           lower="${-5*pi/4}" upper="${pi/4}" />
+           lower="${arm_lower_limit}" upper="${arm_upper_limit}" />
   </joint>
 
   <joint name="right_arm_joint" type="revolute">
@@ -401,7 +407,7 @@
     <axis xyz="0.0 1.0 0.0"/>
     <dynamics damping="${arm_damping}" friction="${arm_friction}"/>
     <limit effort="${arm_max_effort}" velocity="${arm_max_velocity}"
-           lower="${-5*pi/4}" upper="${pi/4}" />
+           lower="${arm_lower_limit}" upper="${arm_upper_limit}" />
   </joint>
 
   <joint name="left_arm_body_joint" type="fixed">
@@ -424,48 +430,80 @@
     </hardware>
     <joint name="left_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_velocity}</param>
-        <param name="max">${max_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="right_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_velocity}</param>
-        <param name="max">${max_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="left_arm_joint">
       <command_interface name="effort">
-        <param name="min">-10</param>
-        <param name="max">10</param>
+        <param name="min">${-arm_max_effort}</param>
+        <param name="max">${arm_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-arm_max_velocity}</param>
+        <param name="max">${arm_max_velocity}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${arm_lower_limit}</param>
+        <param name="max">${arm_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="right_arm_joint">
       <command_interface name="effort">
-        <param name="min">-10</param>
-        <param name="max">10</param>
+        <param name="min">${-arm_max_effort}</param>
+        <param name="max">${arm_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-arm_max_velocity}</param>
+        <param name="max">${arm_max_velocity}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${arm_lower_limit}</param>
+        <param name="max">${arm_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="pan_head_joint">
       <command_interface name="effort">
-        <param name="min">-10</param>
-        <param name="max">10</param>
+        <param name="min">${-head_max_effort}</param>
+        <param name="max">${head_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-head_max_velocity}</param>
+        <param name="max">${head_max_velocity}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${head_pan_lower_limit}</param>
+        <param name="max">${head_pan_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="tilt_head_joint">
       <command_interface name="effort">
-        <param name="min">-10</param>
-        <param name="max">10</param>
+        <param name="min">${-head_max_effort}</param>
+        <param name="max">${head_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-head_max_velocity}</param>
+        <param name="max">${head_max_velocity}</param>
+      </command_interface>
+      <command_interface name="position">
+        <param name="min">${head_tilt_lower_limit}</param>
+        <param name="max">${head_tilt_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>

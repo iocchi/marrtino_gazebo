@@ -5,6 +5,14 @@
 
   <xacro:include filename="$(find marrtino_gazebo)/urdf/marrtino_base.urdf.xacro" />
 
+  <xacro:property name="wheel_r" value="0.06" />
+  <xacro:property name="wheel_max_velocity" value="${1 / wheel_r}" /> <!-- 1/r rad/s -> 1 m/s -->
+
+  <xacro:property name="arm_lower_limit" value="${-5*pi/4}" />
+  <xacro:property name="arm_upper_limit" value="${pi/4}" />
+  <xacro:property name="arm_max_effort" value="100" />
+  <xacro:property name="arm_max_velocity" value="1.0" />
+
   <xacro:marrtino_base />
 
   <xacro:marrtino_sensors />
@@ -21,8 +29,7 @@
     </plugin>
   </gazebo>
 
-  <xacro:property name="max_wheel_velocity" value="10.0" />
-  <xacro:property name="max_arm_effort" value="100.0" />
+
 
   <ros2_control name="GazeboSimSystem" type="system">
     <hardware>
@@ -30,40 +37,48 @@
     </hardware>
     <joint name="left_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_wheel_velocity}</param>
-        <param name="max">${max_wheel_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="right_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_wheel_velocity}</param>
-        <param name="max">${max_wheel_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="left_arm_joint">
       <command_interface name="effort">
-        <param name="min">${-max_arm_effort}</param>
-        <param name="max">${max_arm_effort}</param>
+        <param name="min">${-arm_max_effort}</param>
+        <param name="max">${arm_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-arm_max_velocity}</param>
+        <param name="max">${arm_max_velocity}</param>
       </command_interface>
       <command_interface name="position">
-        <param name="min">${-pi}</param>
-        <param name="max">${pi}</param>
+        <param name="min">${arm_lower_limit}</param>
+        <param name="max">${arm_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="right_arm_joint">
       <command_interface name="effort">
-        <param name="min">${-max_arm_effort}</param>
-        <param name="max">${max_arm_effort}</param>
+        <param name="min">${-arm_max_effort}</param>
+        <param name="max">${arm_max_effort}</param>
+      </command_interface>
+      <command_interface name="velocity">
+        <param name="min">${-arm_max_velocity}</param>
+        <param name="max">${arm_max_velocity}</param>
       </command_interface>
       <command_interface name="position">
-        <param name="min">${-pi}</param>
-        <param name="max">${pi}</param>
+        <param name="min">${arm_lower_limit}</param>
+        <param name="max">${arm_upper_limit}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
