@@ -5,6 +5,14 @@
 
   <xacro:include filename="$(find marrtino_gazebo)/urdf/marrtino_base.urdf.xacro" />
 
+  <xacro:property name="wheel_r" value="0.06" />
+  <xacro:property name="wheel_max_velocity" value="${1 / wheel_r}" /> <!-- 1/r rad/s -> 1 m/s -->
+
+  <xacro:property name="arm_lower_limit" value="${-5*pi/4}" />
+  <xacro:property name="arm_upper_limit" value="${pi/4}" />
+  <xacro:property name="arm_max_effort" value="100" />
+  <xacro:property name="arm_max_velocity" value="1.0" />
+
   <xacro:marrtino_base />
 
   <xacro:marrtino_sensors />
@@ -17,30 +25,82 @@
       </ros>
       <parameters>$(find gz_ros2_control_demos)/config/diff_drive_controller.yaml</parameters>
     </plugin>
+
+    <plugin filename="gz-sim-imu-system"
+      name="gz::sim::systems::Imu">
+    </plugin>
+
+      <plugin filename="ImageDisplay" name="Image Display">
+        <gz-gui>
+          <property key="state" type="string">docked</property>
+        </gz-gui>
+        <topic>camera/image</topic>
+      </plugin>
+      
   </gazebo>
 
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <visualize>true</visualize>
+      <topic>imu</topic>
+      <enable_metrics>true</enable_metrics>
+    </sensor>
+  </gazebo>
+  
+  <gazebo reference="camera_link">
+    <sensor name="camera" type="camera">
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>15</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <!-- Noise is sampled independently per pixel on each frame.
+               That pixel's noise value is added to each of its color
+               channels, which at that point lie in the range [0,1]. -->
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+        <optical_frame_id>camera_link</optical_frame_id>
+        <camera_info_topic>camera/camera_info</camera_info_topic>
+      </camera>
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <visualize>true</visualize>
+      <topic>camera/image</topic>
+    </sensor>
+  </gazebo>
+  
   <ros2_control name="GazeboSimSystem" type="system">
     <hardware>
       <plugin>gz_ros2_control/GazeboSimSystem</plugin>
     </hardware>
     <joint name="left_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_velocity}</param>
-        <param name="max">${max_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="right_wheel_joint">
       <command_interface name="velocity">
-        <param name="min">${-max_velocity}</param>
-        <param name="max">${max_velocity}</param>
+        <param name="min">${-wheel_max_velocity}</param>
+        <param name="max">${wheel_max_velocity}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>
-
 
 </robot>
 

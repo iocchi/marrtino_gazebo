@@ -13,6 +13,6 @@ fi
 
 DOCKER_RUNTIME=${DOCKER_RUNTIME} docker compose -f ./docker-compose.yml up -d --force-recreate && \
 sleep 1 && \
-docker exec -it marrtino2_gazebo tmux a
+docker exec -it marrtino2_gz tmux a
 
 

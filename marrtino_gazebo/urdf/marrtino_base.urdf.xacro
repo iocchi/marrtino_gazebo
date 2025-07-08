@@ -161,7 +161,24 @@
             <box size="0.04 0.04 0.02"/>
           </geometry>
           <material name="green"/> 
-        </visual>
+        </visual>        
+      </link>
+
+      <link name="camera_link">
+        <!--visual>
+          <origin xyz="0 0 0.03" rpy="0 0 0" />
+          <geometry>
+            <box size="0.02 0.02 0.06"/>
+          </geometry>
+          <material name="black"/> 
+        </visual>        
+        <visual name="visual_camera_frame">
+          <origin xyz="0 0 ${0.06+0.045}" rpy="0 0.5 0" />
+          <geometry>
+            <box size="0.02 0.12 0.09"/>
+          </geometry>
+          <material name="black"/> 
+        </visual -->
       </link>
 
       <link name="lidar_link">
@@ -178,6 +195,12 @@
         <parent link="base_link"/>
         <child link="imu_link"/>
         <origin xyz="${-base_l/4} 0.0 ${base_h/2+0.01}" rpy="0.0 0.0 0.0"/>
+      </joint>
+
+      <joint name="camera_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="camera_link"/>
+        <origin xyz="0 0.0 ${base_h/2}" rpy="0.0 0.5 0.0"/>
       </joint>
 
       <joint name="base_lidar_joint" type="fixed">

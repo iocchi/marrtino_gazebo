@@ -1,8 +1,8 @@
 services:
 
   marrtino_gazebo:
-    image: marrtino2:gazebo
-    container_name: marrtino2_gazebo
+    image: marrtino2:user
+    container_name: marrtino2_gz
     runtime: ${DOCKER_RUNTIME}
     dns: 8.8.8.8
     network_mode: "host"
@@ -19,7 +19,3 @@ services:
       - $PWD/..:/home/robot/src/marrtino_gazebo
 
 
-#      - $PWD:/home/robot/gazebo
-
-
-# - GZ_SIM_RESOURCE_PATH=/home/robot/gazebo/models/
