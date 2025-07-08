@@ -25,7 +25,8 @@
       <xacro:property name="wheel_damping" value="0.05" />
       <xacro:property name="wheel_max_effort" value="100.0" />
 
-      <link name="base_footprint"/>
+      <link name="base_footprint" />
+
 
       <link name="base_link">
         <visual>
@@ -113,6 +114,8 @@
         <xacro:sphere_inertial mass="0.1" radius="${wheel_r/2}" />
       </link>
 
+
+
       <joint name="base_joint" type="fixed">
         <parent link="base_footprint"/>
         <child link="base_link"/>
@@ -120,9 +123,9 @@
       </joint>
 
       <joint name="battery_joint" type="fixed">
-        <parent link="base_footprint"/>
+        <parent link="base_link"/>
         <child link="battery_link"/>
-        <origin xyz="${base_l/4} 0.0 ${wheel_r*2}" rpy="0.0 0.0 0.0"/>
+        <origin xyz="${base_l/4} 0.0 ${-wheel_r*2}" rpy="0.0 0.0 0.0"/>
       </joint>
 
       <joint name="left_wheel_joint" type="continuous">
@@ -164,26 +167,28 @@
         </visual>        
       </link>
 
+      <link name="camera_optical_link" />
+
       <link name="camera_link">
-        <!--visual>
-          <origin xyz="0 0 0.03" rpy="0 0 0" />
+        <visual>
+          <origin xyz="0 0 0.05" rpy="0 0 0" />
           <geometry>
-            <box size="0.02 0.02 0.06"/>
+            <cylinder radius="0.01" length="0.10"/>
           </geometry>
           <material name="black"/> 
         </visual>        
-        <visual name="visual_camera_frame">
-          <origin xyz="0 0 ${0.06+0.045}" rpy="0 0.5 0" />
+        <visual>
+          <origin xyz="0.01 0 ${0.10+0.02}" rpy="0 ${pi/2+0.6} 0" />
           <geometry>
-            <box size="0.02 0.12 0.09"/>
+            <cylinder radius="0.02" length="0.02"/>
           </geometry>
           <material name="black"/> 
-        </visual -->
+        </visual>
       </link>
 
       <link name="lidar_link">
         <visual>
-            <geometry>      
+            <geometry>
                 <cylinder radius="0.05" length="0.04"/>
             </geometry>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
@@ -200,7 +205,13 @@
       <joint name="camera_joint" type="fixed">
         <parent link="base_link"/>
         <child link="camera_link"/>
-        <origin xyz="0 0.0 ${base_h/2}" rpy="0.0 0.5 0.0"/>
+        <origin xyz="0 0.0 ${base_h/2}" rpy="0.0 0.0 0.0"/>
+      </joint>
+
+      <joint name="camera_optical_joint" type="fixed">
+        <parent link="camera_link"/>
+        <child link="camera_optical_link"/>
+        <origin xyz="0.02 0 ${0.10+0.02}" rpy="0 0.6 0"/>
       </joint>
 
       <joint name="base_lidar_joint" type="fixed">

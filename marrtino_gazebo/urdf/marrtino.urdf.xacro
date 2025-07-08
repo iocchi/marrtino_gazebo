@@ -30,12 +30,12 @@
       name="gz::sim::systems::Imu">
     </plugin>
 
-      <plugin filename="ImageDisplay" name="Image Display">
+      <!-- plugin filename="ImageDisplay" name="Image Display">
         <gz-gui>
           <property key="state" type="string">docked</property>
         </gz-gui>
         <topic>camera/image</topic>
-      </plugin>
+      </plugin -->
       
   </gazebo>
 
@@ -48,18 +48,50 @@
       <enable_metrics>true</enable_metrics>
     </sensor>
   </gazebo>
+
+  <gazebo reference="lidar_link">
+    <sensor name="lidar" type="gpu_lidar">
+      <pose relative_to='lidar_link'>0 0 0.05 0 0 0</pose>
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <visualize>true</visualize>
+      <topic>scan</topic>
+      <gz_frame_id>lidar_link</gz_frame_id>  <!-- ignore warning not defined in SDF -->
+      <ray>
+        <scan>
+            <horizontal>
+                <samples>640</samples>
+                <resolution>1</resolution>
+                <min_angle>${-pi*5/4}</min_angle>
+                <max_angle>${pi*5/4}</max_angle>
+            </horizontal>
+            <vertical>
+                <samples>1</samples>
+                <resolution>0.01</resolution>
+                <min_angle>0</min_angle>
+                <max_angle>0</max_angle>
+            </vertical>
+        </scan>
+        <range>
+            <min>0.05</min>
+            <max>10.0</max>
+            <resolution>0.01</resolution>
+        </range>
+      </ray>
+    </sensor>
+  </gazebo>
   
-  <gazebo reference="camera_link">
+  <gazebo reference="camera_optical_link">
     <sensor name="camera" type="camera">
       <camera>
-        <horizontal_fov>1.3962634</horizontal_fov>
+        <horizontal_fov>2.0</horizontal_fov>
         <image>
           <width>640</width>
           <height>480</height>
           <format>R8G8B8</format>
         </image>
         <clip>
-          <near>0.1</near>
+          <near>0.001</near>
           <far>15</far>
         </clip>
         <noise>
@@ -70,7 +102,6 @@
           <mean>0.0</mean>
           <stddev>0.007</stddev>
         </noise>
-        <optical_frame_id>camera_link</optical_frame_id>
         <camera_info_topic>camera/camera_info</camera_info_topic>
       </camera>
       <always_on>1</always_on>
