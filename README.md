@@ -193,7 +193,15 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
     gz gui -c gui-image.config
 
 
+# websockets
 
+    cd src/marrtino_gazebo/bin
+    ./start_http.bash
+    
+    cd src/marrtino_gazebo/bin
+    ./start_server.bash
+
+    http://localhost:8000
 
 
 
