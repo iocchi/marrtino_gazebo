@@ -178,3 +178,22 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
 
 
 
+# gz sim GUI
+
+
+    export GZ_GUI_RESOURCE_PATH=${GZ_GUI_RESOURCE_PATH}:/usr/lib/x86_64-linux-gnu/gz-gui-8/plugins/
+
+    cd ros2_ws
+
+    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=smarrtino world_file:=empty.world gz_args:="--gui-config src/marrtino_gazebo/config/gui2.config"
+
+## show camera image
+
+    cd src/marrtino_gazebo/marrtino_gazebo/config
+    gz gui -c gui-image.config
+
+
+
+
+
+

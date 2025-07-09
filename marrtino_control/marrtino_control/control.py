@@ -20,6 +20,9 @@ NODE_NAME = 'marrtino_control_client'
 class MARRtinoController(Node):
 
     def __init__(self):
+        
+        rclpy.init()
+
         super().__init__(NODE_NAME)
 
         params = self.get_ext_parameters(['robot_name', 'control_interface'])
@@ -183,8 +186,8 @@ class MARRtinoController(Node):
 
     def publish_cmd_vel(self, lx, az, ts=1):
         msg = TwistStamped()
-        msg.twist.linear.x = lx
-        msg.twist.angular.z = az
+        msg.twist.linear.x = float(lx)
+        msg.twist.angular.z = float(az)
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
         for _ in range(int(ts*100)):
             self.pub_cmd_vel.publish(msg)
@@ -218,8 +221,6 @@ class MARRtinoController(Node):
     def publish_head_command(self, hpan, htilt, ts=1, interface=None):
         if interface is None:
             interface = self.control_interface
-            
-
 
         if self.control_interface == interface:
         
@@ -287,6 +288,11 @@ class MARRtinoController(Node):
 
         plt.show()
         self.get_logger().info("Plot displayed. Close the plot window to terminate the script.")
+
+    def quit(self):
+        self.destroy_node()
+        rclpy.shutdown()
+
 
     def run(self):
         if self.fn != 'none':
@@ -410,13 +416,12 @@ class MARRtinoController(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    marrtino_controller = MARRtinoController()
+    
+    robot = MARRtinoController()
 
-    marrtino_controller.run()
+    robot.run()
 
-    marrtino_controller.destroy_node()
-    rclpy.shutdown()
+    robot.quit()
 
 
 if __name__ == '__main__':

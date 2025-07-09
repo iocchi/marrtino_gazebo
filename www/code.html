@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Python Code Sender</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
+        .CodeMirror {
+            border: 1px solid #ccc;
+            height: 250px; /* Adjust height as needed */
+            width: 600px; /* Adjust width as needed */
+            margin-bottom: 10px;
+            font-size: 14px; /* Adjust font size */
+        }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { color:#ffffff; background-color: #0056b3; }
+        button:disabled { color:#000000; background-color: #565757; }
+        #status { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
+    </style>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    </head>
+<body>
+    <h1>Send Python Code via WebSocket</h1>
+
+
+    <textarea id="codeEditor"></textarea>
+
+    <table>
+        <td> <button id="connectButton">Connect to Server</button> </td>
+        <td> <button id="sendButton">Send Code to Server</button>  </td>
+    </table>
+    
+
+    <div id="status">
+        <p>Status: Not connected.</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/display/rulers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.js"></script> <script>
+        // Initialize CodeMirror
+        const codeEditorElement = document.getElementById('codeEditor');
+        const editor = CodeMirror.fromTextArea(codeEditorElement, {
+            mode: 'python',
+            theme: 'dracula', // Or 'default', 'material', etc.
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            extraKeys: {
+                "Tab": function(cm) {
+                    if (cm.somethingSelected()) {
+                        cm.indentSelection("add");
+                    } else {
+                        cm.replaceSelection(Array(cm.getOption("indentUnit") + 1).join(" "), "end");
+                    }
+                },
+                "Shift-Tab": function(cm) {
+                    cm.indentSelection("subtract");
+                }
+            }
+        });
+
+        // Set some initial Python code
+        editor.setValue(`
+robot.arms()
+
+`);
+
+
+        const sendButton = document.getElementById('sendButton');
+        const connectButton = document.getElementById('connectButton');
+        const statusDiv = document.getElementById('status');
+        let websocket;
+
+        function updateStatus(message, color = 'black') {
+            statusDiv.innerHTML = `<p style="color: ${color};">${message}</p>`;
+        }
+
+        function connectWebSocket() {
+            websocket = new WebSocket('ws://localhost:8765');
+
+            websocket.onopen = function(event) {
+                updateStatus('Status: Connected to WebSocket server.', 'green');
+                sendButton.disabled = false;
+            };
+
+            websocket.onmessage = function(event) {
+                console.log('Message from server:', event.data);
+                const data = JSON.parse(event.data);
+                if (data.status == 'success') {
+                    updateStatus(`Status: ${data.message}`, 'blue');
+                } else {
+                    updateStatus(`Status: Error - ${data.message}`, 'red');
+                }
+                if (data.disable_send == 'true') {
+                    sendButton.disabled = true;
+                    sendButton.color = GrayText;
+                } else {
+                    sendButton.disabled = false;
+                    sendButton.color = WhiteText;
+                }
+            };
+
+            websocket.onclose = function(event) {
+                if (event.wasClean) {
+                    updateStatus(`Status: Connection closed cleanly, code=${event.code}, reason=${event.reason}`, 'orange');
+                } else {
+                    updateStatus('Status: Connection died unexpectedly.', 'red');
+                }
+                sendButton.disabled = true;
+                // Optional: Attempt to reconnect after a delay
+                // setTimeout(connectWebSocket, 5000);
+            };
+
+            websocket.onerror = function(error) {
+                updateStatus('Status: WebSocket Error: ' + error.message, 'red');
+                sendButton.disabled = true;
+            };
+        }
+
+        connectButton.addEventListener('click', () => {
+            connectWebSocket();
+            sendButton.color = GrayText;
+        });
+
+
+        sendButton.addEventListener('click', () => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const codeToSend = editor.getValue(); // Get content from CodeMirror
+                if (codeToSend.trim() !== '') {
+                    // Send code as a JSON object
+                    websocket.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
+                    updateStatus('Status: Sending code...', 'purple');
+                    // editor.setValue(''); // Optional: Clear editor after sending
+                } else {
+                    updateStatus('Status: Please enter some code to send.', 'orange');
+                }
+            } else {
+                updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
+            }
+        });
+
+        // Connect to WebSocket when the page loads
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>
+
