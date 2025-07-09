@@ -171,4 +171,10 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
     odom
     
 
+# Rviz
+
+    cd src/marrtino_gazebo/marrtino_gazebo/config
+    ros2 run rviz rviz -d marrtino.rviz
+
+
 
