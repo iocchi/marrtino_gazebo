@@ -19,10 +19,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # install libraries and ros packages 
 
-# Remove ROS signatures 
-RUN rm -f /etc/apt/sources.list.d/ros2* && \
-    rm -f /usr/share/keyrings/ros* && \
-    rm -rf /var/lib/apt/lists/*
+# Remove ROS signatures (if ros:jazzy-ros-base-noble old)
+#RUN rm -f /etc/apt/sources.list.d/ros2* && \
+#    rm -f /usr/share/keyrings/ros* && \
+#    rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -39,19 +39,14 @@ RUN apt update && \
 
 USER root
 
-# -k remove check insecure
-#RUN curl -k -sSL https://packages.ros.org/ros2/ros2.key | sudo apt-key add - 
+# Add new ROS signatures (if ros:jazzy-ros-base-noble old)
+#RUN apt update && \
+#    apt install -y software-properties-common && \
+#    add-apt-repository universe
 
-#RUN echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" >> /etc/apt/sources.list.d/ros2.list 
-
-
-RUN apt update && \
-    apt install -y software-properties-common && \
-    add-apt-repository universe
-
-RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') && \
-    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $UBUNTU_CODENAME)_all.deb" && \
-    apt install -y /tmp/ros2-apt-source.deb
+#RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') && \
+#    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo $UBUNTU_CODENAME)_all.deb" && \
+#    apt install -y /tmp/ros2-apt-source.deb
 
 RUN apt update && apt install -y --no-install-recommends \
         ros-${ROS_DISTRO}-turtlesim  ~nros-${ROS_DISTRO}-rqt*
