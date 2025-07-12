@@ -9,7 +9,7 @@
       <visual name="visual_back">
         <pose>+0.0021 0 0 0 1.5714 0</pose>
         <geometry>
-          <box> <size>0.7 0.6 0.001</size></box>
+          <box> <size>0.7 0.6 0.001</size></box>  <!-- height width 0.001 -->
         </geometry>
         <material>
           <ambient>1 1 1 1</ambient>
@@ -23,7 +23,7 @@
         <geometry>
           <mesh>
             <uri>model://poster/meshes/poster.dae</uri>
-            <scale>1 0.6 0.7</scale>
+            <scale>1 0.6 0.7</scale> <!-- 1 width height -->
           </mesh>
         </geometry>
       </visual>
