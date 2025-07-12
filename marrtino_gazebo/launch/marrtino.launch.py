@@ -154,6 +154,8 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            '/world/default/create@ros_gz_interfaces/srv/SpawnEntity@gz.msgs.EntityFactory@gz.msgs.Boolean',
+            '/world/default/remove@ros_gz_interfaces/srv/DeleteEntity@gz.msgs.Entity@gz.msgs.Boolean',
             '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
@@ -188,7 +190,7 @@ def generate_launch_description():
                                        'gz_sim.launch.py'])]),
 
             launch_arguments = [ 
-                ('gz_args', [gz_args, ' -r -v 1 ', 
+                ('gz_args', [gz_args, ' -r -v 4 ', 
                     PathJoinSubstitution([pkg_share, 'worlds/', world_file]) ]),
                 ('on_exit_shutdown', 'True' ),
              ] ),
