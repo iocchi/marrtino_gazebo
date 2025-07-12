@@ -29,8 +29,9 @@
     <textarea id="codeEditor"></textarea>
 
     <table>
-        <td> <button id="connectButton">Connect to Server</button> </td>
-        <td> <button id="sendButton">Send Code to Server</button>  </td>
+        <td> <button id="connectButton">CONNECT</button> </td>
+        <td> <button id="sendButton">RUN</button>  </td>
+        <td> <button id="stopButton">STOP</button>  </td>
     </table>
     
 
@@ -76,8 +77,10 @@ robot.arms()
 `);
 
 
-        const sendButton = document.getElementById('sendButton');
         const connectButton = document.getElementById('connectButton');
+        const sendButton = document.getElementById('sendButton');
+        const stopButton = document.getElementById('stopButton');
+
         const statusDiv = document.getElementById('status');
         let websocket;
 
@@ -144,6 +147,15 @@ robot.arms()
                 } else {
                     updateStatus('Status: Please enter some code to send.', 'orange');
                 }
+            } else {
+                updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
+            }
+        });
+
+        stopButton.addEventListener('click', () => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
+                updateStatus('Status: Sent signal STOP', 'purple');
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }

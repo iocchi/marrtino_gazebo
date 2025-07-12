@@ -1,12 +1,40 @@
 import asyncio
 import websockets
 import json
+import threading
+
+#from websockets.asyncio.client import connect
+from websockets.sync.client import connect
 
 from control import MARRtinoController
 
 robot = MARRtinoController()
 
+code_running = None
+websocket = None
+
+def run_code(websocket):
+    if code_running is not None:
+        exec(code_running)
+        asyncio.run(notify_thread_completed(websocket))
+
+def run_thread(code, websocket):
+    global code_running
+    print("Running code in a thread ...")
+    code_running = code
+    t = threading.Thread(target=run_code, args=(websocket, ))
+    t.start()
+    print("Running code in a thread started.")
+
+async def notify_thread_completed(websocket):
+    global code_running
+    print('Code execution completed.')
+    code_running = None
+    # notify termination to JS client websocket
+    await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
+
 async def echo(websocket):
+    global code_running
     print(f"Client connected from {websocket.remote_address}")
     try:
         async for message in websocket:
@@ -17,18 +45,30 @@ async def echo(websocket):
                     received_text = data["text"]
                     print(f"Text:\n{received_text}")
                     await websocket.send(json.dumps({"status": "success", "message": "Text received!"}))
-                if "code" in data:
+                elif "code" in data:
                     received_code = data["code"]
-                    print(f"Python code:\n{received_code}")
-                    await websocket.send(json.dumps({"status": "success", "message": "Code running!", "disable_send": "true"}))
-                    try:
-                        exec(received_code)
+                    if code_running is None:
+                        print(f"Python code:\n{received_code}")
+                        await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
+                        try:
+                            run_thread(received_code, websocket)
+                        except Exception as e:
+                            print(f"Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    else:
+                        await websocket.send(json.dumps({"status": "error", "message": "Code running", "disable_send": "false"}))
+                elif "signal" in data:
+                    received_signal = data["signal"]
+                    print(f"Signal code:\n{received_signal}")
+                    if received_signal == 'DONE':
+                        print("sending code completed !!!")
                         await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    elif received_signal == 'STOP':
+                        print("sending STOP !!!")
+                        await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
+                        robot.user_stop = True
                 else:
-                    print("Received message does not contain 'text' key.")
+                    print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))
             except json.JSONDecodeError:
                 print(f"Received non-JSON message: {message}")

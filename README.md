@@ -205,3 +205,12 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
 
 
 
+# Spawn objects in world
+
+    cd src/marrtino_gazebo/marrtino_gazebo/src
+
+    python gz_objects.py -h
+
+Example
+
+    python gz_objects.py -a objs.conf

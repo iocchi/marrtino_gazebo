@@ -69,6 +69,10 @@ class MARRtinoController(Node):
         self.ts0 = None
         self.ts = 0
 
+        # user request to stop the robot
+        self.user_stop = False
+
+
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
             f'/{self.robot_name}_controller/odom',      # Topic name
@@ -184,6 +188,7 @@ class MARRtinoController(Node):
         self.inputs[0].append(msg.twist.linear.x)
         self.inputs[1].append(msg.twist.angular.z)
 
+
     def publish_cmd_vel(self, lx, az, ts=1):
         msg = TwistStamped()
         msg.twist.linear.x = float(lx)
@@ -192,6 +197,15 @@ class MARRtinoController(Node):
         for _ in range(int(ts*100)):
             self.pub_cmd_vel.publish(msg)
             self.rate100.sleep()
+            if self.user_stop:
+                break
+        if self.user_stop:
+            self.user_stop = False
+            self.stop()
+
+    
+    def setSpeed(self, lx, az, ts=1):
+        self.publish_cmd_vel(lx, az, ts)
 
     def publish_arm_command(self, fl, fr, ts=1, interface=None):
         if interface is None:
@@ -214,6 +228,11 @@ class MARRtinoController(Node):
             for _ in range(int(ts*100)):
                 self.pub_arm_cmd.publish(msg)
                 self.rate100.sleep()
+                if self.user_stop:
+                    break
+            if self.user_stop:
+                self.user_stop = False
+                self.stop()
         else:
             self.get_logger().warning(f'Cannot send arm {interface} command! Current controller is {self.control_interface}.')
 
@@ -240,6 +259,11 @@ class MARRtinoController(Node):
             for _ in range(int(ts*100)):
                 self.pub_head_cmd.publish(msg)
                 self.rate100.sleep()
+                if self.user_stop:
+                    break
+            if self.user_stop:
+                self.user_stop = False
+                self.stop()
         else:
             self.get_logger().warning(f'Cannot send head {interface} command! Current controller is {self.control_interface}.')
 
@@ -302,10 +326,12 @@ class MARRtinoController(Node):
 
     def stop(self):
         self.publish_cmd_vel(0.0, 0.0)
-        if self.control_interface in ['effort', 'velocity']:
+        if self.robot_name!='marrtino' and self.control_interface in ['effort', 'velocity']:
             self.publish_arm_command(0.0, 0.0)
+        if self.robot_name=='smarrtino' and self.control_interface in ['effort', 'velocity']:
             self.publish_head_command(0.0, 0.0)
         self.rate10.sleep()
+        self.user_stop = False
 
     def square(self):
         for _ in range(4):
@@ -336,6 +362,24 @@ class MARRtinoController(Node):
         if 'odom' in self.toplot:
             self.plot_odom()
         
+    # relative forward/backward
+    def forward(self, m):
+        lx = 0.2
+        if (m<0):
+            lx *= -1
+        tm = abs(m) / abs(lx)
+        self.setSpeed(lx,0,tm)
+        self.setSpeed(0,0,0.2)
+
+    # relative turn
+    def turn(self, deg):
+        az = 0.5
+        if (deg<0):
+            az *= -1
+        tm = abs(deg)/180.0*math.pi / abs(az)
+        self.setSpeed(0,az,tm)
+        self.setSpeed(0,0,0.2)
+
 
     def arms(self):
         if self.control_interface == 'effort':
