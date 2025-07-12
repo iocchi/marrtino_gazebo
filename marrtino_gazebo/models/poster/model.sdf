@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="poster">
+
+    <static>true</static>
+    
+    <link name="link">
+
+      <visual name="visual_back">
+        <pose>+0.0021 0 0 0 1.5714 0</pose>
+        <geometry>
+          <box> <size>0.7 0.6 0.001</size></box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>1 1 1 1</specular>        
+        </material>
+      </visual>
+
+      <visual name="visual_front">
+        <pose>0 0 0 0 0 3.14</pose>
+        <geometry>
+          <mesh>
+            <uri>model://poster/meshes/poster.dae</uri>
+            <scale>1 0.6 0.7</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+  </model>
+</sdf>
