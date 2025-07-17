@@ -174,7 +174,7 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
 # Rviz
 
     cd src/marrtino_gazebo/marrtino_gazebo/config
-    ros2 run rviz rviz -d marrtino.rviz
+    ros2 run rviz2 rviz2 -d marrtino.rviz
 
 
 
@@ -201,8 +201,9 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
     cd src/marrtino_gazebo/bin
     ./start_server.bash
 
-    http://localhost:8000
+    http://localhost:8000/code.html
 
+        robot.circle()
 
 
 # Spawn objects in world
@@ -214,3 +215,34 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
 Example
 
     python gz_objects.py -a objs.conf
+
+
+# Create a new control script
+
+## Create your new control script 
+
+    cd src/marrtino_gazebo/marrtino_control/marrtino_control
+
+    cp control.py control_<my_name>.py
+
+## Edit setup.py
+
+    cd src/marrtino_gazebo/marrtino_control/
+
+Edit `setup.py` to add a line in the entry points like this
+
+        'control_<my_name> = marrtino_control.control_<my_name>:main', 
+
+## Edit your control script
+
+    Edit `control_<my_name>.py` to implement a new controller function
+
+    def my_new_controller():
+        ...
+
+
+## Run your new controller
+
+    cd ros2_ws
+    colcon build && ros2 run marrtino_control control_<my_name> --ros-args -p fn:=my_new_controller
+

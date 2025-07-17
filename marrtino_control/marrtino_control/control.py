@@ -31,7 +31,7 @@ class MARRtinoController(Node):
         self.control_interface = params[1]
         self.get_logger().info(f'control_interface: {self.control_interface}')
 
-        self.declare_parameter('fn', 'none')
+        self.declare_parameter('fn', 'square')
         self.fn = self.get_parameter('fn').value
         self.get_logger().info(f'control function: {self.fn}')
 
@@ -75,13 +75,13 @@ class MARRtinoController(Node):
 
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
-            f'/{self.robot_name}_controller/odom',      # Topic name
+            f'/diff_drive_controller/odom',      # Topic name
             self.odom_callback, # Callback function
             10                  # QoS (Quality of Service) history depth
         )
         self.sub_cmd_vel = self.create_subscription(
             TwistStamped,           # Message type
-            f'/{self.robot_name}_controller/cmd_vel',      # Topic name
+            f'/diff_drive_controller/cmd_vel',      # Topic name
             self.cmd_vel_callback,  # Callback function
             10                      # QoS (Quality of Service) history depth
         )
