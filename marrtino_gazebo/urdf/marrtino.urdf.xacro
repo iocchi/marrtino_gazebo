@@ -2,6 +2,7 @@
 <robot name="marrtino" xmlns:xacro="http://ros.org/wiki/xacro">
 
   <xacro:arg name="namespace" default="" />
+  <xacro:arg name="battery_x_factor" default="1.0" />
 
   <xacro:include filename="$(find marrtino_gazebo)/urdf/marrtino_base.urdf.xacro" />
 
@@ -13,7 +14,7 @@
   <xacro:property name="arm_max_effort" value="100" />
   <xacro:property name="arm_max_velocity" value="1.0" />
 
-  <xacro:marrtino_base />
+  <xacro:marrtino_base battery_x_factor="$(arg battery_x_factor)" />
 
   <xacro:marrtino_sensors />
 
@@ -28,6 +29,14 @@
 
     <plugin filename="gz-sim-imu-system"
       name="gz::sim::systems::Imu">
+    </plugin>
+
+    <plugin
+        filename="gz-sim-pose-publisher-system"
+        name="gz::sim::systems::PosePublisher">
+        <use_pose_vector_msg>false</use_pose_vector_msg>
+        <publish_model_pose>true</publish_model_pose>
+        <publish_nested_model_pose>true</publish_nested_model_pose>
     </plugin>
 
       <!-- plugin filename="ImageDisplay" name="Image Display">

@@ -1,9 +1,10 @@
 import time, threading, math, os
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray 
+from sensor_msgs.msg import JointState
 
 from tf_transformations import euler_from_quaternion
 
@@ -15,6 +16,12 @@ from rclpy.parameter import Parameter
 
 import matplotlib.pyplot as plt
 
+def euler_from_orientation(orientation_q):
+    orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+    return euler_from_quaternion(orientation_list)
+
+
+
 NODE_NAME = 'marrtino_control_client'
 
 class MARRtinoController(Node):
@@ -24,6 +31,54 @@ class MARRtinoController(Node):
         rclpy.init()
 
         super().__init__(NODE_NAME)
+        
+        # rates
+        self.rate10 = self.create_rate(10) # Hz
+        self.rate100 = self.create_rate(100) # Hz
+
+        # Data storage for plotting
+        self.reset_data()
+        self.plot_data_collect = False
+
+        # reference values
+        self.ts0 = None
+        self.ts = 0
+
+        # Callback values
+        self.odom = None
+        self.joint_states = None
+        self.gtpose = None
+
+        # user request to stop the robot
+        self.user_stop = False
+
+
+        # Spin in a separate thread
+        thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
+        thread.start()
+        time.sleep(0.2)
+
+        print("Setting use_sim_time to True ...")
+        os.system(f"ros2 param set {NODE_NAME} use_sim_time True")
+        '''  DOES NOT WORK !!!
+        pp = Parameter('use_sim_time', ParameterType.PARAMETER_BOOL, True)
+        self.set_parameters([pp])
+        '''    
+
+        print(f"use_sim_time = {self.get_parameter('use_sim_time').get_parameter_value().bool_value}")
+
+        # Wait for /clock to be active if using sim time
+        print("Waiting for clock ...")
+        if self.get_parameter('use_sim_time').get_parameter_value().bool_value:
+            self.get_logger().info('Using simulated time. Waiting for /clock to be active...')
+            while not self.get_clock().now().to_msg().sec > 0 and rclpy.ok():
+                time.sleep(0.1) # Use real-time sleep while waiting for sim time
+                rclpy.spin_once(self, timeout_sec=0.1)
+            self.get_logger().info(f"Simulated time is now active: {self.get_clock().now().to_msg().sec} seconds")
+
+        self.rate10.sleep()
+
+        # Parameters
 
         params = self.get_ext_parameters(['robot_name', 'control_interface'])
         self.robot_name = params[0]
@@ -38,13 +93,9 @@ class MARRtinoController(Node):
         self.declare_parameter('plot', 'none')
         self.toplot = self.get_parameter('plot').value
         self.get_logger().info(f'plot: {self.toplot}')
-        
-        # publishers
-        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/diff_drive_controller/cmd_vel', 10)
-        self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
-        self.pub_head_cmd = self.create_publisher(Float64MultiArray, f'/head_{self.control_interface}_controller/commands', 100)
 
         # position joint limits
+
         self.head_pan_limit = math.pi/2 - 0.001
         self.head_tilt_limit = math.pi/4 - 0.001
         if self.robot_name == 'smarrtino':
@@ -54,25 +105,20 @@ class MARRtinoController(Node):
             self.arm_lower_limit = -5*math.pi/4 + 0.001
             self.arm_upper_limit = math.pi/4 - 0.001
 
-        # rates
-        self.rate10 = self.create_rate(10) # Hz
-        self.rate100 = self.create_rate(100) # Hz
+        # publishers
 
-        # Data storage for plotting
-        self.odom_ts = []
-        self.poses = [[],[],[]]
-        self.velocities = [[],[]]        
-        self.inputs_ts = []
-        self.inputs = [[],[]]
+        self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/diff_drive_controller/cmd_vel', 10)
+        self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
+        self.pub_head_cmd = self.create_publisher(Float64MultiArray, f'/head_{self.control_interface}_controller/commands', 100)
 
-        # reference values
-        self.ts0 = None
-        self.ts = 0
+        # subscribers
 
-        # user request to stop the robot
-        self.user_stop = False
-
-
+        self.sub_gtpose = self.create_subscription(
+            PoseStamped,           # Message type
+            f'/model/{self.robot_name}/pose',      # Topic name
+            self.gtpose_callback, # Callback function
+            10                  # QoS (Quality of Service) history depth
+        )
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
             f'/diff_drive_controller/odom',      # Topic name
@@ -85,28 +131,26 @@ class MARRtinoController(Node):
             self.cmd_vel_callback,  # Callback function
             10                      # QoS (Quality of Service) history depth
         )
-
-        # Spin in a separate thread
-        thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
-        thread.start()
-
-        self.rate10.sleep()
-
-    
-        os.system(f"ros2 param set {NODE_NAME} use_sim_time True")
-
-        '''  DOES NOT WORK !!!
-        pp = Parameter('use_sim_time', ParameterType.PARAMETER_BOOL, True)
-        self.set_parameters([pp])
-        '''    
+        self.sub_joints = self.create_subscription(
+            JointState,           # Message type
+            '/joint_states',      # Topic name
+            self.joint_states_callback, # Callback function
+            10                    # QoS (Quality of Service) history depth
+        )
 
         self.rate10.sleep()
  
-        current_use_sim_time = self.get_parameter('use_sim_time').value
-        self.get_logger().info(f"Current use_sim_time value: {current_use_sim_time}")
-
         self.get_logger().info(f'{self.robot_name} controller node initialized ')
 
+
+    def reset_data(self):
+        self.gt_ts = []
+        self.odom_ts = []
+        self.gtposes = [[],[],[]]
+        self.odomposes = [[],[],[]]
+        self.velocities = [[],[]]        
+        self.inputs_ts = []
+        self.inputs = [[],[]]
 
 
     def get_ext_parameters(self, param_names):
@@ -158,36 +202,100 @@ class MARRtinoController(Node):
         except Exception as e:
             self.get_logger().error(f'Service call failed for get_parameters: {e}')
 
-
         return values
 
 
-
-    def odom_callback(self, msg):
+    def set_ts(self, msg):
         if self.ts0 is None:
             self.ts0 = msg.header.stamp.sec + msg.header.stamp.nanosec/1.0e9
+            print(f"ts0 = {self.ts0}")
         self.ts = msg.header.stamp.sec + msg.header.stamp.nanosec/1.0e9 - self.ts0
-        self.odom_ts.append(self.ts)
-        x = msg.pose.pose.position.x
-        y = msg.pose.pose.position.y
-        orientation_q = msg.pose.pose.orientation
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-        (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
-        vx = msg.twist.twist.linear.x
-        az = msg.twist.twist.angular.z
+        return self.ts  # needed in callbacks as it can changes during other callbacks
 
-        self.poses[0].append(x)
-        self.poses[1].append(y)
-        self.poses[2].append(yaw)
-        self.velocities[0].append(vx)
-        self.velocities[1].append(az)
-        #print(f"odom x: {x:.3f} vx: {vx:.3f}")
+    # Callbacks
+
+    def gtpose_callback(self, msg):
+        if msg.header.frame_id == 'default':
+            ts = self.set_ts(msg)
+            self.gtpose = msg
+
+            if self.plot_data_collect:
+                self.gt_ts.append(ts)
+                x = self.gtpose.pose.position.x
+                y = self.gtpose.pose.position.y
+                (_, _, yaw) = euler_from_orientation(self.gtpose.pose.orientation)
+
+                self.gtposes[0].append(x)
+                self.gtposes[1].append(y)
+                self.gtposes[2].append(yaw)
+                '''
+                print(f"ts: {msg.header.stamp.sec} ", end="")
+                print(f"frame_id: {msg.header.frame_id}", end="")
+                self.print_gtpose()
+                '''
+
+
+    def odom_callback(self, msg):
+        ts = self.set_ts(msg)       
+        self.odom = msg
+
+        if self.plot_data_collect:
+            self.odom_ts.append(ts)
+            x = msg.pose.pose.position.x
+            y = msg.pose.pose.position.y
+            (roll, pitch, yaw) = euler_from_orientation(msg.pose.pose.orientation)
+            vx = msg.twist.twist.linear.x
+            az = msg.twist.twist.angular.z
+
+            self.odomposes[0].append(x)
+            self.odomposes[1].append(y)
+            self.odomposes[2].append(yaw)
+            self.velocities[0].append(vx)
+            self.velocities[1].append(az)
 
     def cmd_vel_callback(self, msg):
-        self.inputs_ts.append(self.ts)
-        self.inputs[0].append(msg.twist.linear.x)
-        self.inputs[1].append(msg.twist.angular.z)
+        ts = self.set_ts(msg)
+        if self.plot_data_collect:
+            self.inputs_ts.append(ts)
+            self.inputs[0].append(msg.twist.linear.x)
+            self.inputs[1].append(msg.twist.angular.z)
 
+    def joint_states_callback(self, msg):
+        self.set_ts(msg)
+        self.joint_states = msg
+
+    # print functions
+
+    def print_odom(self):
+        while self.odom is None: 
+            self.rate10.sleep()
+        x = self.odom.pose.pose.position.x
+        y = self.odom.pose.pose.position.y
+        (_, _, th) = euler_from_orientation(self.odom.pose.pose.orientation)
+        vx = self.odom.twist.twist.linear.x
+        az = self.odom.twist.twist.angular.z
+        print(f"odom x: {x:.3f} y: {y:.3f} th:{th:.3f} rad - vel linear: {vx:.3f} m/s angular: {az:.3f} rad/s")
+
+    def print_gtpose(self):
+        while self.gtpose is None: 
+            self.rate10.sleep()
+        x = self.gtpose.pose.position.x
+        y = self.gtpose.pose.position.y
+        (_, _, th) = euler_from_orientation(self.gtpose.pose.orientation)
+        print(f"gtpose x: {x:.3f} y: {y:.3f} th:{th:.3f} rad")
+
+    def print_joint_states(self):
+        while self.joint_states is None: 
+            self.rate10.sleep()
+        for i, joint_name in enumerate(self.joint_states.name):
+            self.get_logger().info(
+                f' [{self.ts:.3f}] Joint: {joint_name}'
+                f' | Position: {self.joint_states.position[i]:.4f}'
+                f' | Velocity: {self.joint_states.velocity[i]:.4f}'
+                f' | Effort: {self.joint_states.effort[i]:.4f}'
+            )
+
+    # Publish
 
     def publish_cmd_vel(self, lx, az, ts=1):
         msg = TwistStamped()
@@ -195,6 +303,7 @@ class MARRtinoController(Node):
         msg.twist.angular.z = float(az)
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
         for _ in range(int(ts*100)):
+            msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
             self.rate100.sleep()
             if self.user_stop:
@@ -208,64 +317,66 @@ class MARRtinoController(Node):
         self.publish_cmd_vel(lx, az, ts)
 
     def publish_arm_command(self, fl, fr, ts=1, interface=None):
-        if interface is None:
-            interface = self.control_interface
-        if self.control_interface == interface:
-        
-            if interface=='position':
-                if fl < self.arm_lower_limit:
-                    fl = self.arm_lower_limit
-                if fl > self.arm_upper_limit:
-                    fl = self.arm_upper_limit
-                if fr < self.arm_lower_limit:
-                    fr = self.arm_lower_limit
-                if fr > self.arm_upper_limit:
-                    fr = self.arm_upper_limit
+        if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
+            if interface is None:
+                interface = self.control_interface
+            if self.control_interface == interface:
+            
+                if interface=='position':
+                    if fl < self.arm_lower_limit:
+                        fl = self.arm_lower_limit
+                    if fl > self.arm_upper_limit:
+                        fl = self.arm_upper_limit
+                    if fr < self.arm_lower_limit:
+                        fr = self.arm_lower_limit
+                    if fr > self.arm_upper_limit:
+                        fr = self.arm_upper_limit
 
-            msg = Float64MultiArray()
-            msg.data = [float(fl), float(fr)]
-            self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
-            for _ in range(int(ts*100)):
-                self.pub_arm_cmd.publish(msg)
-                self.rate100.sleep()
+                msg = Float64MultiArray()
+                msg.data = [float(fl), float(fr)]
+                self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
+                for _ in range(int(ts*100)):
+                    self.pub_arm_cmd.publish(msg)
+                    self.rate100.sleep()
+                    if self.user_stop:
+                        break
                 if self.user_stop:
-                    break
-            if self.user_stop:
-                self.user_stop = False
-                self.stop()
-        else:
-            self.get_logger().warning(f'Cannot send arm {interface} command! Current controller is {self.control_interface}.')
+                    self.user_stop = False
+                    self.stop()
+            else:
+                self.get_logger().warning(f'Cannot send arm {interface} command! Current controller is {self.control_interface}.')
 
 
     def publish_head_command(self, hpan, htilt, ts=1, interface=None):
-        if interface is None:
-            interface = self.control_interface
+        if self.robot_name == 'smarrtino':
+            if interface is None:
+                interface = self.control_interface
 
-        if self.control_interface == interface:
-        
-            if interface=='position':
-                if hpan < -self.head_pan_limit:
-                    hpan = -self.head_pan_limit
-                if hpan > self.head_pan_limit:
-                    hpan = self.head_pan_limit
-                if htilt < -self.head_tilt_limit:
-                    htilt = -self.head_tilt_limit
-                if htilt > self.head_tilt_limit:
-                    htilt = self.head_tilt_limit
+            if self.control_interface == interface:
+            
+                if interface=='position':
+                    if hpan < -self.head_pan_limit:
+                        hpan = -self.head_pan_limit
+                    if hpan > self.head_pan_limit:
+                        hpan = self.head_pan_limit
+                    if htilt < -self.head_tilt_limit:
+                        htilt = -self.head_tilt_limit
+                    if htilt > self.head_tilt_limit:
+                        htilt = self.head_tilt_limit
 
-            msg = Float64MultiArray()
-            msg.data = [float(hpan), float(htilt)]
-            self.get_logger().info(f'Publishing head {interface}: {hpan:.3f} {htilt:.3f}')
-            for _ in range(int(ts*100)):
-                self.pub_head_cmd.publish(msg)
-                self.rate100.sleep()
+                msg = Float64MultiArray()
+                msg.data = [float(hpan), float(htilt)]
+                self.get_logger().info(f'Publishing head {interface}: {hpan:.3f} {htilt:.3f}')
+                for _ in range(int(ts*100)):
+                    self.pub_head_cmd.publish(msg)
+                    self.rate100.sleep()
+                    if self.user_stop:
+                        break
                 if self.user_stop:
-                    break
-            if self.user_stop:
-                self.user_stop = False
-                self.stop()
-        else:
-            self.get_logger().warning(f'Cannot send head {interface} command! Current controller is {self.control_interface}.')
+                    self.user_stop = False
+                    self.stop()
+            else:
+                self.get_logger().warning(f'Cannot send head {interface} command! Current controller is {self.control_interface}.')
 
 
 
@@ -286,16 +397,16 @@ class MARRtinoController(Node):
 
     def plot_velctrl(self):
 
-        fig, axs = plt.subplots(7, 1, sharex=True, figsize=(14, 8))
+        fig, axs = plt.subplots(5, 1, sharex=True, figsize=(14, 6))
         fig.suptitle(f'Input/Output Velocities & Positions')
 
-        self.subplot(axs[0], self.inputs_ts, self.inputs[0], "input linear vel", color='red')
-        self.subplot(axs[1], self.inputs_ts, self.inputs[1], "input angular vel", color='red')
-        self.subplot(axs[2], self.odom_ts, self.velocities[0], "linear vel", color='blue')
-        self.subplot(axs[3], self.odom_ts, self.velocities[1], "angular vel", color='blue')
-        self.subplot(axs[4], self.odom_ts, self.poses[0], "position x", color='green')
-        self.subplot(axs[5], self.odom_ts, self.poses[1], "position y", color='green')
-        self.subplot(axs[6], self.odom_ts, self.poses[2], "orientation th", color='green')
+        #self.subplot(axs[0], self.inputs_ts, self.inputs[0], "input linear vel", color='red')
+        #self.subplot(axs[1], self.inputs_ts, self.inputs[1], "input angular vel", color='red')
+        self.subplot(axs[0], self.odom_ts, self.velocities[0], "linear vel", color='blue')
+        self.subplot(axs[1], self.odom_ts, self.velocities[1], "angular vel", color='blue')
+        self.subplot(axs[2], self.odom_ts, self.odomposes[0], "position x", color='green')
+        self.subplot(axs[3], self.odom_ts, self.odomposes[1], "position y", color='green')
+        self.subplot(axs[4], self.odom_ts, self.odomposes[2], "orientation th", color='green')
         
         axs[-1].set_xlabel('Time (s)')
 
@@ -308,7 +419,11 @@ class MARRtinoController(Node):
 
         plt.title(f'Odometry')
         
-        plt.plot(self.poses[0], self.poses[1])
+        print(f"gtposes len: {len(self.gtposes[0])} {len(self.gtposes[1])} {len(self.gtposes[2])}  ")
+
+        plt.plot(self.odomposes[0], self.odomposes[1], label="odom", color='red')
+        plt.plot(self.gtposes[0], self.gtposes[1], label="gt", color='green')
+        plt.legend()
 
         plt.show()
         self.get_logger().info("Plot displayed. Close the plot window to terminate the script.")
@@ -320,7 +435,27 @@ class MARRtinoController(Node):
 
     def run(self):
         if self.fn != 'none':
-            eval(f'self.{self.fn}()')
+
+            self.print_odom()
+            self.print_gtpose()
+
+            if self.toplot != 'none':
+                self.plot_data_collect = True
+            if '(' in self.fn:
+                eval(f'self.{self.fn}')
+            else:
+                eval(f'self.{self.fn}()')
+            if self.toplot != 'none':
+                self.plot_data_collect = False
+
+            self.print_odom()
+            self.print_gtpose()
+
+            if 'velctrl' in self.toplot:
+                self.plot_velctrl()
+            if 'odom' in self.toplot:
+                self.plot_odom()
+
         else:
             print('No control function!')
 
@@ -340,27 +475,16 @@ class MARRtinoController(Node):
             self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
         self.stop()
-        
-        if 'velctrl' in self.toplot:
-            self.plot_velctrl()
-        if 'odom' in self.toplot:
-            self.plot_odom()
-        
 
     def circle(self):
         tm = 10
         r = 1.0
         vx = 0.2
         tm = 2 * math.pi * r / vx
-        az = 2 * math.pi / tm
+        az = 2 * math.pi / tm  # = vx / r
 
         self.publish_cmd_vel(vx,az,tm)
         self.stop()
-        
-        if 'velctrl' in self.toplot:
-            self.plot_velctrl()
-        if 'odom' in self.toplot:
-            self.plot_odom()
         
     # relative forward/backward
     def forward(self, m):
@@ -428,8 +552,8 @@ class MARRtinoController(Node):
 
     def all(self):
         k = 1
-        self.publish_arm_effort(0.1, 0.1, 3)
-        self.publish_arm_effort(0, 0, 0.5)
+        self.publish_arm_command(0.1, 0.1, 3)
+        self.publish_arm_command(0, 0, 0.5)
         for _ in range(4):
             self.publish_cmd_vel(0.2,0.0,5)
             self.publish_cmd_vel(0.0,0.0,0.5)
@@ -444,19 +568,14 @@ class MARRtinoController(Node):
             k *= -1        
 
         # lower both arms
-        self.publish_arm_effort(0.1, 0.1, 3)
-        self.publish_arm_effort(0, 0, 0.5)
+        self.publish_arm_command(0.1, 0.1, 3)
+        self.publish_arm_command(0, 0, 0.5)
 
         self.publish_head_command(0, -0.1, 1)
         self.publish_head_command(0, +0.1, 2)
         self.publish_head_command(0, 0)
 
         self.stop()
-
-        if 'velctrl' in self.toplot:
-            self.plot_velctrl()
-        if 'odom' in self.toplot:
-            self.plot_odom()
 
 
 def main(args=None):
