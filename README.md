@@ -131,9 +131,9 @@ Note: if you edit anything in `marrtino_control`, relaunch with
 
 # Use
 
-Run the simulation
+## Run the simulation
 
-    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> control_interface:=<CONTROL_INTERFACE> world_file:=<WORLD_FILE> 
+    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> control_interface:=<CONTROL_INTERFACE> world_file:=<WORLD_FILE> battery_x_factor:=<battery_x_factor>
 
 
     ROBOT_NAME options:
@@ -150,9 +150,12 @@ Run the simulation
     WORLD_FILE options:
     empty
 
+    battery_x_factor:  (only for marrtino robot type)
+    1.0 (default) good position of the battery in the robot -> no slippery
+    -1.0 bad position -> large slippery
 
 
-Run the control program
+## Run the control program
 
 Note: robot_name and control_interface are collected from `marrtino_parameters`
 

@@ -36,6 +36,12 @@ def generate_launch_description():
         description='Name of the robot to spawn.'
     )
 
+    battery_x_factor_arg = DeclareLaunchArgument(
+        'battery_x_factor',
+        default_value=TextSubstitution(text='1.0'),
+        description='Multiplying factor for battery X position in the robot base (default 1.0, with values <1 more slippery).'
+    )
+
     control_interface_args = DeclareLaunchArgument(
         'control_interface',
         default_value=TextSubstitution(text='effort'),
@@ -49,6 +55,7 @@ def generate_launch_description():
     )
     
     robot_name = LaunchConfiguration('robot_name')
+    battery_x_factor = LaunchConfiguration('battery_x_factor')
     control_interface = LaunchConfiguration('control_interface')
     world_file = LaunchConfiguration('world_file')   
 
@@ -63,6 +70,8 @@ def generate_launch_description():
                 [ pkg_share, 'urdf', 
                     PythonExpression( ["'", robot_name, ".urdf.xacro'" ]) ]
             ),
+            ' ',
+            PythonExpression( ["'battery_x_factor:=", battery_x_factor, "'" ]) 
         ]
     )
     robot_description = {'robot_description': robot_description_content}
@@ -86,6 +95,7 @@ def generate_launch_description():
         emulate_tty=True,   # Crucial for some Python nodes to ensure proper I/O and executable lookup
         parameters=[
             {'robot_name': PythonExpression( [ "'", robot_name, "'" ])}, 
+            {'battery_x_factor': PythonExpression( [ "'", battery_x_factor, "'" ])}, 
             {'control_interface': PythonExpression( [ "'", control_interface, "'" ])}, 
             {'world': PythonExpression( [ "'", world_file, "'" ])}, 
             ]
@@ -98,7 +108,7 @@ def generate_launch_description():
         output='screen',
         arguments=['-topic', 'robot_description',
                    '-name', robot_name, '-allow_renaming', 'true',
-                   '-z', '0.01', '-Y', '3.14' ],
+                   '-z', '0.01', '-Y', '0.00' ],
     )
     
     joint_state_broadcaster_spawner = Node(
@@ -156,6 +166,10 @@ def generate_launch_description():
         arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
             '/world/default/create@ros_gz_interfaces/srv/SpawnEntity@gz.msgs.EntityFactory@gz.msgs.Boolean',
             '/world/default/remove@ros_gz_interfaces/srv/DeleteEntity@gz.msgs.Entity@gz.msgs.Boolean',
+
+            #'/model/marrtino/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose',
+            PythonExpression( ["'/model/", robot_name, "/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose'"] ),
+            
             '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
@@ -179,6 +193,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         robot_name_arg,
+        battery_x_factor_arg,
         control_interface_args,
         world_file_arg,
     
