@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
           'marrtino_parameters = marrtino_control.marrtino_parameters:main', 
           'control = marrtino_control.control:main', 
+          'control_tests = marrtino_control.control_tests:main',
         ],
     },
 )
