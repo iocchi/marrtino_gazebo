@@ -267,8 +267,12 @@ class MARRtinoController(Node):
     # print functions
 
     def print_odom(self):
+        print_once = True
         while self.odom is None: 
             self.rate10.sleep()
+            if print_once:
+                print_once = False
+                print("Waiting for odom message ...")
         x = self.odom.pose.pose.position.x
         y = self.odom.pose.pose.position.y
         (_, _, th) = euler_from_orientation(self.odom.pose.pose.orientation)
@@ -277,16 +281,24 @@ class MARRtinoController(Node):
         print(f"odom x: {x:.3f} y: {y:.3f} th:{th:.3f} rad - vel linear: {vx:.3f} m/s angular: {az:.3f} rad/s")
 
     def print_gtpose(self):
-        while self.gtpose is None: 
+        print_once = True
+        while self.gtpose is None:
             self.rate10.sleep()
+            if print_once:
+                print_once = False
+                print("Waiting for gtpose message ...")
         x = self.gtpose.pose.position.x
         y = self.gtpose.pose.position.y
         (_, _, th) = euler_from_orientation(self.gtpose.pose.orientation)
         print(f"gtpose x: {x:.3f} y: {y:.3f} th:{th:.3f} rad")
 
     def print_joint_states(self):
+        print_once = True
         while self.joint_states is None: 
             self.rate10.sleep()
+            if print_once:
+                print_once = False
+                print("Waiting for joint_states message ...")
         for i, joint_name in enumerate(self.joint_states.name):
             self.get_logger().info(
                 f' [{self.ts:.3f}] Joint: {joint_name}'
@@ -576,6 +588,42 @@ class MARRtinoController(Node):
         self.publish_head_command(0, 0)
 
         self.stop()
+
+
+
+    def setArmsPosition(self, target_left, target_right):
+
+        if self.control_interface == 'velocity':
+    
+            for i, joint_name in enumerate(self.joint_states.name):
+                if joint_name=='left_arm_joint':
+                    p_left = self.joint_states.position[i]
+                if joint_name=='right_arm_joint':
+                    p_right = self.joint_states.position[i]
+
+            err_left = target_left-p_left
+            err_right = target_right-p_right
+            K = 0.5
+            while abs(err_left)+abs(err_right)>0.02:
+                v_left = K * err_left
+                v_right = K * err_right
+                self.publish_arm_command(v_left, v_right, 0.1)
+                
+                for i, joint_name in enumerate(self.joint_states.name):
+                    if joint_name=='left_arm_joint':
+                        p_left = self.joint_states.position[i]
+                    if joint_name=='right_arm_joint':
+                        p_right = self.joint_states.position[i]
+
+                print(f"arms pos: {p_left:.3f} {p_right:.3f}")
+
+                err_left = target_left-p_left
+                err_right = target_right-p_right
+
+
+
+    def test5(self):
+        self.setArmsPosition(-1.57, -1.57)
 
 
 def main(args=None):
