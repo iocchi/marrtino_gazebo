@@ -133,7 +133,7 @@ Note: if you edit anything in `marrtino_control`, relaunch with
 
 ## Run the simulation
 
-    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> control_interface:=<CONTROL_INTERFACE> world_file:=<WORLD_FILE> battery_x_factor:=<battery_x_factor>
+    ros2 launch marrtino_gazebo marrtino.launch.py robot_name:=<ROBOT_NAME> control_interface:=<CONTROL_INTERFACE> individual_arm_control:=<True|False> world_file:=<WORLD_FILE> battery_x_factor:=<battery_x_factor>
 
 
     ROBOT_NAME options:
@@ -147,12 +147,21 @@ Note: if you edit anything in `marrtino_control`, relaunch with
     velocity
     position
 
+    individual_arm_control:
+    True: (default) one controller for each arm
+    False: one controller for both arms
+
     WORLD_FILE options:
     empty
 
     battery_x_factor:  (only for marrtino robot type)
     1.0 (default) good position of the battery in the robot -> no slippery
     -1.0 bad position -> large slippery
+
+
+Note: check simulated time is properly published, otherwise run gazebo again
+
+    ros2 topic hz /clock
 
 
 ## Run the control program
@@ -173,6 +182,52 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
     velctrl
     odom
     
+
+## Async behaviors
+
+Note: so far available only for `control_interface:=position`
+
+`setSpeed`, `setHeadPosition`,  `setArmsPosition` (defined in `control.py`) can be run in asynchronous mode (in a separate thread) setting `_async=True`. In this mode, the function starts the behavior and immediately returns two values `thread` (a `Thread` object in which the behavior is running), `stop_event` (an `Event` object that can be used to stop the behavior externally).
+
+Examples of use:
+
+1) behaviors X and Y ends after time T
+
+        th1,_ = setX(...., time = T, _async=True) 
+        th2,_ = setY(...., time = T, _async=True) 
+        # do something else ...
+        th1.join()  # wait for thread th1 to complete
+        th2.join()  # wait for thread th2 to complete
+
+
+2) behaviors X ends at time T, behavior Y ends immediately after X 
+
+        th1,_ = setX(...., time = T, _async=True) 
+        th2,stev2 = setY(...., time = 10000, _async=True) 
+        # do something else ...
+        th1.join()  # wait for thread th1 to complete
+        stev2.set() # send stop event for thread 2
+        th2.join()  # wait for thread th2 to complete
+
+3) behaviors X and Y end when a condition is met
+
+        th1,stev1 = setX(...., time = 10000, _async=True) 
+        th2,stev2 = setY(...., time = 10000, _async=True) 
+        while (...):
+            if condition:
+                stev1.set()  # send stop event for thread 1
+                stev2.set()  # send stop event for thread 2
+        th1.join()  # wait for thread th1 to complete
+        th2.join()  # wait for thread th2 to complete
+
+
+During async execution, you can test if the thread is alive (i.e., the behavior is running) with `th.is_alive()`
+
+        th1,_ = setX(...., time = T, _async=True)
+        while (th1.is_alive()):
+            # do something ...
+        th1.join()  # wait for thread th1 to complete
+
 
 # Rviz
 
@@ -248,4 +303,5 @@ Edit `setup.py` to add a line in the entry points like this
 
     cd ros2_ws
     colcon build && ros2 run marrtino_control control_<my_name> --ros-args -p fn:=my_new_controller
+
 

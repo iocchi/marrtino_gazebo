@@ -59,6 +59,8 @@ def generate_launch_description():
     control_interface = LaunchConfiguration('control_interface')
     world_file = LaunchConfiguration('world_file')   
 
+    individual_arm_control = LaunchConfiguration('individual_arm_control', default=True)
+
     pkg_share = FindPackageShare('marrtino_gazebo')
 
     # Get URDF via xacro
@@ -95,8 +97,9 @@ def generate_launch_description():
         emulate_tty=True,   # Crucial for some Python nodes to ensure proper I/O and executable lookup
         parameters=[
             {'robot_name': PythonExpression( [ "'", robot_name, "'" ])}, 
-            {'battery_x_factor': PythonExpression( [ "'", battery_x_factor, "'" ])}, 
+            {'battery_x_factor': PythonExpression( [ battery_x_factor ])}, 
             {'control_interface': PythonExpression( [ "'", control_interface, "'" ])}, 
+            {'individual_arm_control': PythonExpression( [  individual_arm_control ])}, 
             {'world': PythonExpression( [ "'", world_file, "'" ])}, 
             ]
     )
@@ -130,7 +133,7 @@ def generate_launch_description():
     )
 
 
-    has_arms = PythonExpression(["'", robot_name, "' in ['smarrtino','marrtino_2_arms']" ])
+    has_arms = PythonExpression(["'", robot_name, "' in ['smarrtino','marrtino_2_arms'] and not ", individual_arm_control ])
 
     arm_controller_spawner = Node(
         package='controller_manager',
@@ -142,6 +145,32 @@ def generate_launch_description():
             robot_controllers,
             ],
         condition=IfCondition(has_arms),
+    )
+
+    has_arms_individual_control = PythonExpression(["'", robot_name, "' in ['smarrtino','marrtino_2_arms'] and ",  individual_arm_control ])
+
+    left_shoulder_pitch_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        output='screen',
+        arguments=[
+            PythonExpression( ["'left_shoulder_pitch_", control_interface, "_controller'" ] ),
+            '--param-file',
+            robot_controllers,
+            ],
+        condition=IfCondition(has_arms_individual_control),
+    )
+
+    right_shoulder_pitch_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        output='screen',
+        arguments=[
+            PythonExpression( ["'right_shoulder_pitch_", control_interface, "_controller'" ] ),
+            '--param-file',
+            robot_controllers,
+            ],
+        condition=IfCondition(has_arms_individual_control),
     )
 
     has_head = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
@@ -229,7 +258,13 @@ def generate_launch_description():
                 on_exit=[arm_controller_spawner],
             )
         ),
-
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=diff_drive_controller_spawner,
+                on_exit=[left_shoulder_pitch_controller_spawner, right_shoulder_pitch_controller_spawner
+],
+            )
+        ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=diff_drive_controller_spawner,

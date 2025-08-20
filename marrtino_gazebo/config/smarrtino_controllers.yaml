@@ -147,3 +147,48 @@ head_position_controller:
       - pan_head_joint
       - tilt_head_joint
 
+
+left_shoulder_pitch_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: position
+    joints:
+      - left_arm_joint
+
+right_shoulder_pitch_position_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: position
+    joints:
+      - right_arm_joint
+
+
+left_shoulder_pitch_velocity_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: velocity
+    joints:
+      - left_arm_joint
+
+right_shoulder_pitch_velocity_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: velocity
+    joints:
+      - right_arm_joint
+
+
+left_shoulder_pitch_effort_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: effort
+    joints:
+      - left_arm_joint
+
+right_shoulder_pitch_effort_controller:
+  ros__parameters:
+    type: forward_command_controller/ForwardCommandController
+    interface_name: effort
+    joints:
+      - right_arm_joint
+

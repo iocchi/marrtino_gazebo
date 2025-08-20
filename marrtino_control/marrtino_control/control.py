@@ -31,10 +31,6 @@ class MARRtinoController(Node):
         rclpy.init()
 
         super().__init__(NODE_NAME)
-        
-        # rates
-        self.rate10 = self.create_rate(10) # Hz
-        self.rate100 = self.create_rate(100) # Hz
 
         # Data storage for plotting
         self.reset_data()
@@ -56,7 +52,7 @@ class MARRtinoController(Node):
         # Spin in a separate thread
         thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
         thread.start()
-        time.sleep(0.2)
+        time.sleep(0.5)
 
         print("Setting use_sim_time to True ...")
         os.system(f"ros2 param set {NODE_NAME} use_sim_time True")
@@ -76,15 +72,19 @@ class MARRtinoController(Node):
                 rclpy.spin_once(self, timeout_sec=0.1)
             self.get_logger().info(f"Simulated time is now active: {self.get_clock().now().to_msg().sec} seconds")
 
-        self.rate10.sleep()
+        # rates
+        rate10 = self.create_rate(10) # Hz
+        rate10.sleep()
 
         # Parameters
 
-        params = self.get_ext_parameters(['robot_name', 'control_interface'])
+        params = self.get_ext_parameters(['robot_name', 'control_interface','individual_arm_control'])
         self.robot_name = params[0]
         self.get_logger().info(f'robot_name: {self.robot_name}')
         self.control_interface = params[1]
         self.get_logger().info(f'control_interface: {self.control_interface}')
+        self.individual_arm_control = params[2]
+        self.get_logger().info(f'individual_arm_control: {self.individual_arm_control}')
 
         self.declare_parameter('fn', 'square')
         self.fn = self.get_parameter('fn').value
@@ -108,7 +108,11 @@ class MARRtinoController(Node):
         # publishers
 
         self.pub_cmd_vel = self.create_publisher(TwistStamped, f'/diff_drive_controller/cmd_vel', 10)
-        self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
+        if self.individual_arm_control:
+            self.pub_lshp_cmd = self.create_publisher(Float64MultiArray, f'/left_shoulder_pitch_{self.control_interface}_controller/commands', 100)
+            self.pub_rshp_cmd = self.create_publisher(Float64MultiArray, f'/right_shoulder_pitch_{self.control_interface}_controller/commands', 100)
+        else:
+            self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
         self.pub_head_cmd = self.create_publisher(Float64MultiArray, f'/head_{self.control_interface}_controller/commands', 100)
 
         # subscribers
@@ -138,7 +142,7 @@ class MARRtinoController(Node):
             10                    # QoS (Quality of Service) history depth
         )
 
-        self.rate10.sleep()
+        rate10.sleep()
  
         self.get_logger().info(f'{self.robot_name} controller node initialized ')
 
@@ -268,8 +272,9 @@ class MARRtinoController(Node):
 
     def print_odom(self):
         print_once = True
+        rate10 = self.create_rate(10) # Hz
         while self.odom is None: 
-            self.rate10.sleep()
+            rate10.sleep()
             if print_once:
                 print_once = False
                 print("Waiting for odom message ...")
@@ -282,8 +287,9 @@ class MARRtinoController(Node):
 
     def print_gtpose(self):
         print_once = True
+        rate10 = self.create_rate(10) # Hz
         while self.gtpose is None:
-            self.rate10.sleep()
+            rate10.sleep()
             if print_once:
                 print_once = False
                 print("Waiting for gtpose message ...")
@@ -294,8 +300,9 @@ class MARRtinoController(Node):
 
     def print_joint_states(self):
         print_once = True
+        rate10 = self.create_rate(10) # Hz
         while self.joint_states is None: 
-            self.rate10.sleep()
+            rate10.sleep()
             if print_once:
                 print_once = False
                 print("Waiting for joint_states message ...")
@@ -307,28 +314,29 @@ class MARRtinoController(Node):
                 f' | Effort: {self.joint_states.effort[i]:.4f}'
             )
 
-    # Publish
+    # Publishers (with stop_event handling)
+    # stop_event is a threading.Event object
+    # to stop the publishing behavior use stop_event.set()
 
-    def publish_cmd_vel(self, lx, az, ts=1):
+    def publish_cmd_vel(self, lx, az, ts=1, stop_event=None):
         msg = TwistStamped()
         msg.twist.linear.x = float(lx)
         msg.twist.angular.z = float(az)
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
+        rate100 = self.create_rate(100) # Hz
         for _ in range(int(ts*100)):
             msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
-            self.rate100.sleep()
-            if self.user_stop:
+            rate100.sleep()
+            if self.user_stop or (stop_event is not None and stop_event.is_set()):
                 break
         if self.user_stop:
             self.user_stop = False
             self.stop()
 
     
-    def setSpeed(self, lx, az, ts=1):
-        self.publish_cmd_vel(lx, az, ts)
 
-    def publish_arm_command(self, fl, fr, ts=1, interface=None):
+    def publish_arms_command(self, fl, fr, ts=1, interface=None, stop_event=None):
         if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
             if interface is None:
                 interface = self.control_interface
@@ -344,14 +352,29 @@ class MARRtinoController(Node):
                     if fr > self.arm_upper_limit:
                         fr = self.arm_upper_limit
 
-                msg = Float64MultiArray()
-                msg.data = [float(fl), float(fr)]
-                self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
-                for _ in range(int(ts*100)):
-                    self.pub_arm_cmd.publish(msg)
-                    self.rate100.sleep()
-                    if self.user_stop:
-                        break
+                if self.individual_arm_control:
+                    msgl = Float64MultiArray()
+                    msgl.data = [float(fl)]
+                    msgr = Float64MultiArray()
+                    msgr.data = [float(fr)]
+                    self.get_logger().info(f'Publishing individual arm {interface} left:{fl:.3f} right:{fr:.3f}')
+                    rate100 = self.create_rate(100) # Hz
+                    for _ in range(int(ts*100)):
+                        self.pub_lshp_cmd.publish(msgl)
+                        self.pub_rshp_cmd.publish(msgr)
+                        rate100.sleep()
+                        if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                            break
+                else:
+                    msg = Float64MultiArray()
+                    msg.data = [float(fl), float(fr)]
+                    self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
+                    rate100 = self.create_rate(100) # Hz
+                    for _ in range(int(ts*100)):
+                        self.pub_arm_cmd.publish(msg)
+                        rate100.sleep()
+                        if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                            break
                 if self.user_stop:
                     self.user_stop = False
                     self.stop()
@@ -359,7 +382,42 @@ class MARRtinoController(Node):
                 self.get_logger().warning(f'Cannot send arm {interface} command! Current controller is {self.control_interface}.')
 
 
-    def publish_head_command(self, hpan, htilt, ts=1, interface=None):
+    def publish_left_shoulder_pitch_command(self, val, ts, stop_event=None):
+        self._publish_onearm_command(self.pub_lshp_cmd, val, ts, stop_event)
+
+    def publish_right_shoulder_pitch_command(self, val, ts, stop_event=None):
+        self._publish_onearm_command(self.pub_rshp_cmd, val, ts, stop_event)
+
+    def _publish_onearm_command(self, pub, val, ts=1, interface=None, stop_event=None):
+        if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
+            if interface is None:
+                interface = self.control_interface
+            if self.control_interface == interface:
+            
+                if interface=='position':
+                    if val < self.arm_lower_limit:
+                        val = self.arm_lower_limit
+                    if val > self.arm_upper_limit:
+                        val = self.arm_upper_limit
+
+                msg = Float64MultiArray()
+                msg.data = [float(val)]
+                which = 'left' if pub==self.pub_lshp_cmd else 'right'
+                self.get_logger().info(f'Publishing {which} arm {interface}: {val:.3f}')
+                rate100 = self.create_rate(100) # Hz
+                for _ in range(int(ts*100)):
+                    pub.publish(msg)
+                    rate100.sleep()
+                    if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                        break
+                if self.user_stop:
+                    self.user_stop = False
+                    self.stop()
+            else:
+                self.get_logger().warning(f'Cannot send {which} arm {interface} command! Current controller is {self.control_interface}.')
+
+
+    def publish_head_command(self, hpan, htilt, ts=1, interface=None, stop_event=None):
         if self.robot_name == 'smarrtino':
             if interface is None:
                 interface = self.control_interface
@@ -379,10 +437,11 @@ class MARRtinoController(Node):
                 msg = Float64MultiArray()
                 msg.data = [float(hpan), float(htilt)]
                 self.get_logger().info(f'Publishing head {interface}: {hpan:.3f} {htilt:.3f}')
+                rate100 = self.create_rate(100) # Hz
                 for _ in range(int(ts*100)):
                     self.pub_head_cmd.publish(msg)
-                    self.rate100.sleep()
-                    if self.user_stop:
+                    rate100.sleep()
+                    if self.user_stop or (stop_event is not None and stop_event.is_set()):
                         break
                 if self.user_stop:
                     self.user_stop = False
@@ -391,13 +450,16 @@ class MARRtinoController(Node):
                 self.get_logger().warning(f'Cannot send head {interface} command! Current controller is {self.control_interface}.')
 
 
-
+    # sleep function
 
     def sleep(self, ts=1):
+        rate10 = self.create_rate(10) # Hz
         for _ in range(int(ts*10)):
-            self.rate10.sleep()
+            rate10.sleep()
+            # rclpy.spin_once(self, timeout_sec=0.1)
     
 
+    # Plot functions
 
     def subplot(self, axs, ts, values, label, color):
         axs.plot(ts, values, label=label, color=color)
@@ -445,6 +507,92 @@ class MARRtinoController(Node):
         rclpy.shutdown()
 
 
+    # Position control high-level commands
+    # async call:
+    #   -- run and wait until finished 
+    #   th,_ = fn(..., _async=True)
+    #   th.join()
+    #   -- run and do somthing until finished
+    #   th,_ = fn(..., _async=True)
+    #   while (th.is_alive()):
+    #     do ... 
+    #   th.join()
+    #   -- run and quit the behavior when condition
+    #   th,stev = fn(..., _async=True)
+    #   while (whatever and th.is_alive()):
+    #     do ...
+    #     if condition:
+    #        stev.set()   # this will tell the publish behavior to stop
+    #   th.join()
+
+    def setSpeed(self, lx, az, time=1, _async=False):
+        if _async:
+            stop_event = threading.Event()
+            thread = threading.Thread(target=self.publish_cmd_vel, args=(lx, az, time, stop_event), daemon=True)
+            thread.start()
+
+            return thread, stop_event
+        else:
+            self.publish_cmd_vel(lx, az, ts)
+        return None, None
+
+
+    def setHeadPosition(self, target_pan, target_tilt, time=1, _async=False):
+
+        if self.control_interface == 'position':
+            if _async:
+                stop_event = threading.Event()
+                thread = threading.Thread(target=self.publish_head_command, args=(target_pan, target_tilt, time, None, stop_event ), daemon=True)
+                thread.start()
+                return thread, stop_event
+            else:
+                self.publish_head_command(target_pan, target_tilt, time)
+
+        return None, None
+
+    def setArmsPosition(self, target_left, target_right, time=1, _async=False):
+
+        if self.control_interface == 'position':
+            if _async:
+                stop_event = threading.Event()
+                thread = threading.Thread(target=self.publish_arms_command, args=(target_left, target_right, time, None, stop_event ), daemon=True)
+                thread.start()
+                return thread, stop_event
+            else:
+                self.publish_arms_command(target_left, target_right, time)
+
+        elif self.control_interface == 'velocity':
+    
+            for i, joint_name in enumerate(self.joint_states.name):
+                if joint_name=='left_arm_joint':
+                    p_left = self.joint_states.position[i]
+                if joint_name=='right_arm_joint':
+                    p_right = self.joint_states.position[i]
+
+            err_left = target_left-p_left
+            err_right = target_right-p_right
+            K = 0.5
+            while abs(err_left)+abs(err_right)>0.02:
+                v_left = K * err_left
+                v_right = K * err_right
+                self.publish_arms_command(v_left, v_right, 0.1)
+                
+                for i, joint_name in enumerate(self.joint_states.name):
+                    if joint_name=='left_arm_joint':
+                        p_left = self.joint_states.position[i]
+                    if joint_name=='right_arm_joint':
+                        p_right = self.joint_states.position[i]
+
+                print(f"arms pos: {p_left:.3f} {p_right:.3f}")
+
+                err_left = target_left-p_left
+                err_right = target_right-p_right
+
+        return None, None
+
+
+    # Run behaviors
+
     def run(self):
         if self.fn != 'none':
 
@@ -474,10 +622,9 @@ class MARRtinoController(Node):
     def stop(self):
         self.publish_cmd_vel(0.0, 0.0)
         if self.robot_name!='marrtino' and self.control_interface in ['effort', 'velocity']:
-            self.publish_arm_command(0.0, 0.0)
+            self.publish_arms_command(0.0, 0.0)
         if self.robot_name=='smarrtino' and self.control_interface in ['effort', 'velocity']:
             self.publish_head_command(0.0, 0.0)
-        self.rate10.sleep()
         self.user_stop = False
 
     def square(self):
@@ -519,19 +666,28 @@ class MARRtinoController(Node):
 
     def arms(self):
         if self.control_interface == 'effort':
-            self.publish_arm_command(-0.2, -0.2, 5)
-            self.publish_arm_command(0.1, 0.1, 7)
-            self.publish_arm_command(0.0, 0.0)
+            self.publish_arms_command(-0.2, -0.2, 5)
+            self.publish_arms_command(0.1, 0.1, 7)
+            self.publish_arms_command(0.0, 0.0)
 
         elif self.control_interface == 'velocity':
-            self.publish_arm_command(-0.5, -0.5, 5)
-            self.publish_arm_command(0.5, 0.5, 7)
-            self.publish_arm_command(0.0, 0.0)
+            self.publish_arms_command(-0.5, -0.5, 5)
+            self.publish_arms_command(0.5, 0.5, 7)
+            self.publish_arms_command(0.0, 0.0)
 
         if self.control_interface == 'position':
-            self.publish_arm_command(self.arm_lower_limit, self.arm_lower_limit, 5)
-            self.publish_arm_command(self.arm_upper_limit, self.arm_upper_limit, 7)
-            self.publish_arm_command(0.0, 0.0, 2)
+
+            if self.individual_arm_control:
+                self.publish_left_shoulder_pitch_command(self.arm_lower_limit, 5)
+                self.publish_right_shoulder_pitch_command(self.arm_lower_limit, 5)
+                self.publish_left_shoulder_pitch_command(self.arm_upper_limit, 5)
+                self.publish_right_shoulder_pitch_command(self.arm_upper_limit, 5)
+                self.publish_left_shoulder_pitch_command(0, 2)
+                self.publish_right_shoulder_pitch_command(0, 2)
+            else:
+                self.publish_arms_command(self.arm_lower_limit, self.arm_lower_limit, 5)
+                self.publish_arms_command(self.arm_upper_limit, self.arm_upper_limit, 7)
+                self.publish_arms_command(0.0, 0.0, 2)
 
         self.stop()
 
@@ -564,15 +720,15 @@ class MARRtinoController(Node):
 
     def all(self):
         k = 1
-        self.publish_arm_command(0.1, 0.1, 3)
-        self.publish_arm_command(0, 0, 0.5)
+        self.publish_arms_command(0.1, 0.1, 3)
+        self.publish_arms_command(0, 0, 0.5)
         for _ in range(4):
             self.publish_cmd_vel(0.2,0.0,5)
             self.publish_cmd_vel(0.0,0.0,0.5)
             self.publish_cmd_vel(0.0,math.pi/8,4)
             self.publish_cmd_vel(0.0,0.0,0.5)
-            self.publish_arm_command(-k*0.2, k*0.2, 5)
-            self.publish_arm_command(0, 0, 0.5)
+            self.publish_arms_command(-k*0.2, k*0.2, 5)
+            self.publish_arms_command(0, 0, 0.5)
             self.publish_head_command(-0.1, 0, 1)
             self.publish_head_command(+0.1, 0, 2)
             self.publish_head_command(-0.1, 0, 1)
@@ -580,8 +736,8 @@ class MARRtinoController(Node):
             k *= -1        
 
         # lower both arms
-        self.publish_arm_command(0.1, 0.1, 3)
-        self.publish_arm_command(0, 0, 0.5)
+        self.publish_arms_command(0.1, 0.1, 3)
+        self.publish_arms_command(0, 0, 0.5)
 
         self.publish_head_command(0, -0.1, 1)
         self.publish_head_command(0, +0.1, 2)
@@ -591,35 +747,59 @@ class MARRtinoController(Node):
 
 
 
-    def setArmsPosition(self, target_left, target_right):
+    def walk(self):
+        for i in range(5):
+            print(f"---- {i} ----")
+            timestep = 3
+            th1,_ = self.setSpeed(0.2, 0, timestep, _async=True)
+            a = 1 if i%2==0 else -1
+            th2,_ = self.setArmsPosition(a*math.pi/4, -a*math.pi/4, timestep, _async=True)
+            th3,_ = self.setHeadPosition(a*math.pi/4, 0, timestep, _async=True)
+            # threads running ...
+            th1.join()
+            th2.join()
+            th3.join()
 
-        if self.control_interface == 'velocity':
-    
-            for i, joint_name in enumerate(self.joint_states.name):
-                if joint_name=='left_arm_joint':
-                    p_left = self.joint_states.position[i]
-                if joint_name=='right_arm_joint':
-                    p_right = self.joint_states.position[i]
+        print("---- stop ----")
+        self.stop()
+        th1,_ = self.setArmsPosition(0,0,2, _async=True)
+        th2,_ = self.setHeadPosition(0,0,2, _async=True)
+        th1.join()
+        th2.join()
 
-            err_left = target_left-p_left
-            err_right = target_right-p_right
-            K = 0.5
-            while abs(err_left)+abs(err_right)>0.02:
-                v_left = K * err_left
-                v_right = K * err_right
-                self.publish_arm_command(v_left, v_right, 0.1)
-                
-                for i, joint_name in enumerate(self.joint_states.name):
-                    if joint_name=='left_arm_joint':
-                        p_left = self.joint_states.position[i]
-                    if joint_name=='right_arm_joint':
-                        p_right = self.joint_states.position[i]
 
-                print(f"arms pos: {p_left:.3f} {p_right:.3f}")
 
-                err_left = target_left-p_left
-                err_right = target_right-p_right
 
+    def walk2(self):
+        for i in range(5):
+            print(f"---- {i} ----")
+            timestep = 3
+            th1,stev1 = self.setSpeed(0.2, 0, 100, _async=True)
+            a = 1 if i%2==0 else -1
+            th2,stev2 = self.setArmsPosition(a*math.pi/4, -a*math.pi/4, 100, _async=True)
+            th3,stev3 = self.setHeadPosition(a*math.pi/4, 0, 100, _async=True)
+            # threads running ...
+            ts = 0
+            dt = 0.5
+            while ts<timestep:
+                self.sleep(dt)
+                ts += dt
+                print(f"walking ... {ts}/{timestep}")
+
+            # send stop events to all threads
+            stev1.set()
+            stev2.set()
+            stev3.set()
+            th1.join()
+            th2.join()
+            th3.join()
+
+        print("---- stop ----")
+        self.stop()
+        th1,_ = self.setArmsPosition(0,0,2, _async=True)
+        th2,_ = self.setHeadPosition(0,0,2, _async=True)
+        th1.join()
+        th2.join()
 
 
     def test5(self):

@@ -14,7 +14,9 @@ class MarrtinoParametersNode(Node):
         # These defaults will be overridden by the launch file if provided
         self.declare_parameter('robot_name', 'marrtino')
         self.declare_parameter('control_interface', 'effort')
+        self.declare_parameter('individual_arm_control', False)
         self.declare_parameter('world', 'default')
+        self.declare_parameter('battery_X_factor', 1.0)
 
 
 def main(args=None):
