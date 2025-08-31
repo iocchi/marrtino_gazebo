@@ -187,7 +187,7 @@ Note: robot_name and control_interface are collected from `marrtino_parameters`
 
 Note: so far available only for `control_interface:=position`
 
-`setSpeed`, `setHeadPosition`,  `setArmsPosition` (defined in `control.py`) can be run in asynchronous mode (in a separate thread) setting `_async=True`. In this mode, the function starts the behavior and immediately returns two values `thread` (a `Thread` object in which the behavior is running), `stop_event` (an `Event` object that can be used to stop the behavior externally).
+`setSpeed`, `setHeadPanPosition`,  `setHeadTiltPosition`,  `setLeftArmPosition`, `setRightArmPosition` (defined in `control.py`) can be run in asynchronous mode (in a separate thread) setting `_async=True`. In this mode, the function starts the behavior and immediately returns two values `thread` (a `Thread` object in which the behavior is running), `stop_event` (an `Event` object that can be used to stop the behavior externally).
 
 Examples of use:
 
@@ -251,17 +251,7 @@ During async execution, you can test if the thread is alive (i.e., the behavior 
     gz gui -c gui-image.config
 
 
-# websockets
 
-    cd src/marrtino_gazebo/bin
-    ./start_http.bash
-    
-    cd src/marrtino_gazebo/bin
-    ./start_server.bash
-
-    http://localhost:8000/code.html
-
-        robot.circle()
 
 
 # Spawn objects in world
@@ -304,4 +294,64 @@ Edit `setup.py` to add a line in the entry points like this
     cd ros2_ws
     colcon build && ros2 run marrtino_control control_<my_name> --ros-args -p fn:=my_new_controller
 
+
+# Run programs from web with websockets
+
+Launch smarrtino robot, http server and code server
+
+    cd src/marrtino_gazebo/bin
+    ./smarrtino.bash
+
+    cd src/marrtino_gazebo/bin
+    ./start_http.bash
+    
+    cd src/marrtino_gazebo/bin
+    ./start_server.bash
+
+Connect with a browser at `http://localhost:8000/code.html`
+and write programs in the code area.
+
+Example:
+
+        robot.forward(1)
+
+
+# Basic Python high-level commands
+
+        robot.forward(m)    move forward m [m]
+        robot.backward(m)   move backward m [m]
+        robot.left(r)       turn left r [deg]
+        robot.right(r)      turn right r [deg]
+
+        robot.setSpeed(lx,az,time,stopend=False)
+                      lx: linear velocity [m/s]
+				      az: angular velocity [rad/s]
+                      time: time [s]
+                      stopend: stop after motion 
+
+        robot.pan(deg): positive left
+        robot.tilt(deg): positive up
+
+        robot.left_arm(deg): positive ahead
+        robot.right_arm(deg): positive ahead
+
+These commands can be sent asynchrnously, by adding the parameter `_async=True`
+
+Example:  Raise both arms in parallel
+
+        robot.left_arm(90, _async=True) # non-blocking
+        robot.right_arm(90)             # blocking
+
+Example:  Move arms in walking style
+
+        def walking_arms(n):
+            for i in range(2*n):
+                a = 1 if i%2==0 else -1
+                robot.left_arm(a*45, _async=True)
+                robot.right_arm(-a*45)
+                robot.sleep(1)
+
+            robot.left_arm(0, _async=True)
+            robot.right_arm(0)
+            robot.sleep(1)
 

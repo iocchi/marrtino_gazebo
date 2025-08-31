@@ -17,6 +17,8 @@
         button:hover { color:#ffffff; background-color: #0056b3; }
         button:disabled { color:#000000; background-color: #565757; }
         #status { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
+        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #99f9f9; width: 600px; min-height: 200px; }
+        #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f9f9f9; width: 400px; min-height: 50px; }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
@@ -25,8 +27,17 @@
 <body>
     <h1>Send Python Code via WebSocket</h1>
 
-
+    <p>Robot program</p>
     <textarea id="codeEditor"></textarea>
+
+    <table>
+    <tr><td>Human says:</td> 
+    <td><textarea id="humansay"></textarea></td>
+    <td> <button id="sayButton">SAY</button> </td>
+    </tr>
+    </table>
+
+    <p>Control buttons</p>
 
     <table>
         <td> <button id="connectButton">CONNECT</button> </td>
@@ -34,10 +45,49 @@
         <td> <button id="stopButton">STOP</button>  </td>
     </table>
     
+    <p>Connection and execution status</p>
 
     <div id="status">
         <p>Status: Not connected.</p>
     </div>
+
+    <p>Human-Robot dialogue</p>
+    <textarea id="dialogue"></textarea>
+
+
+    <br><br><br>
+
+    <hr><hr>
+
+    <h2>Main commands</h2>
+
+    <pre>
+    # odometry position control
+    robot.forward(m)    move forward m [m]
+    robot.backward(m)   move backward m [m]
+    robot.left(r)       turn left r [deg]
+    robot.right(r)      turn right r [deg]
+
+    # odometry velocity control
+    robot.setSpeed(lx,az,time,stopend=False)
+                  lx: linear velocity [m/s]
+                  az: angular velocity [rad/s]
+                  time: time [s]
+                  stopend: stop after motion 
+
+    # head position
+    robot.pan(deg): positive left
+    robot.tilt(deg): positive up
+
+    # arms position
+    robot.left_arm(deg): positive ahead     
+    robot.right_arm(deg): positive ahead
+
+    # text to speech
+    robot.say(sentence, language): language = 'en'|'it'
+
+
+    </pre>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
@@ -72,11 +122,12 @@
 
         // Set some initial Python code
         editor.setValue(`
-robot.arms()
+robot.left(90)
 
 `);
 
 
+        const sayButton = document.getElementById('sayButton');
         const connectButton = document.getElementById('connectButton');
         const sendButton = document.getElementById('sendButton');
         const stopButton = document.getElementById('stopButton');
@@ -156,6 +207,16 @@ robot.arms()
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 websocket.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
                 updateStatus('Status: Sent signal STOP', 'purple');
+            } else {
+                updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
+            }
+        });
+
+        sayButton.addEventListener('click', () => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const sayToSend = document.getElementById('humansay').value; // Get content
+                websocket.send(JSON.stringify({ say: sayToSend })); // Changed key to 'code'
+                updateStatus('Status: Sent SAY '+sayToSend, 'purple');
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }

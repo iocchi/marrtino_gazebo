@@ -15,6 +15,7 @@ websocket = None
 
 def run_code(websocket):
     if code_running is not None:
+        robot.user_stop = False
         exec(code_running)
         asyncio.run(notify_thread_completed(websocket))
 
@@ -67,6 +68,10 @@ async def echo(websocket):
                         print("sending STOP !!!")
                         await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
                         robot.user_stop = True
+                elif "say" in data:
+                    received_say = data["say"]
+                    print(f"Human say:\n{received_say}")
+
                 else:
                     print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))

@@ -175,12 +175,24 @@ def generate_launch_description():
 
     has_head = PythonExpression(["'", robot_name, "' == 'smarrtino'" ])
 
-    head_controller_spawner = Node(
+    head_pan_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
         output='screen',
         arguments=[
-            PythonExpression( ["'head_", control_interface, "_controller'" ] ),
+            PythonExpression( ["'head_pan_", control_interface, "_controller'" ] ),
+            '--param-file',
+            robot_controllers,
+            ],
+        condition=IfCondition(has_head),
+    )
+
+    head_tilt_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        output='screen',
+        arguments=[
+            PythonExpression( ["'head_tilt_", control_interface, "_controller'" ] ),
             '--param-file',
             robot_controllers,
             ],
@@ -268,7 +280,7 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=diff_drive_controller_spawner,
-                on_exit=[head_controller_spawner],
+                on_exit=[head_pan_controller_spawner, head_tilt_controller_spawner],
             )
         ),
         
