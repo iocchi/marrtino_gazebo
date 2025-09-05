@@ -52,7 +52,7 @@
     </div>
 
     <p>Human-Robot dialogue</p>
-    <textarea id="dialogue"></textarea>
+    <div id="dialogue"></div>
 
 
     <br><br><br>
@@ -121,8 +121,7 @@
         });
 
         // Set some initial Python code
-        editor.setValue(`
-robot.left(90)
+        editor.setValue(`robot.left(90)
 
 `);
 
@@ -133,10 +132,15 @@ robot.left(90)
         const stopButton = document.getElementById('stopButton');
 
         const statusDiv = document.getElementById('status');
+        const dialogue = document.getElementById('dialogue');
         let websocket;
 
         function updateStatus(message, color = 'black') {
             statusDiv.innerHTML = `<p style="color: ${color};">${message}</p>`;
+        }
+
+        function appendDialogue(message, color = 'black') {
+            dialogue.innerHTML += `<div style="color: ${color};">${message}<br></div>`;
         }
 
         function connectWebSocket() {
@@ -152,15 +156,18 @@ robot.left(90)
                 const data = JSON.parse(event.data);
                 if (data.status == 'success') {
                     updateStatus(`Status: ${data.message}`, 'blue');
+                } 
+                else if (data.status == 'say') {
+                    appendDialogue(`Robot: ${data.message}`, 'blue');
                 } else {
                     updateStatus(`Status: Error - ${data.message}`, 'red');
                 }
                 if (data.disable_send == 'true') {
                     sendButton.disabled = true;
-                    sendButton.color = GrayText;
+                    sendButton.color = 'grey';
                 } else {
                     sendButton.disabled = false;
-                    sendButton.color = WhiteText;
+                    sendButton.color = 'white';
                 }
             };
 
@@ -183,7 +190,7 @@ robot.left(90)
 
         connectButton.addEventListener('click', () => {
             connectWebSocket();
-            sendButton.color = GrayText;
+            sendButton.color = 'grey';
         });
 
 
@@ -214,9 +221,12 @@ robot.left(90)
 
         sayButton.addEventListener('click', () => {
             if (websocket && websocket.readyState === WebSocket.OPEN) {
-                const sayToSend = document.getElementById('humansay').value; // Get content
+                const humansay = document.getElementById('humansay')
+                const sayToSend = humansay.value; // Get content
+                humansay.value = "";
                 websocket.send(JSON.stringify({ say: sayToSend })); // Changed key to 'code'
                 updateStatus('Status: Sent SAY '+sayToSend, 'purple');
+                appendDialogue(`Human: ${sayToSend}`, 'red');
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }

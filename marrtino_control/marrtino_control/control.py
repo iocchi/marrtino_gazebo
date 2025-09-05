@@ -48,6 +48,9 @@ class MARRtinoController(Node):
         # user request to stop the robot
         self.user_stop = False
 
+        # simulated speech variables
+        self.simulated_say = None
+        self.simulated_asr = None
 
         # Spin in a separate thread
         thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
@@ -940,6 +943,33 @@ class MARRtinoController(Node):
         ts = 1
         self.setRightArmPosition(-deg/180*math.pi, ts, _async=_async)
 
+    # Speech
+    
+    '''
+    robot.say(sentence,language)  # language = 'it' | 'en'
+    sentence = robot.listen(timeout=5)    
+    '''
+
+    def say(self, sentence, language='en'):
+        print(f"saying '{sentence}' ...")
+        self.simulated_say = sentence
+        self.sleep(0.5)  # wait for say message to go through
+
+    def listen(self, timeout=5):
+        t = 0
+        dt = 0.5
+        print("listening ....")
+        while (t<timeout) and self.simulated_asr is None and not self.user_stop:
+            self.sleep(dt)
+            t += dt
+        s = self.simulated_asr
+        self.simulated_asr = None
+        if s is not None:
+            print(f"listened: {s}")
+        return s
+
+
+
 
     '''
 robot.emotion(“normal”)    set normal face 
@@ -949,8 +979,6 @@ robot.emotion(“normal”)    set normal face
    robot.emotion(“surprise”)  set face surprised  
    robot.emotion(“angry”)     set angry face
    
-robot.say(‘ciao’,’it’) say “ciao” in italian language
-   robot.say(‘hello’,’en’) say “hello” in english language
 
 
 

@@ -2,6 +2,7 @@ import asyncio
 import websockets
 import json
 import threading
+import time
 
 #from websockets.asyncio.client import connect
 from websockets.sync.client import connect
@@ -19,12 +20,21 @@ def run_code(websocket):
         exec(code_running)
         asyncio.run(notify_thread_completed(websocket))
 
+def print_robot_say(websocket):
+    while code_running is not None:
+        if robot.simulated_say is not None:
+            asyncio.run(send_robot_say(websocket, robot.simulated_say))
+        robot.simulated_say = None
+        time.sleep(0.5)
+
 def run_thread(code, websocket):
     global code_running
     print("Running code in a thread ...")
     code_running = code
-    t = threading.Thread(target=run_code, args=(websocket, ))
-    t.start()
+    t1 = threading.Thread(target=run_code, args=(websocket, ))
+    t1.start()
+    t2 = threading.Thread(target=print_robot_say, args=(websocket, ))
+    t2.start()
     print("Running code in a thread started.")
 
 async def notify_thread_completed(websocket):
@@ -33,6 +43,10 @@ async def notify_thread_completed(websocket):
     code_running = None
     # notify termination to JS client websocket
     await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
+
+async def send_robot_say(websocket, sentence):
+    print(f'send robot say: {sentence}')
+    await websocket.send(json.dumps({"status": "say", "message": sentence }))
 
 async def echo(websocket):
     global code_running
@@ -71,7 +85,7 @@ async def echo(websocket):
                 elif "say" in data:
                     received_say = data["say"]
                     print(f"Human say:\n{received_say}")
-
+                    robot.simulated_asr = received_say
                 else:
                     print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))
