@@ -877,28 +877,28 @@ class MARRtinoController(Node):
     '''
 
     # relative forward/backward
-    def forward(self, m, _async=False):
+    def forward(self, m=1, _async=False):
         lx = 0.2 # linear velocity
         if (m<0):
             lx *= -1
         tm = abs(m) / abs(lx)
         self.setSpeed(lx,0,tm,stopend=True,_async=_async)
 
-    def backward(self, m, _async=False):
+    def backward(self, m=1, _async=False):
         self.forward(-m, _async=_async)
 
     # relative turn
-    def turn(self, deg, _async=False):
+    def turn(self, deg=90, _async=False):
         az = 0.5 # angular velocity
         if (deg<0):
             az *= -1
         tm = abs(deg)/180.0*math.pi / abs(az)
         self.setSpeed(0,az,tm,stopend=True,_async=_async)
 
-    def left(self, deg, _async=False):
+    def left(self, deg=90, _async=False):
         self.turn(deg, _async=_async)
 
-    def right(self, deg, _async=False):
+    def right(self, deg=90, _async=False):
         self.turn(-deg, _async=_async)
 
     '''
@@ -920,11 +920,11 @@ class MARRtinoController(Node):
     '''
 
     def pan(self, deg, _async=False):
-        ts = 1
+        ts = 4
         self.setHeadPanPosition(deg/180*math.pi, ts, _async=_async)
 
     def tilt(self, deg, _async=False):
-        ts = 1
+        ts = 4
         self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async)
 
 
@@ -936,11 +936,11 @@ class MARRtinoController(Node):
     '''
 
     def left_arm(self, deg, _async=False):
-        ts = 1
+        ts = 3
         self.setLeftArmPosition(-deg/180*math.pi, ts, _async=_async)
 
     def right_arm(self, deg, _async=False):
-        ts = 1
+        ts = 3
         self.setRightArmPosition(-deg/180*math.pi, ts, _async=_async)
 
     # Speech

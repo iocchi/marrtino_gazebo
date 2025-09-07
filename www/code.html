@@ -17,47 +17,62 @@
         button:hover { color:#ffffff; background-color: #0056b3; }
         button:disabled { color:#000000; background-color: #565757; }
         #status { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
-        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #99f9f9; width: 600px; min-height: 200px; }
+        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #99f9f9; width: 600px; height: 300px; overflow: auto; }
         #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f9f9f9; width: 400px; min-height: 50px; }
+        #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
+        #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9c9f9; width: 400px; min-height: 50px; }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     </head>
 <body>
-    <h1>Send Python Code via WebSocket</h1>
+    <h1>Robot Programming Interface</h1>
+
+    <p>Control buttons</p>
+
+    <table>
+        <td> <button id="connectButton">CONNECT</button> </td>
+        <td> <button id="stopButton">STOP</button>  </td>
+    </table>
 
     <p>Robot program</p>
     <textarea id="codeEditor"></textarea>
+    <p><button id="sendButton">RUN</button></p>
 
     <table>
     <tr><td>Human says:</td> 
     <td><textarea id="humansay"></textarea></td>
     <td> <button id="sayButton">SAY</button> </td>
     </tr>
+    <tr><td>Human chat:</td> 
+    <td><textarea id="humanchat"></textarea></td>
+    <td> <button id="chatButton">CHAT</button> </td>
+    </tr>
+    <tr><td>NL program:</td> 
+    <td><textarea id="nlprog"></textarea></td>
+    <td> <button id="nlpButton">RUN</button> </td>
+    </tr>
     </table>
 
-    <p>Control buttons</p>
+    <br><br><br>
 
-    <table>
-        <td> <button id="connectButton">CONNECT</button> </td>
-        <td> <button id="sendButton">RUN</button>  </td>
-        <td> <button id="stopButton">STOP</button>  </td>
-    </table>
-    
     <p>Connection and execution status</p>
 
     <div id="status">
         <p>Status: Not connected.</p>
     </div>
 
+    <br><br><br>
+
+
     <p>Human-Robot dialogue</p>
     <div id="dialogue"></div>
-
+    <p align="right"> <button id="clearDialogueButton">Clear</button> </p>
 
     <br><br><br>
 
-    <hr><hr>
+    <p>--------------------------------------</p>
 
     <h2>Main commands</h2>
 
@@ -126,40 +141,46 @@
 `);
 
 
-        const sayButton = document.getElementById('sayButton');
         const connectButton = document.getElementById('connectButton');
         const sendButton = document.getElementById('sendButton');
         const stopButton = document.getElementById('stopButton');
 
+        const sayButton = document.getElementById('sayButton');
+        const chatButton = document.getElementById('chatButton');
+        const nlpButton = document.getElementById('nlpButton');
+        const clearDialogueButton = document.getElementById('clearDialogueButton')
+
         const statusDiv = document.getElementById('status');
         const dialogue = document.getElementById('dialogue');
-        let websocket;
+        let ws_code, ws_chat;
 
         function updateStatus(message, color = 'black') {
             statusDiv.innerHTML = `<p style="color: ${color};">${message}</p>`;
         }
 
         function appendDialogue(message, color = 'black') {
-            dialogue.innerHTML += `<div style="color: ${color};">${message}<br></div>`;
+            dialogue.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
         }
 
         function connectWebSocket() {
-            websocket = new WebSocket('ws://localhost:8765');
+            ws_code = new WebSocket('ws://localhost:8765');
+            ws_chat = new WebSocket('ws://localhost:8766');
 
-            websocket.onopen = function(event) {
+            ws_code.onopen = function(event) {
                 updateStatus('Status: Connected to WebSocket server.', 'green');
                 sendButton.disabled = false;
             };
 
-            websocket.onmessage = function(event) {
-                console.log('Message from server:', event.data);
+            ws_code.onmessage = function(event) {
+                console.log('Message from code server:', event.data);
                 const data = JSON.parse(event.data);
                 if (data.status == 'success') {
                     updateStatus(`Status: ${data.message}`, 'blue');
                 } 
                 else if (data.status == 'say') {
                     appendDialogue(`Robot: ${data.message}`, 'blue');
-                } else {
+                } 
+				else {
                     updateStatus(`Status: Error - ${data.message}`, 'red');
                 }
                 if (data.disable_send == 'true') {
@@ -171,7 +192,28 @@
                 }
             };
 
-            websocket.onclose = function(event) {
+            ws_chat.onmessage = function(event) {
+                console.log('Message from chat server:', event.data);
+                const data = JSON.parse(event.data);
+                if (data.status == 'say') {
+                    appendDialogue(`Robot: ${data.message}`, 'blue');
+                } 
+                else if (data.status == 'llmcode') {
+                    // appendDialogue(`Robot: ${data.message}`, 'blue');
+                    if (data.message.includes('<CODE>')) {
+                        i = data.message.indexOf('<CODE>');
+                        j = data.message.indexOf('</CODE>');
+                        const codeToSend = data.message.substring(i+6,j).trim();
+                        editor.setValue(codeToSend+"\n");
+                        ws_code.send(JSON.stringify({ code: codeToSend }));
+                    }
+                } 
+				else {
+                    updateStatus(`Status: Error - ${data.message}`, 'red');
+                }
+			}
+
+            ws_code.onclose = function(event) {
                 if (event.wasClean) {
                     updateStatus(`Status: Connection closed cleanly, code=${event.code}, reason=${event.reason}`, 'orange');
                 } else {
@@ -182,10 +224,16 @@
                 // setTimeout(connectWebSocket, 5000);
             };
 
-            websocket.onerror = function(error) {
+            ws_code.onerror = function(error) {
                 updateStatus('Status: WebSocket Error: ' + error.message, 'red');
                 sendButton.disabled = true;
             };
+
+            ws_chat.onerror = function(error) {
+                updateStatus('Status: WebSocket Chat Error: ' + error.message, 'red');
+                // sendButton.disabled = true;
+            };
+
         }
 
         connectButton.addEventListener('click', () => {
@@ -195,11 +243,11 @@
 
 
         sendButton.addEventListener('click', () => {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = editor.getValue(); // Get content from CodeMirror
                 if (codeToSend.trim() !== '') {
                     // Send code as a JSON object
-                    websocket.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
+                    ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
                     updateStatus('Status: Sending code...', 'purple');
                     // editor.setValue(''); // Optional: Clear editor after sending
                 } else {
@@ -211,26 +259,58 @@
         });
 
         stopButton.addEventListener('click', () => {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                ws_code.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
                 updateStatus('Status: Sent signal STOP', 'purple');
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }
         });
 
+		// Human say simulation
         sayButton.addEventListener('click', () => {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const humansay = document.getElementById('humansay')
                 const sayToSend = humansay.value; // Get content
                 humansay.value = "";
-                websocket.send(JSON.stringify({ say: sayToSend })); // Changed key to 'code'
+                ws_code.send(JSON.stringify({ say: sayToSend })); // Changed key to 'code'
                 updateStatus('Status: Sent SAY '+sayToSend, 'purple');
                 appendDialogue(`Human: ${sayToSend}`, 'red');
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }
         });
+
+        chatButton.addEventListener('click', () => {
+            if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
+                const humanchat = document.getElementById('humanchat')
+                const chatToSend = humanchat.value; // Get content
+                humanchat.value = "";
+                ws_chat.send(JSON.stringify({ chat: chatToSend })); // Changed key to 'code'
+                updateStatus('Status: Sent CHAT '+chatToSend, 'purple');
+                appendDialogue(`Human: ${chatToSend}`, 'red');
+            } else {
+                updateStatus('Status: Not connected to chat server. Please refresh or check server.', 'red');
+            }
+        });
+
+        nlpButton.addEventListener('click', () => {
+            if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
+                const nlprog = document.getElementById('nlprog')
+                const cmdToSend = nlprog.value; // Get content
+                nlprog.value = "";
+                ws_chat.send(JSON.stringify({ nlprog: cmdToSend })); // Changed key to 'code'
+                updateStatus('Status: Sent NLProg '+cmdToSend, 'purple');
+            } else {
+                updateStatus('Status: Not connected to chat server. Please refresh or check server.', 'red');
+            }
+        });
+
+        clearDialogueButton.addEventListener('click', () => {
+            const humanchat = document.getElementById('humanchat')
+            dialogue.innerHTML = "";
+        });
+
 
         // Connect to WebSocket when the page loads
         window.onload = connectWebSocket;

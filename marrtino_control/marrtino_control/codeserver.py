@@ -3,6 +3,8 @@ import websockets
 import json
 import threading
 import time
+import math, random
+import traceback
 
 #from websockets.asyncio.client import connect
 from websockets.sync.client import connect
@@ -17,7 +19,10 @@ websocket = None
 def run_code(websocket):
     if code_running is not None:
         robot.user_stop = False
-        exec(code_running)
+        try:
+            exec(code_running)
+        except Exception:
+            print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket))
 
 def print_robot_say(websocket):
