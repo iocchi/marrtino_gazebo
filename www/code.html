@@ -101,6 +101,14 @@
     # text to speech
     robot.say(sentence, language): language = 'en'|'it'
 
+    # odometry pose [m, deg])
+    x,y,th_deg = robot.get_pose()
+
+    # joints position [deg]
+    deg = robot.get_pan_pos()
+    deg = robot.get_tilt_pos()
+    deg = robot.get_left_arm_pos()
+    deg = robot.get_right_arm_pos()
 
     </pre>
 

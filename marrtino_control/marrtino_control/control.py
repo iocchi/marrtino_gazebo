@@ -45,6 +45,9 @@ class MARRtinoController(Node):
         self.joint_states = None
         self.gtpose = None
 
+        # joint name-id map
+        self.jointid = None
+
         # user request to stop the robot
         self.user_stop = False
 
@@ -271,6 +274,11 @@ class MARRtinoController(Node):
     def joint_states_callback(self, msg):
         self.set_ts(msg)
         self.joint_states = msg
+        if self.jointid is None:
+            self.jointid = {}
+            for i, joint_name in enumerate(self.joint_states.name):
+                self.jointid[joint_name] = i
+
 
     # print functions
 
@@ -920,12 +928,14 @@ class MARRtinoController(Node):
     '''
 
     def pan(self, deg, _async=False):
-        ts = 4
+        c = self.get_pan_pos()
+        ts = abs(deg-c)/60 + 0.5
         self.setHeadPanPosition(deg/180*math.pi, ts, _async=_async)
 
     def tilt(self, deg, _async=False):
-        ts = 4
-        self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async)
+        c = self.get_tilt_pos()
+        ts = abs(deg-c)/60 + 0.5
+        self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async) # positive up
 
 
     # Arms
@@ -968,6 +978,46 @@ class MARRtinoController(Node):
             print(f"listened: {s}")
         return s
 
+    # get. robot pose in the specified frame [m, deg]
+
+    def get_pose(self, frame='odom'):
+        if frame=='odom':
+            x = self.odom.pose.pose.position.x
+            y = self.odom.pose.pose.position.y
+            (_, _, th_rad) = euler_from_orientation(self.odom.pose.pose.orientation)
+        elif frame=='gt' or frame=='ground_truth':
+            x = self.gtpose.pose.pose.position.x
+            y = self.gtpose.pose.pose.position.y
+            (_, _, th_rad) = euler_from_orientation(self.odom.pose.pose.orientation)
+        else:
+            print(f"getpose: Unknown frame {frame}")
+            return None
+        th_deg = th_rad/math.pi*180
+        return x,y,th_deg
+
+
+    # return jount position [deg] and velocity [deg/s]
+    def get_joint_pos(self, jname):
+        i = self.jointid[jname]
+        return self.joint_states.position[i]/math.pi*180 
+
+    def get_joint_vel(self, jname):
+        i = self.jointid[jname]
+        return self.joint_states.velocity[i]/math.pi*180
+
+    # get joint positions [deg]
+
+    def get_pan_pos(self):
+        return self.get_joint_pos('pan_head_joint')
+    
+    def get_tilt_pos(self):
+        return -self.get_joint_pos('tilt_head_joint')   # positive up
+
+    def get_left_arm_pos(self):
+        return self.get_joint_pos('left_arm_joint')
+    
+    def get_right_arm_pos(self):
+        return self.get_joint_pos('right_arm_joint')
 
 
 
