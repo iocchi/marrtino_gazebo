@@ -4,7 +4,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray 
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, LaserScan
 
 from tf_transformations import euler_from_quaternion
 
@@ -44,6 +44,7 @@ class MARRtinoController(Node):
         self.odom = None
         self.joint_states = None
         self.gtpose = None
+        self.scan = None
 
         # joint name-id map
         self.jointid = None
@@ -146,6 +147,12 @@ class MARRtinoController(Node):
             JointState,           # Message type
             '/joint_states',      # Topic name
             self.joint_states_callback, # Callback function
+            10                    # QoS (Quality of Service) history depth
+        )
+        self.sub_scan = self.create_subscription(
+            LaserScan,    # Message type
+            '/scan',      # Topic name
+            self.scan_callback, # Callback function
             10                    # QoS (Quality of Service) history depth
         )
 
@@ -280,6 +287,9 @@ class MARRtinoController(Node):
                 self.jointid[joint_name] = i
 
 
+    def scan_callback(self, msg):
+        self.scan = msg
+
     # print functions
 
     def print_odom(self):
@@ -325,6 +335,21 @@ class MARRtinoController(Node):
                 f' | Velocity: {self.joint_states.velocity[i]:.4f}'
                 f' | Effort: {self.joint_states.effort[i]:.4f}'
             )
+
+    def print_scan(self):
+        print(f"scan num points = {len(self.scan.ranges)}")
+        print(f"     min-max angle = {self.scan.angle_min}, {self.scan.angle_max} - inc {self.scan.angle_increment} [rad]")
+
+        np = (self.scan.angle_max - self.scan.angle_min) / self.scan.angle_increment
+        print(f"     mp = {np}")
+
+        for deg in [-90, 0, 90]:
+            r = deg/180.0*math.pi
+            i = int((r - self.scan.angle_min) / self.scan.angle_increment)
+            if (i>len(self.scan.ranges)):
+                i = -1
+            d = self.scan.ranges[i]
+            print(f"     {deg} -> range[{i}] = {d}")
 
     # Publishers (with stop_event handling)
     # stop_event is a threading.Event object
@@ -544,6 +569,10 @@ class MARRtinoController(Node):
             thread.start()
             return thread, stop_event
         else:
+            if lx<0:
+                lx = 0
+            if lx>0.4:
+                lx = 0.4
             self.publish_cmd_vel(lx, az, time, stop_on_end=stopend) # blocking function
             if stopend:
                 self.publish_cmd_vel(0, 0, 0.5) # blocking function        
@@ -890,10 +919,10 @@ class MARRtinoController(Node):
         if (m<0):
             lx *= -1
         tm = abs(m) / abs(lx)
-        self.setSpeed(lx,0,tm,stopend=True,_async=_async)
+        return self.setSpeed(lx,0,tm,stopend=True,_async=_async)
 
     def backward(self, m=1, _async=False):
-        self.forward(-m, _async=_async)
+        return self.forward(-m, _async=_async)
 
     # relative turn
     def turn(self, deg=90, _async=False):
@@ -901,13 +930,13 @@ class MARRtinoController(Node):
         if (deg<0):
             az *= -1
         tm = abs(deg)/180.0*math.pi / abs(az)
-        self.setSpeed(0,az,tm,stopend=True,_async=_async)
+        return self.setSpeed(0,az,tm,stopend=True,_async=_async)
 
     def left(self, deg=90, _async=False):
-        self.turn(deg, _async=_async)
+        return self.turn(deg, _async=_async)
 
     def right(self, deg=90, _async=False):
-        self.turn(-deg, _async=_async)
+        return self.turn(-deg, _async=_async)
 
     '''
     odometry velocity control
@@ -927,15 +956,15 @@ class MARRtinoController(Node):
     robot.tilt(deg): positive up
     '''
 
-    def pan(self, deg, _async=False):
+    def pan(self, deg, _async=True):
         c = self.get_pan_pos()
         ts = abs(deg-c)/60 + 0.5
-        self.setHeadPanPosition(deg/180*math.pi, ts, _async=_async)
+        return self.setHeadPanPosition(deg/180*math.pi, ts, _async=_async)
 
-    def tilt(self, deg, _async=False):
+    def tilt(self, deg, _async=True):
         c = self.get_tilt_pos()
         ts = abs(deg-c)/60 + 0.5
-        self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async) # positive up
+        return self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async) # positive up
 
 
     # Arms
@@ -945,13 +974,20 @@ class MARRtinoController(Node):
     robot.right_arm(deg): positive ahead
     '''
 
-    def left_arm(self, deg, _async=False):
-        ts = 3
-        self.setLeftArmPosition(-deg/180*math.pi, ts, _async=_async)
+    def left_arm(self, deg, _async=True):
+        c = self.get_left_arm_pos()
+        ts = abs(deg-c)/60 + 0.5
+        return self.setLeftArmPosition(-deg/180*math.pi, ts, _async=_async)
 
-    def right_arm(self, deg, _async=False):
-        ts = 3
-        self.setRightArmPosition(-deg/180*math.pi, ts, _async=_async)
+    def right_arm(self, deg, _async=True):
+        c = self.get_left_arm_pos()
+        ts = abs(deg-c)/60 + 0.5
+        return self.setRightArmPosition(-deg/180*math.pi, ts, _async=_async)
+
+    # Wait
+
+    def wait(self, t=1):
+        self.sleep(t)
 
     # Speech
     
@@ -1019,7 +1055,18 @@ class MARRtinoController(Node):
     def get_right_arm_pos(self):
         return self.get_joint_pos('right_arm_joint')
 
+    # obstacle distance [deg] -> [m]
 
+    def obstacle_distance(self, deg=0):
+        r = deg/180.0*math.pi
+        i = int((r - self.scan.angle_min) / self.scan.angle_increment)
+        if (i>len(self.scan.ranges)):
+            i = -1
+        if (i<0):
+            i = 0
+        d = self.scan.ranges[i]
+        print(f"Laser scan obstacle {deg} : range[{i}] = {d}")
+        return d
 
     '''
 robot.emotion(“normal”)    set normal face 

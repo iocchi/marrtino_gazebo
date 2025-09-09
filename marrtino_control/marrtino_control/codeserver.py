@@ -108,8 +108,8 @@ async def echo(websocket):
         print(f"Client {websocket.remote_address} connection closed.")
 
 async def main():
-    # Start the WebSocket server on localhost, port 8765
-    async with websockets.serve(echo, "localhost", 8765) as server:
+    # Start the WebSocket server on server host, port 8765
+    async with websockets.serve(echo, "0.0.0.0", 8765) as server:
         print("WebSocket server started on ws://localhost:8765")
         await server.serve_forever()  # Run forever
 

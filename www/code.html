@@ -110,6 +110,9 @@
     deg = robot.get_left_arm_pos()
     deg = robot.get_right_arm_pos()
 
+    # obstacle distance 
+    m = robot.obstacle_distance(deg=0)
+
     </pre>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
@@ -171,8 +174,11 @@
         }
 
         function connectWebSocket() {
-            ws_code = new WebSocket('ws://localhost:8765');
-            ws_chat = new WebSocket('ws://localhost:8766');
+            const host = location.hostname;
+
+            console.log(host);
+            ws_code = new WebSocket("ws://"+host+":8765");
+            ws_chat = new WebSocket("ws://"+host+":8766");
 
             ws_code.onopen = function(event) {
                 updateStatus('Status: Connected to WebSocket server.', 'green');
