@@ -569,10 +569,10 @@ class MARRtinoController(Node):
             thread.start()
             return thread, stop_event
         else:
-            if lx<0:
-                lx = 0
-            if lx>0.4:
-                lx = 0.4
+            if lx<-1:
+                lx = -1.0
+            if lx>1:
+                lx = 1.0
             self.publish_cmd_vel(lx, az, time, stop_on_end=stopend) # blocking function
             if stopend:
                 self.publish_cmd_vel(0, 0, 0.5) # blocking function        
@@ -1002,7 +1002,7 @@ class MARRtinoController(Node):
         self.sleep(0.5)  # wait for say message to go through
 
     def asr(self, timeout=5):
-        self.listen(timeout):
+        self.listen(timeout)
 
     def listen(self, timeout=5):
         t = 0
