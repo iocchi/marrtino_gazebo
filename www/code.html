@@ -101,6 +101,9 @@
     # text to speech
     robot.say(sentence, language): language = 'en'|'it'
 
+    # speech to text
+    sentence = robot.asr(timeout=5): sentence said by human (or None after timeout)
+
     # odometry pose [m, deg])
     x,y,th_deg = robot.get_pose()
 

@@ -1001,6 +1001,9 @@ class MARRtinoController(Node):
         self.simulated_say = sentence
         self.sleep(0.5)  # wait for say message to go through
 
+    def asr(self, timeout=5):
+        self.listen(timeout):
+
     def listen(self, timeout=5):
         t = 0
         dt = 0.5
