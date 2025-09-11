@@ -78,6 +78,17 @@
                 <cylinder radius="${wheel_r}" length="${wheel_l}"/>
             </geometry>
             <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+            <surface>
+              <friction>
+                <ode>
+                  <mu>1.0</mu>
+                  <mu2>1.0</mu2>
+                </ode>
+                <torsional>
+                  <ode/>
+                </torsional>
+              </friction>
+            </surface>
         </collision>
         <xacro:cylinder_inertial mass="0.3" radius="${wheel_r}" length="${wheel_l}"/>
       </link>
@@ -95,6 +106,17 @@
                 <cylinder radius="${wheel_r}" length="${wheel_l}"/>
             </geometry>
             <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
+            <surface>
+              <friction>
+                <ode>
+                  <mu>1.0</mu>
+                  <mu2>1.0</mu2>
+                </ode>
+                <torsional>
+                  <ode/>
+                </torsional>
+              </friction>
+            </surface>
         </collision>
         <xacro:cylinder_inertial mass="0.3" radius="${wheel_r}" length="${wheel_l}"/>
       </link>
@@ -112,6 +134,17 @@
                 <sphere radius="${wheel_r/2}"/>
             </geometry>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <surface>
+              <friction>
+                <ode>
+                  <mu>0.001</mu>
+                  <mu2>0.001</mu2>
+                </ode>
+                <torsional>
+                  <ode/>
+                </torsional>
+              </friction>
+            </surface>
         </collision>
         <xacro:sphere_inertial mass="0.1" radius="${wheel_r/2}" />
       </link>
