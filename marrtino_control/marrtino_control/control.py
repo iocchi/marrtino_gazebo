@@ -21,6 +21,49 @@ def euler_from_orientation(orientation_q):
     return euler_from_quaternion(orientation_list)
 
 
+# managing concurrent action execution
+class ActionFuture:
+
+    def __init__(self):
+        self.thread = None
+        self.stop_event = None
+        self.result = None
+        self.callback_fn = None
+    
+    # start the activity in a separate thread (non-blocking)
+    def start(self, target, args, daemon=True):
+        assert self.thread is None, "ActionFuture cannot start a new activity on an active thread !!!"
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=target, args=args, daemon=daemon)
+        self.thread.start()
+
+    # to be called only by target function upon termination
+    def notify_termination(self, result=None):
+        self.result = result
+        self.thread = None
+        self.stop_event = None
+        if self.callback_fn is not None:
+            self.callback_fn(self.result)
+
+    # request to stop
+    def stop_request(self):
+        if self.stop_event is not None:
+            self.stop_event.set()      
+
+    # check if running
+    def is_running(self):
+        return self.thread is not None and self.thread.is_alive()
+
+    # wait until termination (blocking)
+    def wait(self):
+        if self.thread is not None:
+            self.thread.join()
+
+    # callback on termination
+    def set_callback(self, fn):
+        self.callback_fn = fn
+
+
 
 NODE_NAME = 'marrtino_control_client'
 
@@ -355,7 +398,7 @@ class MARRtinoController(Node):
     # stop_event is a threading.Event object
     # to stop the publishing behavior use stop_event.set()
 
-    def publish_cmd_vel(self, lx, az, ts=1, stop_on_end=False, stop_event=None):
+    def publish_cmd_vel(self, lx, az, ts=1, stop_on_end=False, afuture=None):
         msg = TwistStamped()
         msg.twist.linear.x = float(lx)
         msg.twist.angular.z = float(az)
@@ -365,7 +408,7 @@ class MARRtinoController(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
             rate100.sleep()
-            if self.user_stop or (stop_event is not None and stop_event.is_set()):
+            if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
                 break
         if stop_on_end:
             for _ in range(5):
@@ -377,9 +420,12 @@ class MARRtinoController(Node):
 
         if self.user_stop:
             self.stop()
+
+        if afuture is not None:
+            afuture.notify_termination()
     
 
-    def publish_arms_command(self, fl, fr, ts=1, stop_event=None):
+    def publish_arms_command(self, fl, fr, ts=1, afuture=None):
         if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
             interface = self.control_interface        
             if interface=='position':
@@ -403,7 +449,7 @@ class MARRtinoController(Node):
                     self.pub_lshp_cmd.publish(msgl)
                     self.pub_rshp_cmd.publish(msgr)
                     rate100.sleep()
-                    if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                    if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
                         break
             else:
                 msg = Float64MultiArray()
@@ -418,14 +464,17 @@ class MARRtinoController(Node):
             if self.user_stop:
                 self.stop()
 
+        if afuture is not None:
+            afuture.notify_termination()
 
-    def publish_left_shoulder_pitch_command(self, val, ts, stop_event=None):
-        self._publish_onearm_command(self.pub_lshp_cmd, val, ts, stop_event)
 
-    def publish_right_shoulder_pitch_command(self, val, ts, stop_event=None):
-        self._publish_onearm_command(self.pub_rshp_cmd, val, ts, stop_event)
+    def publish_left_shoulder_pitch_command(self, val, ts, afuture=None):
+        self._publish_onearm_command(self.pub_lshp_cmd, val, ts, afuture)
 
-    def _publish_onearm_command(self, pub, val, ts=1, stop_event=None):
+    def publish_right_shoulder_pitch_command(self, val, ts, afuture=None):
+        self._publish_onearm_command(self.pub_rshp_cmd, val, ts, afuture)
+
+    def _publish_onearm_command(self, pub, val, ts=1, afuture=None):
         if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
             interface = self.control_interface
             
@@ -443,21 +492,24 @@ class MARRtinoController(Node):
             for _ in range(int(ts*100)):
                 pub.publish(msg)
                 rate100.sleep()
-                if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
                     break
             if self.user_stop:
                 self.stop()
 
-
-    def publish_head_pan_command(self, value, ts=1, stop_event=None):
-        self.publish_head_command(self.pub_head_pan_cmd, value, ts, stop_event)
-
-    def publish_head_tilt_command(self, value, ts=1, stop_event=None):
-        self.publish_head_command(self.pub_head_tilt_cmd, value, ts, stop_event)
+        if afuture is not None:
+            afuture.notify_termination()
 
 
+    def publish_head_pan_command(self, value, ts=1, afuture=None):
+        self.publish_head_command(self.pub_head_pan_cmd, value, ts, afuture)
 
-    def publish_head_command(self, pub, value, ts=1, stop_event=None):
+    def publish_head_tilt_command(self, value, ts=1, afuture=None):
+        self.publish_head_command(self.pub_head_tilt_cmd, value, ts, afuture)
+
+
+
+    def publish_head_command(self, pub, value, ts=1, afuture=None):
         if self.robot_name == 'smarrtino':
             interface = self.control_interface
 
@@ -482,10 +534,14 @@ class MARRtinoController(Node):
             for _ in range(int(ts*100)):
                 pub.publish(msg)
                 rate100.sleep()
-                if self.user_stop or (stop_event is not None and stop_event.is_set()):
+                if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
                     break
             if self.user_stop:
                 self.stop()
+
+        if afuture is not None:
+            afuture.notify_termination()
+
 
     # sleep function
 
@@ -544,49 +600,31 @@ class MARRtinoController(Node):
         rclpy.shutdown()
 
 
-    # Position control high-level commands
-    # async call:
-    #   -- run and wait until finished 
-    #   th,_ = fn(..., _async=True)
-    #   th.join()
-    #   -- run and do somthing until finished
-    #   th,_ = fn(..., _async=True)
-    #   while (th.is_alive()):
-    #     do ... 
-    #   th.join()
-    #   -- run and quit the behavior when condition
-    #   th,stev = fn(..., _async=True)
-    #   while (whatever and th.is_alive()):
-    #     do ...
-    #     if condition:
-    #        stev.set()   # this will tell the publish behavior to stop
-    #   th.join()
+    # high level control
 
     def setSpeed(self, lx, az, time=1, stopend=False, _async=False):
+        if lx<-1:
+            lx = -1.0
+        if lx>1:
+            lx = 1.0
         if _async:
-            stop_event = threading.Event()
-            thread = threading.Thread(target=self.publish_cmd_vel, args=(lx, az, time, stopend, stop_event), daemon=True)
-            thread.start()
-            return thread, stop_event
+            afuture = ActionFuture()
+            afuture.start(target=self.publish_cmd_vel, args=(lx, az, time, stopend, afuture), daemon=True)
+            return afuture
         else:
-            if lx<-1:
-                lx = -1.0
-            if lx>1:
-                lx = 1.0
             self.publish_cmd_vel(lx, az, time, stop_on_end=stopend) # blocking function
             if stopend:
                 self.publish_cmd_vel(0, 0, 0.5) # blocking function        
-        return None, None
+        return None
 
 
     def setHeadPanPosition(self, rad, time=1, _async=False):
 
         if self.control_interface == 'position':
             if _async:
-                stop_event = threading.Event()
-                thread = threading.Thread(target=self.publish_head_pan_command, args=(rad, time, stop_event ), daemon=True)
-                thread.start()
-                return thread, stop_event
+                afuture = ActionFuture()
+                afuture.start(target=self.publish_head_pan_command, args=(rad, time, afuture), daemon=True)
+                return afuture
             else:
                 self.publish_head_pan_command(rad, time)
 
@@ -594,40 +632,35 @@ class MARRtinoController(Node):
 
 
     def setHeadTiltPosition(self, rad, time=1, _async=False):
-
         if self.control_interface == 'position':
             if _async:
-                stop_event = threading.Event()
-                thread = threading.Thread(target=self.publish_head_tilt_command, args=(rad, time, stop_event ), daemon=True)
-                thread.start()
-                return thread, stop_event
+                afuture = ActionFuture()
+                afuture.start(target=self.publish_head_tilt_command, args=(rad, time, afuture), daemon=True)
+                return afuture
             else:
                 self.publish_head_tilt_command(rad, time)
-
-        return None, None
+        return None
 
 
     def setLeftArmPosition(self, rad, time=1, _async=False):
         if self.control_interface == 'position':
             if _async:
-                stop_event = threading.Event()
-                thread = threading.Thread(target=self.publish_left_shoulder_pitch_command, args=(rad, time, stop_event ), daemon=True)
-                thread.start()
-                return thread, stop_event
+                afuture = ActionFuture()
+                afuture.start(target=self.publish_left_shoulder_pitch_command, args=(rad, time, afuture), daemon=True)
+                return afuture
             else:
                 self.publish_left_shoulder_pitch_command(rad, time)
-        return None, None
+        return None
 
     def setRightArmPosition(self, rad, time=1, _async=False):
         if self.control_interface == 'position':
             if _async:
-                stop_event = threading.Event()
-                thread = threading.Thread(target=self.publish_right_shoulder_pitch_command, args=(rad, time, stop_event ), daemon=True)
-                thread.start()
-                return thread, stop_event
+                afuture = ActionFuture()
+                afuture.start(target=self.publish_right_shoulder_pitch_command, args=(rad, time, afuture), daemon=True)
+                return afuture
             else:
                 self.publish_right_shoulder_pitch_command(rad, time)
-        return None, None
+        return None
 
     '''
     def setArmsPosition(self, target_left, target_right, time=1, _async=False):
@@ -635,7 +668,7 @@ class MARRtinoController(Node):
         if self.control_interface == 'position':
             if _async:
                 stop_event = threading.Event()
-                thread = threading.Thread(target=self.publish_arms_command, args=(target_left, target_right, time, None, stop_event ), daemon=True)
+                thread = threading.Thread(target=self.publish_arms_command, args=(target_left, target_right, time, None, afuture ), daemon=True)
                 thread.start()
                 return thread, stop_event
             else:
@@ -832,32 +865,51 @@ class MARRtinoController(Node):
         self.stop()
 
 
+    # async call:
+    #   -- run and wait until finished 
+    #   f = fn(..., _async=True)
+    #   f.wait()
+    #
+    #   -- run and do somthing until finished
+    #   f = fn(..., _async=True)
+    #   while (f.is_running()):
+    #     do ... 
+    #   f.wait()
+    #
+    #   -- run and quit the behavior when condition
+    #   f = fn(..., _async=True)
+    #   while (whatever and f.is_running()):
+    #     do ...
+    #     if condition:
+    #        f.stop_request()   # this will request to stop the activity
+    #   f.join()
+
 
     def walk(self):
         i = 0
         while (i<5) and not self.user_stop:
             print(f"---- {i} ----")
             timestep = 3
-            th1,_ = self.setSpeed(0.2, 0, timestep, _async=True)
+            f1 = self.setSpeed(0.2, 0, timestep, _async=True)
             a = 1 if i%2==0 else -1
-            th2,_ = self.setLeftArmPosition(a*math.pi/4, timestep, _async=True)
-            th3,_ = self.setRightArmPosition(-a*math.pi/4, timestep, _async=True)
-            th4,_ = self.setHeadPanPosition(a*math.pi/4, timestep, _async=True)
-            # threads running ...
-            th1.join()
-            th2.join()
-            th3.join()
-            th4.join()
+            f2 = self.setLeftArmPosition(a*math.pi/4, timestep, _async=True)
+            f3 = self.setRightArmPosition(-a*math.pi/4, timestep, _async=True)
+            f4 = self.setHeadPanPosition(a*math.pi/4, timestep, _async=True)
+            # waiting for future
+            f1.wait()
+            f2.wait()
+            f3.wait()
+            f4.wait()
             i += 1
     
         print("---- stop ----")
         self.stop()
-        th1,_ = self.setLeftArmPosition(0,2, _async=True)
-        th2,_ = self.setRightArmPosition(0,2, _async=True)
-        th3,_ = self.setHeadPanPosition(0,2, _async=True)
-        th1.join()
-        th2.join()
-        th3.join()
+        f1 = self.setLeftArmPosition(0,2, _async=True)
+        f2 = self.setRightArmPosition(0,2, _async=True)
+        f3 = self.setHeadPanPosition(0,2, _async=True)
+        f1.wait()
+        f2.wait()
+        f3.wait()
 
 
 
@@ -867,11 +919,11 @@ class MARRtinoController(Node):
         while (i<5) and not self.user_stop: 
             print(f"---- {i} ----")
             timestep = 3
-            th1,stev1 = self.setSpeed(0.2, 0, 100, _async=True)
             a = 1 if i%2==0 else -1
-            th2,stev2 = self.setLeftArmPosition(a*math.pi/4, 100, _async=True)
-            th3,stev3 = self.setRightArmPosition(-a*math.pi/4, 100, _async=True)
-            th4,stev4 = self.setHeadPanPosition(a*math.pi/4, 100, _async=True)
+            f1 = self.setSpeed(0.2, 0, 100, _async=True)
+            f2 = self.setLeftArmPosition(a*math.pi/4, 100, _async=True)
+            f3 = self.setRightArmPosition(-a*math.pi/4, 100, _async=True)
+            f4 = self.setHeadPanPosition(a*math.pi/4, 100, _async=True)
             # threads running ...
             ts = 0
             dt = 0.5
@@ -881,25 +933,25 @@ class MARRtinoController(Node):
                 print(f"walking ... {ts}/{timestep}")
 
             # send stop events to all threads
-            stev1.set()
-            stev2.set()
-            stev3.set()
-            stev4.set()
-            th1.join()
-            th2.join()
-            th3.join()
-            th4.join()
+            f1.stop_request()
+            f2.stop_request()
+            f3.stop_request()
+            f4.stop_request()
+            f1.wait()
+            f2.wait()
+            f3.wait()
+            f4.wait()
             i += 1
 
 
         print("---- stop ----")
         self.stop()
-        th1,_ = self.setLeftArmPosition(0,2, _async=True)
-        th2,_ = self.setRightArmPosition(0,2, _async=True)
-        th3,_ = self.setHeadPanPosition(0,2, _async=True)
-        th1.join()
-        th2.join()
-        th3.join()
+        f1 = self.setLeftArmPosition(0, 2, _async=True)
+        f2 = self.setRightArmPosition(0, 2, _async=True)
+        f3 = self.setHeadPanPosition(0, 2, _async=True)
+        f1.wait()
+        f2.wait()
+        f3.wait()
 
 
 
@@ -956,12 +1008,12 @@ class MARRtinoController(Node):
     robot.tilt(deg): positive up
     '''
 
-    def pan(self, deg, _async=True):
+    def pan(self, deg, _async=False):
         c = self.get_pan_pos()
         ts = abs(deg-c)/60 + 0.5
         return self.setHeadPanPosition(deg/180*math.pi, ts, _async=_async)
 
-    def tilt(self, deg, _async=True):
+    def tilt(self, deg, _async=False):
         c = self.get_tilt_pos()
         ts = abs(deg-c)/60 + 0.5
         return self.setHeadTiltPosition(-deg/180*math.pi, ts, _async=_async) # positive up
@@ -974,12 +1026,12 @@ class MARRtinoController(Node):
     robot.right_arm(deg): positive ahead
     '''
 
-    def left_arm(self, deg, _async=True):
+    def left_arm(self, deg, _async=False):
         c = self.get_left_arm_pos()
         ts = abs(deg-c)/60 + 0.5
         return self.setLeftArmPosition(-deg/180*math.pi, ts, _async=_async)
 
-    def right_arm(self, deg, _async=True):
+    def right_arm(self, deg, _async=False):
         c = self.get_left_arm_pos()
         ts = abs(deg-c)/60 + 0.5
         return self.setRightArmPosition(-deg/180*math.pi, ts, _async=_async)
@@ -988,6 +1040,7 @@ class MARRtinoController(Node):
 
     def wait(self, t=1):
         self.sleep(t)
+
 
     # Speech
     
