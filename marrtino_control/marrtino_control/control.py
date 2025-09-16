@@ -55,6 +55,8 @@ class ActionFuture:
     def terminate(self):
         if self.thread is not None:
             self.thread.terminate()
+            self.thread = None
+            self.stop_event = None
 
     # check if running
     def is_running(self):
@@ -65,7 +67,7 @@ class ActionFuture:
         if self.thread is not None:
             self.thread.join()
 
-    # callback on termination
+    # callback on normal termination
     def set_callback(self, fn):
         self.callback_fn = fn
 
