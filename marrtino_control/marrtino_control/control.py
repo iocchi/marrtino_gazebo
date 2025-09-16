@@ -1,4 +1,6 @@
 import time, threading, math, os
+from thread2 import Thread
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped
@@ -34,7 +36,7 @@ class ActionFuture:
     def start(self, target, args, daemon=True):
         assert self.thread is None, "ActionFuture cannot start a new activity on an active thread !!!"
         self.stop_event = threading.Event()
-        self.thread = threading.Thread(target=target, args=args, daemon=daemon)
+        self.thread = Thread(target=target, args=args, daemon=daemon)
         self.thread.start()
 
     # to be called only by target function upon termination
@@ -49,6 +51,10 @@ class ActionFuture:
     def stop_request(self):
         if self.stop_event is not None:
             self.stop_event.set()      
+
+    def terminate(self):
+        if self.thread is not None:
+            self.thread.terminate()
 
     # check if running
     def is_running(self):

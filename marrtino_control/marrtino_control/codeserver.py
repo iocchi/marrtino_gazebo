@@ -5,8 +5,8 @@ import threading
 import time
 import math, random
 import traceback
+from thread2 import Thread
 
-#from websockets.asyncio.client import connect
 from websockets.sync.client import connect
 
 from control import MARRtinoController
@@ -15,6 +15,8 @@ robot = MARRtinoController()
 
 code_running = None
 websocket = None
+
+run_code_thread = None
 
 def run_code(websocket):
     if code_running is not None:
@@ -33,15 +35,25 @@ def print_robot_say(websocket):
         time.sleep(0.5)
 
 def run_thread(code, websocket):
-    global code_running
+    global code_running, run_code_thread
     print("Running code in a thread ...")
     code_running = code
-    t1 = threading.Thread(target=run_code, args=(websocket, ))
-    t1.start()
-    t2 = threading.Thread(target=print_robot_say, args=(websocket, ))
+    run_code_thread = Thread(target=run_code, args=(websocket, ))
+    run_code_thread.start()
+    t2 = Thread(target=print_robot_say, args=(websocket, ))
     t2.start()
     print("Running code in a thread started.")
 
+
+def terminate_thread():
+    global code_running, run_code_thread
+    if run_code_thread is not None:
+        print("Running code terminating ....")
+        run_code_thread.terminate()
+        print("Running code terminated.")
+        run_code_thread = None
+        code_running = None
+        
 async def notify_thread_completed(websocket):
     global code_running
     print('Code execution completed.')
@@ -87,6 +99,8 @@ async def echo(websocket):
                         print("sending STOP !!!")
                         await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
                         robot.user_stop = True
+                        time.sleep(1)
+                        terminate_thread()
                 elif "say" in data:
                     received_say = data["say"]
                     print(f"Human say:\n{received_say}")
