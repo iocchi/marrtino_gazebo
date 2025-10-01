@@ -1,5 +1,5 @@
 import time, threading, math, os
-from thread2 import Thread
+from marrtino_control.thread2 import Thread
 
 import rclpy
 from rclpy.node import Node
@@ -1086,8 +1086,8 @@ class MARRtinoController(Node):
             y = self.odom.pose.pose.position.y
             (_, _, th_rad) = euler_from_orientation(self.odom.pose.pose.orientation)
         elif frame=='gt' or frame=='ground_truth':
-            x = self.gtpose.pose.pose.position.x
-            y = self.gtpose.pose.pose.position.y
+            x = self.gtpose.pose.position.x
+            y = self.gtpose.pose.position.y
             (_, _, th_rad) = euler_from_orientation(self.odom.pose.pose.orientation)
         else:
             print(f"getpose: Unknown frame {frame}")
