@@ -1088,7 +1088,7 @@ class MARRtinoController(Node):
         elif frame=='gt' or frame=='ground_truth':
             x = self.gtpose.pose.position.x
             y = self.gtpose.pose.position.y
-            (_, _, th_rad) = euler_from_orientation(self.odom.pose.pose.orientation)
+            (_, _, th_rad) = euler_from_orientation(self.gtpose.pose.orientation)
         else:
             print(f"getpose: Unknown frame {frame}")
             return None
