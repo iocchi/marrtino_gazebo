@@ -437,33 +437,38 @@ class MARRtinoController_Test(MARRtinoController):
 
 
     def forward_cl(self, distance_target=1, dt=0.01, Kp=1):
-        '''Feedback control for relative linear movement.'''
-        vals = self.get_pose('gt')
-        start_x = vals[0]
-        start_y = vals[1]
+        '''Proportional feedback control for relative linear movement.'''
+        start_vals = self.get_pose('gt')
+        start_x = start_vals[0]
+        start_y = start_vals[1]
+        start_angle = math.radians(start_vals[2])
 
         walked_distance=0
         err = distance_target-walked_distance
 
-        max_vel = 0.1
+        max_vel = 0.4
 
-        while err > 0.001:
+        while abs(err) > 0.001:
             vals = self.get_pose('gt')
             x = vals[0]
             y = vals[1]
+            current_angle = math.radians(vals[2])
 
-            self.get_logger().info(f"READ VALS: x={x} y={y}")
+            #self.get_logger().info(f"READ VALS: x={x} y={y}")
             walked_distance = math.sqrt(math.pow(x-start_x,2) + math.pow(y-start_y,2))
 
             err = distance_target-walked_distance
+            err_angle = start_angle-current_angle
+            err_angle = (err_angle + math.pi) % (2 * math.pi) - math.pi # normalization to [-pi, pi]
+            #self.get_logger().warning(f"ERR: {err}\nERR_ANGLE={err_angle}")
 
             vel = min(Kp*err, max_vel)
-            self.publish_cmd_vel(vel, 0, dt)
+            self.publish_cmd_vel(vel, err_angle, dt)
         
-        self.publish_cmd_vel(0, 0, dt) # stop rotation once target reached
+        self.publish_cmd_vel(0, 0, 0.5) # stop rotation once target reached
 
     def turn_cl(self, angle_target=1.57, dt=0.01, Kp=1):
-        '''Feedback control for relative angular movement.'''
+        '''Proportional feedback control for relative angular movement.'''
         vals = self.get_pose('gt')
         start_angle = math.radians(vals[2])
 
@@ -474,9 +479,9 @@ class MARRtinoController_Test(MARRtinoController):
         turned_angle = 0.0
         err = abs(angle_target) - turned_angle
 
-        max_vel = 0.2
+        max_vel = 0.4
 
-        while err > 0.001:
+        while abs(err) > 0.001:
             vals = self.get_pose('gt')
             current_angle = math.radians(vals[2])
 
@@ -487,44 +492,46 @@ class MARRtinoController_Test(MARRtinoController):
             angular_vel = sign * min(Kp * err, max_vel)
             self.publish_cmd_vel(0, angular_vel, dt)
 
-        self.publish_cmd_vel(0, 0, dt) # stop rotation once target reached
+        self.publish_cmd_vel(0, 0, 0.5) # stop rotation once target is reached
 
     def __reachPosition(self, target_x, target_y):
-        '''Feedback control for absolute position reaching. (WIP)'''
-        #if self.control_interface == 'velocity':
-        Kp1 = 1
-        Kp2 = 0.5
-        dt = 0.01
-
-        err = 1
-        while abs(err) > 0.01:
+        '''Function for absolute position reaching.'''
             
-            vals = self.get_pose('gt')
-            x = vals[0]
-            y = vals[1]
-            th_rad = math.radians(vals[2])
-            
-            self.get_logger().info(f"READ VALS: x={x} y={y} rad={th_rad}")
+        vals = self.get_pose('gt')
+        x = vals[0]
+        y = vals[1]
+        th_rad = math.radians(vals[2])
+        
+        self.get_logger().info(f"READ VALS: x={x} y={y} rad={th_rad}")
 
-            err_x = target_x - x
-            err_y = target_y - y
-            m = err_y/err_x
-            err = math.sqrt(math.pow(err_x, 2) + math.pow(err_y, 2))
-            slope = math.atan(m)
-            err_rad = slope-th_rad
-            self.get_logger().info(f"COMPUTED ERRORS: err={err} err_rad={err_rad} (slope={slope}, th_rad={th_rad})")
+        err_x = target_x - x
+        err_y = target_y - y
+        err = math.sqrt(math.pow(err_x, 2) + math.pow(err_y, 2))
+        
+        if err == 0:
+            self.get_logger().error("ERROR: robot is already in target position!")
+            return
+        
+        err_rad = math.atan2(err_y, err_x) - th_rad
+        err_rad = (err_rad + math.pi) % (2 * math.pi) - math.pi # angle error normalization to [-pi, pi]
+        
+        self.turn_cl(err_rad)
+        self.forward_cl(err)
 
-            vel = Kp1*(err)  
-            angular_vel = Kp2*(err_rad)
-            self.setSpeed(vel, angular_vel, dt)
-
-    def position_robot(self, x=5, y=5):
+    def goto(self, x=5, y=5):
         '''Simple "goto" function.'''
         
+        if not self.has_parameter('x'):
+            self.declare_parameter('x', x, ParameterDescriptor(dynamic_typing=True))
+        x = self.get_parameter('x').value
+        if not self.has_parameter('y'):
+            self.declare_parameter('y', y, ParameterDescriptor(dynamic_typing=True))
+        y = self.get_parameter('y').value
+
         self.__reachPosition(x, y)
 
     def stable_square(self, m=1):
-        '''Uses previously defined controllers to make the robot move following a precise square-shaped trajectory. (WIP)'''
+        '''Makes the robot move following a precise square-shaped trajectory.'''
 
         d = math.radians(90)
 
@@ -537,6 +544,24 @@ class MARRtinoController_Test(MARRtinoController):
         self.forward_cl(m)
         self.turn_cl(d)
     
+    def stable_regular_poly(self, n=0, side_length=1):
+        '''Makes the robot move following a precise n-sided regular polygon trajectory.'''
+        if n == 0:
+            if not self.has_parameter('n'):
+                self.declare_parameter('n', 0)
+            n = self.get_parameter('n').value
+        
+        if n < 3:
+            self.get_logger().error(f"Could not perform action! Invalid sides value provided (it must be at least 3, but the provided value was {n}).")
+            return
+
+        angle:float = math.pi - (1 - 2/n) * math.pi
+        self.get_logger().info(f"Turn angle is {angle}")
+
+        for _ in range(n):
+            self.forward_cl(side_length)
+            self.turn_cl(angle)
+
 def main(args=None):
     
     robot = MARRtinoController_Test()
