@@ -436,7 +436,7 @@ class MARRtinoController_Test(MARRtinoController):
         self.__setHead(pan, tilt)
 
 
-    def forward_cl(self, distance_target=1, dt=0.01, Kp=1):
+    def forward_cl(self, distance_target=1, Kp_l=1, Kp_a=1):
         '''Proportional feedback control for relative linear movement.'''
         start_vals = self.get_pose('gt')
         start_x = start_vals[0]
@@ -445,7 +445,8 @@ class MARRtinoController_Test(MARRtinoController):
 
         walked_distance=0
         err = distance_target-walked_distance
-
+        
+        dt = 0.01
         max_vel = 0.4
 
         while abs(err) > 0.001:
@@ -462,12 +463,13 @@ class MARRtinoController_Test(MARRtinoController):
             err_angle = (err_angle + math.pi) % (2 * math.pi) - math.pi # normalization to [-pi, pi]
             #self.get_logger().warning(f"ERR: {err}\nERR_ANGLE={err_angle}")
 
-            vel = min(Kp*err, max_vel)
-            self.publish_cmd_vel(vel, err_angle, dt)
+            vel = min(Kp_l*err, max_vel)
+            angular_vel = Kp_a*err_angle
+            self.publish_cmd_vel(vel, angular_vel, dt)
         
-        self.publish_cmd_vel(0, 0, 0.5) # stop rotation once target reached
+        self.publish_cmd_vel(0, 0, 0.5) # stop movement once target is reached
 
-    def turn_cl(self, angle_target=1.57, dt=0.01, Kp=1):
+    def turn_cl(self, angle_target=1.57, Kp=1):
         '''Proportional feedback control for relative angular movement.'''
         vals = self.get_pose('gt')
         start_angle = math.radians(vals[2])
@@ -479,6 +481,7 @@ class MARRtinoController_Test(MARRtinoController):
         turned_angle = 0.0
         err = abs(angle_target) - turned_angle
 
+        dt = 0.01
         max_vel = 0.4
 
         while abs(err) > 0.001:
@@ -512,10 +515,10 @@ class MARRtinoController_Test(MARRtinoController):
             self.get_logger().error("ERROR: robot is already in target position!")
             return
         
-        err_rad = math.atan2(err_y, err_x) - th_rad
-        err_rad = (err_rad + math.pi) % (2 * math.pi) - math.pi # angle error normalization to [-pi, pi]
+        err_angle = math.atan2(err_y, err_x) - th_rad
+        err_angle = (err_angle + math.pi) % (2 * math.pi) - math.pi # angle error normalization to [-pi, pi]
         
-        self.turn_cl(err_rad)
+        self.turn_cl(err_angle)
         self.forward_cl(err)
 
     def goto(self, x=5, y=5):
@@ -535,14 +538,9 @@ class MARRtinoController_Test(MARRtinoController):
 
         d = math.radians(90)
 
-        self.forward_cl(m)
-        self.turn_cl(d)
-        self.forward_cl(m)
-        self.turn_cl(d)
-        self.forward_cl(m)
-        self.turn_cl(d)
-        self.forward_cl(m)
-        self.turn_cl(d)
+        for _ in range(4):
+            self.forward_cl(m)
+            self.turn_cl(d)
     
     def stable_regular_poly(self, n=0, side_length=1):
         '''Makes the robot move following a precise n-sided regular polygon trajectory.'''
