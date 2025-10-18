@@ -433,6 +433,7 @@ class MARRtinoController(Node):
             afuture.notify_termination()
     
 
+
     def publish_arms_command(self, fl, fr, ts=1, afuture=None):
         if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
             interface = self.control_interface        
@@ -476,28 +477,54 @@ class MARRtinoController(Node):
             afuture.notify_termination()
 
 
+
+
     def publish_left_shoulder_pitch_command(self, val, ts, afuture=None):
         self._publish_onearm_command(self.pub_lshp_cmd, val, ts, afuture)
 
     def publish_right_shoulder_pitch_command(self, val, ts, afuture=None):
         self._publish_onearm_command(self.pub_rshp_cmd, val, ts, afuture)
 
+
+    def safe_arm_command(self, val, which_joint):
+
+        joint_name = f"{which_joint}_arm_joint"
+       
+        if self.control_interface=='position':
+            if val < self.arm_lower_limit:
+                val = self.arm_lower_limit
+            if val > self.arm_upper_limit:
+                val = self.arm_upper_limit
+
+        elif self.control_interface=='velocity':
+            p = self.get_joint_pos(joint_name)*math.pi/180  # assumes same limits for left and right arm
+            #print(f" pos: {p} [{self.arm_lower_limit},{self.arm_upper_limit}]  v: {val}")
+            if (p < self.arm_lower_limit + 0.02) and val<0:
+                val = 0
+            if (p > self.arm_upper_limit - 0.02) and val>0:
+                val = 0
+
+        elif self.control_interface=='effort':
+            p = self.get_joint_pos(joint_name)*math.pi/180  # assumes same limits for left and right arm
+            if (p < self.arm_lower_limit + 0.1) and val<0:
+                val = 0
+            if (p > self.arm_upper_limit - 0.1) and val>0:
+                val = 0
+
+        return val
+
+
     def _publish_onearm_command(self, pub, val, ts=1, afuture=None):
         if self.robot_name in ['smarrtino', 'marrtino_2_arms']:
-            interface = self.control_interface
-            
-            if interface=='position':
-                if val < self.arm_lower_limit:
-                    val = self.arm_lower_limit
-                if val > self.arm_upper_limit:
-                    val = self.arm_upper_limit
-
-            msg = Float64MultiArray()
-            msg.data = [float(val)]
             which = 'left' if pub==self.pub_lshp_cmd else 'right'
-            self.get_logger().info(f'Publishing {which} arm {interface}: {val:.3f}')
+            msg = Float64MultiArray()
+            val = self.safe_arm_command(val, which)
+            msg.data = [float(val)]
+            self.get_logger().info(f'Publishing {which} arm {self.control_interface}: {val:.3f}')
             rate100 = self.create_rate(100) # Hz
             for _ in range(int(ts*100)):
+                val = self.safe_arm_command(val, which)
+                msg.data = [float(val)]
                 pub.publish(msg)
                 rate100.sleep()
                 if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
