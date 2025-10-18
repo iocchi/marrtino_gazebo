@@ -1,5 +1,9 @@
 import time, threading, math, os
+
+from numpy import double
 from rclpy.clock import Clock
+from rcl_interfaces.msg import ParameterDescriptor
+from rcl_interfaces.msg import ParameterType
 from marrtino_control.control import MARRtinoController
 
 class MARRtinoController_Test(MARRtinoController):
@@ -99,8 +103,6 @@ class MARRtinoController_Test(MARRtinoController):
         angle:float = (1 - 2/n) * math.pi
         self.get_logger().info(f"Turn angle is {angle}")
 
-        speed:float = math.pi*0.5/5
-
         for _ in range(n):
             self.publish_cmd_vel(0.2,-math.pi/walk_time,walk_time)
             self.publish_cmd_vel(0.0,0.0,stall_time)
@@ -134,29 +136,25 @@ class MARRtinoController_Test(MARRtinoController):
         
         self.get_logger().info("PID Thread Ended!")
     
-    def __setArmsPosition(self, target_left, target_right, continuous_mode=False):
+    def __setArms(self, target_left, target_right, continuous_mode=False):
         '''Arms PID Controller'''
 
-        if self.control_interface == 'effort': #reads position, controls effort
+        if self.control_interface == 'effort': #reads velocity, controls effort
             for i, joint_name in enumerate(self.joint_states.name):
                 if joint_name=='left_arm_joint':
-                    p_left = self.joint_states.position[i]
+                    v_left = self.joint_states.velocity[i]
                     effort_left = 0 #self.joint_states.effort[i]
                 if joint_name=='right_arm_joint':
-                    p_right = self.joint_states.position[i]
+                    v_right = self.joint_states.velocity[i]
                     effort_right = 0 #self.joint_states.effort[i]
 
-            err_left = target_left-p_left
-            err_right = target_right-p_right
+            err_left = target_left-v_left
+            err_right = target_right-v_right
             
             #PID Gains
-            Kp_left = 0.5   #Proportional Gain
-            Ki_left = 0.4   #Integral Gain
-            Kd_left = 0.2   #Derivative Gain
-
-            Kp_right = 0.5   #Proportional Gain
-            Ki_right = 0.4   #Integral Gain
-            Kd_right = 0.2   #Derivative Gain
+            Kp = 0.008   #Proportional Gain
+            Ki = 0.1   #Integral Gain
+            Kd = 0   #Derivative Gain
             
             integral_left = 0
             integral_right = 0
@@ -166,36 +164,10 @@ class MARRtinoController_Test(MARRtinoController):
             prev_err_left = 0
             prev_err_right = 0
 
-            dt = 0.01
-            bound = 0.1
+            dt = 0.1
+            bound = 100
 
             while abs(err_left) + abs(prev_err_left) > 0.01 or abs(err_right) + abs(prev_err_right) > 0.01:
-                if abs(err_left) + abs(prev_err_left) < 0.1:
-                    Kp_left = 0.0
-                    Ki_left = 0.1
-                    Kd_left = 0.4
-                elif abs(err_left) + abs(prev_err_left) < 0.2:
-                    Kp_left = 0.05
-                    Ki_left = 0.2
-                    Kd_left = 0.4
-                else:
-                    Kp_left = 0.5
-                    Ki_left = 0.4
-                    Kd_left = 0.2
-
-                if abs(err_right) + abs(prev_err_right) < 0.1:
-                    Kp_right = 0.0
-                    Ki_right = 0.1
-                    Kd_right = 0.4
-                elif abs(err_right) + abs(prev_err_right) < 0.2:
-                    Kp_right = 0.05
-                    Kp_right = 0.2
-                    Kp_right = 0.4
-                else:
-                    Kp_right = 0.5
-                    Ki_right = 0.4
-                    Kd_right = 0.2
-                
                 #saturators
                 err_left = max(err_left, -bound)
                 err_left = min(err_left, bound)
@@ -221,23 +193,23 @@ class MARRtinoController_Test(MARRtinoController):
 
                 #self.get_logger().info(f"effort_left: [P: {Kp_left} * {err_left}, I: {Ki_left} * {integral_left}, D: {Kd_left} * {derivative_left}]\n effort_right: [P: {Kp_right} * {err_right}, I: {Ki_right} * {integral_right}, D: {Kd_right} * {derivative_right}]")
 
-                effort_left = Kp_left * err_left + Ki_left * integral_left + Kd_left * derivative_left
-                effort_right = Kp_right * err_right + Ki_right * integral_right + Kd_right * derivative_right
+                effort_left = Kp * err_left + Ki * integral_left + Kd * derivative_left
+                effort_right = Kp * err_right + Ki * integral_right + Kd * derivative_right
                 
-                self.publish_arm_command(effort_left, effort_right, dt)
+                self.publish_arms_command(effort_left, effort_right, dt)
                 
                 for i, joint_name in enumerate(self.joint_states.name):
                     if joint_name=='left_arm_joint':
-                        p_left = self.joint_states.position[i]
+                        v_left = self.joint_states.velocity[i]
                     if joint_name=='right_arm_joint':
-                        p_right = self.joint_states.position[i]
+                        v_right = self.joint_states.velocity[i]
 
-                print(f"arms pos: {p_left:.3f} {p_right:.3f}")
+                print(f"arms vel: {v_left:.3f} {v_right:.3f}")
 
                 prev_err_left = err_left
                 prev_err_right = err_right
-                err_left = target_left-p_left
-                err_right = target_right-p_right
+                err_left = target_left-v_left
+                err_right = target_right-v_right
 
         elif self.control_interface == 'velocity': #reads position, controls velocity
             for i, joint_name in enumerate(self.joint_states.name):
@@ -280,7 +252,7 @@ class MARRtinoController_Test(MARRtinoController):
                 v_left = Kp * err_left + Ki * integral_left + Kd * derivative_left
                 v_right = Kp * err_right + Ki * integral_right + Kd * derivative_right    
                 
-                self.publish_arm_command(v_left, v_right, dt)
+                self.publish_arms_command(v_left, v_right, dt)
                 
                 for i, joint_name in enumerate(self.joint_states.name):
                     if joint_name=='left_arm_joint':
@@ -295,28 +267,24 @@ class MARRtinoController_Test(MARRtinoController):
                 err_left = target_left-p_left
                 err_right = target_right-p_right
             
-            self.publish_arm_command(0, 0, 0.1) #Prevents the arms to keep moving after target position is reached.
+            self.publish_arms_command(0, 0, 0.1) #Prevents the arms to keep moving after target position is reached.
 
     def position_arms(self, left=0.0, right=0.0):
         '''Executes the Arms Controller in order to make them reach a specified position.'''
         
-        if not self.has_parameter('l'):
-            if self.control_interface == 'effort':
-                self.declare_parameter('l', left)
-            elif self.control_interface == 'velocity':
-                self.declare_parameter('l', left)
-        left = self.get_parameter('l').value
+        if left == 0: #Left target not provided as argument: reading from command line.
+            if not self.has_parameter('l'):
+                self.declare_parameter('l', left, ParameterDescriptor(dynamic_typing=True))
+            left = self.get_parameter('l').value
         
-        if not self.has_parameter('r'):
-            if self.control_interface == 'effort':
-                self.declare_parameter('r', right)
-            elif self.control_interface == 'velocity':
-                self.declare_parameter('r', right)
-        right = self.get_parameter('r').value
+        if right == 0: #Right target not provided as argument: reading from command line.
+            if not self.has_parameter('r'):
+                self.declare_parameter('r', right, ParameterDescriptor(dynamic_typing=True))
+            right = self.get_parameter('r').value
         
-        self.__setArmsPosition(left, right)
+        self.__setArms(left, right)
     
-    def __setHeadPosition(self, target_pan, target_tilt, continuous_mode=False):
+    def __setHead(self, target_pan, target_tilt, continuous_mode=False):
         '''Head PID Controller'''
 
         if self.control_interface == 'effort': #reads position, controls effort
@@ -434,7 +402,8 @@ class MARRtinoController_Test(MARRtinoController):
                 v_pan = Kp * err_pan + Ki * integral_pan + Kd * derivative_pan
                 v_tilt = Kp * err_tilt + Ki * integral_tilt + Kd * derivative_tilt
                 
-                self.publish_head_command(v_pan, v_tilt, dt)
+                self.publish_head_pan_command(v_pan, dt)
+                self.publish_head_tilt_command(v_tilt, dt)
                 
                 for i, joint_name in enumerate(self.joint_states.name):
                     if joint_name=='pan_head_joint':
@@ -449,42 +418,147 @@ class MARRtinoController_Test(MARRtinoController):
                 err_pan = target_pan-p_pan
                 err_tilt = target_tilt-p_tilt
             
-            self.publish_head_command(0, 0, 0.1) #Prevents the head to keep moving after target position is reached.
+            self.publish_head_pan_command(0, 0.1) #Prevents the head to keep moving after target position is reached.
+            self.publish_head_tilt_command(0, 0.1)
 
             
     def position_head(self, pan=0.0, tilt=0.0):
         '''Executes the Head Controller in order to make it reach a specified pan/tilt target.'''
 
         if not self.has_parameter('p'):
-            self.declare_parameter('p', pan)
-        pan = pan|self.get_parameter('p').value
+            self.declare_parameter('p', pan, ParameterDescriptor(dynamic_typing=True))
+        pan = self.get_parameter('p').value
         if not self.has_parameter('t'):
-            self.declare_parameter('t', tilt)
+            self.declare_parameter('t', tilt, ParameterDescriptor(dynamic_typing=True))
         tilt = self.get_parameter('t').value
         
-        self.get_logger().info(f"p: {pan}, tilt: {tilt}")
-        self.__setHeadPosition(pan, tilt)
+        self.get_logger().info(f"target_pan: {pan}, target_tilt: {tilt}")
+        self.__setHead(pan, tilt)
 
-    def stable_square(self, m=1, d=90):
-        '''Uses previously defined controllers to make the robot move following a precise square-shaped trajectory. (WIP)'''
+
+    def forward_cl(self, distance_target=1, Kp_l=1, Kp_a=1):
+        '''Proportional feedback control for relative linear movement.'''
+        start_vals = self.get_pose('gt')
+        start_x = start_vals[0]
+        start_y = start_vals[1]
+        start_angle = math.radians(start_vals[2])
+
+        walked_distance=0
+        err = distance_target-walked_distance
         
-        """ head_thread = threading.Thread(target=self.__setHeadPosition, args=(0.0, 0.0, True)) #WIP --> DOES NOT WORK
-        arms_thread = threading.Thread(target=self.__setArmsPosition, args=(0.0, 0.0, True))
+        dt = 0.01
+        max_vel = 0.4
 
-        head_thread.start()
-        arms_thread.start() """
+        while abs(err) > 0.001:
+            vals = self.get_pose('gt')
+            x = vals[0]
+            y = vals[1]
+            current_angle = math.radians(vals[2])
 
-        self.forward(m)
-        self.turn(d)
-        self.forward(m)
-        self.turn(d)
-        self.forward(m)
-        self.turn(d)
-        self.forward(m)
-        self.turn(d)
+            #self.get_logger().info(f"READ VALS: x={x} y={y}")
+            walked_distance = math.sqrt(math.pow(x-start_x,2) + math.pow(y-start_y,2))
 
-        """ head_thread.join(0)
-        arms_thread.join(0) """
+            err = distance_target-walked_distance
+            err_angle = start_angle-current_angle
+            err_angle = (err_angle + math.pi) % (2 * math.pi) - math.pi # normalization to [-pi, pi]
+            #self.get_logger().warning(f"ERR: {err}\nERR_ANGLE={err_angle}")
+
+            vel = min(Kp_l*err, max_vel)
+            angular_vel = Kp_a*err_angle
+            self.publish_cmd_vel(vel, angular_vel, dt)
+        
+        self.publish_cmd_vel(0, 0, 0.5) # stop movement once target is reached
+
+    def turn_cl(self, angle_target=1.57, Kp=1):
+        '''Proportional feedback control for relative angular movement.'''
+        vals = self.get_pose('gt')
+        start_angle = math.radians(vals[2])
+
+        sign = 1
+        if angle_target < 0:
+            sign = -1
+
+        turned_angle = 0.0
+        err = abs(angle_target) - turned_angle
+
+        dt = 0.01
+        max_vel = 0.4
+
+        while abs(err) > 0.001:
+            vals = self.get_pose('gt')
+            current_angle = math.radians(vals[2])
+
+            turned_angle = abs((current_angle-start_angle + math.pi) % (2 * math.pi) - math.pi) # 'turned_angle' normalized to [-pi, pi]
+
+            err = abs(angle_target) - turned_angle
+
+            angular_vel = sign * min(Kp * err, max_vel)
+            self.publish_cmd_vel(0, angular_vel, dt)
+
+        self.publish_cmd_vel(0, 0, 0.5) # stop rotation once target is reached
+
+    def __reachPosition(self, target_x, target_y):
+        '''Function for absolute position reaching.'''
+            
+        vals = self.get_pose('gt')
+        x = vals[0]
+        y = vals[1]
+        th_rad = math.radians(vals[2])
+        
+        self.get_logger().info(f"READ VALS: x={x} y={y} rad={th_rad}")
+
+        err_x = target_x - x
+        err_y = target_y - y
+        err = math.sqrt(math.pow(err_x, 2) + math.pow(err_y, 2))
+        
+        if err == 0:
+            self.get_logger().error("ERROR: robot is already in target position!")
+            return
+        
+        err_angle = math.atan2(err_y, err_x) - th_rad
+        err_angle = (err_angle + math.pi) % (2 * math.pi) - math.pi # angle error normalization to [-pi, pi]
+        
+        self.turn_cl(err_angle)
+        self.forward_cl(err)
+
+    def goto(self, x=5, y=5):
+        '''Simple "goto" function.'''
+        
+        if not self.has_parameter('x'):
+            self.declare_parameter('x', x, ParameterDescriptor(dynamic_typing=True))
+        x = self.get_parameter('x').value
+        if not self.has_parameter('y'):
+            self.declare_parameter('y', y, ParameterDescriptor(dynamic_typing=True))
+        y = self.get_parameter('y').value
+
+        self.__reachPosition(x, y)
+
+    def stable_square(self, m=1):
+        '''Makes the robot move following a precise square-shaped trajectory.'''
+
+        d = math.radians(90)
+
+        for _ in range(4):
+            self.forward_cl(m)
+            self.turn_cl(d)
+    
+    def stable_regular_poly(self, n=0, side_length=1):
+        '''Makes the robot move following a precise n-sided regular polygon trajectory.'''
+        if n == 0:
+            if not self.has_parameter('n'):
+                self.declare_parameter('n', 0)
+            n = self.get_parameter('n').value
+        
+        if n < 3:
+            self.get_logger().error(f"Could not perform action! Invalid sides value provided (it must be at least 3, but the provided value was {n}).")
+            return
+
+        angle:float = math.pi - (1 - 2/n) * math.pi
+        self.get_logger().info(f"Turn angle is {angle}")
+
+        for _ in range(n):
+            self.forward_cl(side_length)
+            self.turn_cl(angle)
 
 def main(args=None):
     
