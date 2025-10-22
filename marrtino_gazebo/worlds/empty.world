@@ -115,6 +115,120 @@
       <self_collide>false</self_collide>
     </model>
 
+
+    <model name="black_wall1">
+      <pose>0 9.8 0.05 0 0 0</pose>
+      <static>true</static>
+      
+      <link name="box_link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>19.7 0.1 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>19.7 0.1 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 0 1</ambient>
+            <diffuse>0 0 0 1</diffuse>
+            <specular>0 0 0 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="black_wall2">
+      <pose>0 -9.8 0.05 0 0 0</pose>
+      <static>true</static>
+      
+      <link name="box_link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>19.7 0.1 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>19.7 0.1 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 0 1</ambient>
+            <diffuse>0 0 0 1</diffuse>
+            <specular>0 0 0 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="black_wall3">
+      <pose>9.8 0 0.05 0 0 1.570796</pose>
+      <static>true</static>
+      
+      <link name="box_link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>19.5 0.1 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>19.5 0.1 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 0 1</ambient>
+            <diffuse>0 0 0 1</diffuse>
+            <specular>0 0 0 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="black_wall4">
+      <pose>-9.8 0 0.05 0 0 1.570796</pose>
+      
+      <static>true</static>
+      
+      <link name="box_link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>19.5 0.1 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>19.5 0.1 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 0 1</ambient>
+            <diffuse>0 0 0 1</diffuse>
+            <specular>0 0 0 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
     <light name='sun' type='directional'>
       <pose>0 0 10 0 0 0</pose>
       <cast_shadows>true</cast_shadows>
