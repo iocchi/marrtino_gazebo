@@ -1132,6 +1132,11 @@ class MARRtinoController(Node):
         print(f"Laser scan obstacle {deg} : range[{i}] = {d}")
         return d
 
+
+    def get_image(self):
+        pass
+
+
     '''
 robot.emotion(“normal”)    set normal face 
    robot.emotion(“happy”)     set happy face
