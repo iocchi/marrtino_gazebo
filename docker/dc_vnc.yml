@@ -1,8 +1,7 @@
-version: "2.3"
 services:
 
   xserver:
-    image: devrt/xserver
+    image: iocchi/xserver
     container_name: xserver
     ipc: host
     security_opt:
@@ -10,12 +9,13 @@ services:
     environment:
       - DISPLAY=:9
     ports:
-      - "3000:80"
+      - "3080:80"
+      - "3081:81"
 
 
   marrtino_gazebo:
-    image: marrtino2:gazebo
-    container_name: marrtino2_gazebo
+    image: marrtino2:user
+    container_name: marrtino2_gz
     runtime: runc
     dns: 8.8.8.8
     network_mode: "host"

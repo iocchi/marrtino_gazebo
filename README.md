@@ -355,3 +355,44 @@ Example:  Move arms in walking style
             robot.right_arm(0)
             robot.sleep(1)
 
+
+# xserver usage
+
+How to show the simulator in a browser window
+
+## Run in vnc mode
+
+cd docker
+./run_vnc
+
+## Run gazebo_sim
+
+cd src/marrtino_gazebo/bin
+./smarrtino.bash
+
+## enter the xserver container
+
+docker exec -it xserver bash
+
+
+## Run x11vnc
+
+Check that window is active
+
+xwininfo -name "Gazebo Sim"
+
+Then run the x11vnc and websockify servers
+
+cd /app
+./x11vnc_gzsim.bash
+
+
+## Connect with browser
+
+http://localhost:3081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2
+
+NOTE: if window does not exist, check the desktop
+
+http://localhost:3080/vnc.html?autoconnect=1&resize=scale
+
+
