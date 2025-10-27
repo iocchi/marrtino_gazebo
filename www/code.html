@@ -30,7 +30,7 @@
 <body>
     <h1>Robot Programming Interface</h1>
 
-    <iframe src="marrtina02.html" width="400" height="300"   title="face"></iframe>
+    <iframe id="marrtinaFace" src="marrtina02.html" width="400" height="300"   title="face"></iframe>
 
     <p>Control buttons</p>
 
@@ -160,9 +160,29 @@
         });
 
         // Set some initial Python code
-        editor.setValue(`robot.left(90)
+        editor.setValue(`robot.left(90)`);
 
-`);
+        
+        let faceFrame = null;
+        let eyes = null;
+
+        // Quando l’iframe è completamente caricato
+        window.addEventListener("load", () => {
+            faceFrame = document.getElementById("marrtinaFace");
+            if (faceFrame) {
+                faceFrame.onload = () => {
+                    console.log("Iframe loaded.");
+                    // Dopo il caricamento, puoi accedere all’oggetto eyes
+                    try {
+                        eyes = faceFrame.contentWindow.eyes;
+                        console.log("Eyes object available:", eyes);
+                    } catch (e) {
+                        console.warn("Eyes object not ready yet.");
+                    }
+                };
+            }
+        });
+
 
 
         const connectButton = document.getElementById('connectButton');
@@ -287,13 +307,52 @@
                         appendDialogue(`Robot: ${data.message}`, 'blue');
                     } 
                     else if (data.status == 'llmcode') {
+                        console.log('RECEIVED CODE:', data.message);
+                        codeToSend = data.message
                         // appendDialogue(`Robot: ${data.message}`, 'blue');
+                        /*
                         if (data.message.includes('<CODE>')) {
                             i = data.message.indexOf('<CODE>');
                             j = data.message.indexOf('</CODE>');
                             const codeToSend = data.message.substring(i+6,j).trim();
                             editor.setValue(codeToSend+"\n");
                             ws_code.send(JSON.stringify({ code: codeToSend }));
+                        }*/
+                        editor.setValue(codeToSend+"\n");
+                        ws_code.send(JSON.stringify({ code: data.message }));
+                    }
+                    else if (data.status == 'emotion') {
+                        console.log('RECEIVED EMOTION:', data.message);
+                        // Ottieni riferimento all’iframe
+                        const faceFrame = document.getElementById("marrtinaFace");
+
+                        // Tenta di accedere all’oggetto "eyes" definito dentro l’iframe
+                        try {
+                            const eyes = faceFrame.contentWindow.eyes;
+
+                            if (!eyes) {
+                                console.error("eyes object not found in iframe");
+                                return;
+                            }
+
+                            // Chiama la funzione giusta in base al messaggio ricevuto
+                            switch (data.message) {
+                                case "happy": eyes.happy(); break;
+                                case "sad": eyes.sad(); break;
+                                case "angry": eyes.angry(); break;
+                                case "surprise": eyes.surprise(); break;
+                                case "normal": eyes.normal(); break;
+                                case "speak": eyes.speak(); break;
+                                case "blink": eyes.blink(); break;
+                                case "startblinking": eyes.startBlinking(); break;
+                                case "stopblinking": eyes.stopBlinking(); break;
+                                default:
+                                    console.warn("Unknown emotion:", data.message);
+                            }
+
+                            updateStatus(`Emotion received: ${data.message}`, 'blue');
+                        } catch (err) {
+                            console.error("Error accessing iframe or calling eyes:", err);
                         }
                     } 
 				    else {
