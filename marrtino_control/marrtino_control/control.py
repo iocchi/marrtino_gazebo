@@ -6,7 +6,9 @@ from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray 
-from sensor_msgs.msg import JointState, LaserScan
+from sensor_msgs.msg import JointState, LaserScan, Image
+from cv_bridge import CvBridge
+import cv2
 
 from tf_transformations import euler_from_quaternion
 
@@ -96,7 +98,9 @@ class MARRtinoController(Node):
         self.joint_states = None
         self.gtpose = None
         self.scan = None
-
+        self.save_image = False
+        self.cv_bridge = CvBridge()
+        
         # joint name-id map
         self.jointid = None
 
@@ -206,7 +210,12 @@ class MARRtinoController(Node):
             self.scan_callback, # Callback function
             10                    # QoS (Quality of Service) history depth
         )
-
+        self.sub_camera = self.create_subscription(
+            Image,           # Message type
+            '/camera/image',      # Topic name
+            self.camera_callback, # Callback function
+            10                  # QoS (Quality of Service) history depth
+        )
         rate10.sleep()
  
         self.get_logger().info(f'{self.robot_name} controller node initialized ')
@@ -1161,7 +1170,29 @@ class MARRtinoController(Node):
 
 
     def get_image(self):
-        pass
+        self.save_image = True
+
+
+
+    def camera_callback(self, data):
+
+        # save only one image
+        if self.save_image:
+            self.get_logger().info(f"Receiving image ...")
+            try:
+                cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
+            except Exception as e:
+                self.get_logger().error(f"Failed to convert image: {e}")
+                return
+
+            # Save the image
+            try:
+                cv2.imwrite("../../www/lastimage.png", cv_image)
+                self.get_logger().info(f"Successfully saved image")
+                self.save_image = False
+            except Exception as e:
+                self.get_logger().error(f"Failed to save image: {e}")
+
 
 
     '''

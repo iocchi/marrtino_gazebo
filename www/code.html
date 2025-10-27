@@ -42,13 +42,28 @@
     <p>Control buttons</p>
 
     <table>
-        <td> <button id="connectButton">CONNECT</button> </td>
-        <td> <button id="stopButton">STOP</button>  </td>
+        <td width=160 align=center> <div id="connection">Not connected</div> </td>
+        <td width=160 align=center> <button id="connectButton">CONNECT</button> </td>
+        <td width=160 align=center> <button id="disconnectButton">DISCONNECT</button> </td>
     </table>
 
     <p>Robot program</p>
     <textarea id="codeEditor"></textarea>
-    <p><button id="sendButton">RUN</button></p>
+    
+    <table>
+        <td width=160 align=center> <button id="runButton">RUN</button> </td>
+        <td width=160 align=center> <button id="stopButton">STOP</button> </td>
+    </table>
+
+    <h3>Connection and execution status</h3>
+
+
+    <div id="status">
+        <p>Status: Not connected.</p>
+    </div>
+
+    <br><br><br>
+    
 
     <table>
     <tr><td>Human says:</td> 
@@ -71,20 +86,20 @@
 
     <br><br><br>
 
-    <p>Connection and execution status</p>
 
-    <div id="status">
-        <p>Status: Not connected.</p>
-    </div>
-
-    <br><br><br>
-
-
-    <p>Human-Robot dialogue</p>
+    <h3>Human-Robot dialogue</h3>
+    
     <div id="dialogue"></div>
     <p align="right"> <button id="clearDialogueButton">Clear</button> </p>
 
     <br><br><br>
+
+
+    <h3>Vision</h3>
+
+    <img id="cameraimage" src="lastimage.png" alt="Camera image">
+
+    <p> <button id="refreshButton">Refresh</button> </p>
 
     <p>--------------------------------------</p>
 
@@ -173,7 +188,7 @@
 
 
         const connectButton = document.getElementById('connectButton');
-        const sendButton = document.getElementById('sendButton');
+        const runButton = document.getElementById('runButton');
         const stopButton = document.getElementById('stopButton');
 
         const sayButton = document.getElementById('sayButton');
@@ -194,6 +209,20 @@
             dialogue.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
         }
 
+        function sleep(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function refreshImage() {
+            console.log("refresh image ...");
+            await sleep(200);
+            const imgElement = document.getElementById('cameraimage');
+            if (imgElement) {
+                const baseUrl = imgElement.src.split('?')[0];
+                imgElement.src = `${baseUrl}?timestamp=${new Date().getTime()}`;
+            }
+        }
+
         function connectWebSocket() {
             const host = location.hostname;
 
@@ -203,7 +232,11 @@
                 ws_code = new WebSocket("ws://"+host+":8765");
                 ws_code.onopen = function(event) {
                     updateStatus('Status: Connected to WebSocket server.', 'green');
-                    sendButton.disabled = false;
+                    runButton.disabled = false;
+                    stopButton.disabled = false;
+                    connectButton.disabled = true;
+                    disconnectButton.disabled = false;
+                    document.getElementById('connection').innerHTML = "Connected";  
                 };
 
                 ws_code.onmessage = function(event) {
@@ -211,6 +244,8 @@
                     const data = JSON.parse(event.data);
                     if (data.status == 'success') {
                         updateStatus(`Status: ${data.message}`, 'blue');
+                        if (data.message.includes("completed"))
+                            refreshImage();
                     } 
                     else if (data.status == 'say') {
                         appendDialogue(`Robot: ${data.message}`, 'blue');
@@ -219,11 +254,11 @@
                         updateStatus(`Status: Error - ${data.message}`, 'red');
                     }
                     if (data.disable_send == 'true') {
-                        sendButton.disabled = true;
-                        sendButton.color = 'grey';
+                        runButton.disabled = true;
+                        runButton.color = 'grey';
                     } else {
-                        sendButton.disabled = false;
-                        sendButton.color = 'white';
+                        runButton.disabled = false;
+                        runButton.color = 'white';
                     }
                 };
 
@@ -233,14 +268,21 @@
                     } else {
                         updateStatus('Status: Connection died unexpectedly.', 'red');
                     }
-                    sendButton.disabled = true;
+                    runButton.disabled = true;
+                    stopButton.disabled = true;
+                    connectButton.disabled = false; 
+                    disconnectButton.disabled = true;
+                    document.getElementById('connection').innerHTML = "Not connected";  
+
                     // Optional: Attempt to reconnect after a delay
                     // setTimeout(connectWebSocket, 5000);
                 };
 
                 ws_code.onerror = function(error) {
                     updateStatus('Status: WebSocket Code Error: ' + error.message, 'red');
-                    sendButton.disabled = true;
+                    runButton.disabled = true;
+                    stopButton.disabled = true;
+                    document.getElementById('connection').innerHTML = "Not connected";  
                 };
 
 
@@ -274,7 +316,7 @@
 
                 ws_chat.onerror = function(error) {
                     updateStatus('Status: WebSocket Chat Error: ' + error.message, 'red');
-                    // sendButton.disabled = true;
+                    // runButton.disabled = true;
                 };
 
 
@@ -310,7 +352,7 @@
 
                 ws_nlpframework.onerror = function(error) {
                     updateStatus('Status: WebSocket NLPframework Error: ' + error.message, 'red');
-                    // sendButton.disabled = true;
+                    // runButton.disabled = true;
                 };
 
             }
@@ -318,19 +360,29 @@
               console.error(error);
             }
 
+        }  // connectWebSocket
 
 
-
-
+        function disconnectWebSocket() {
+            try { ws_code.close(); }
+            catch (error) { console.error(error); }
+            try { ws_chat.close(); }
+            catch (error) { console.error(error); }
+            try { ws_nlpframework.close(); }
+            catch (error) { console.error(error); }
         }
 
         connectButton.addEventListener('click', () => {
             connectWebSocket();
-            sendButton.color = 'grey';
+        });
+
+        disconnectButton.addEventListener('click', () => {
+            disconnectWebSocket();
+            refreshImage();
         });
 
 
-        sendButton.addEventListener('click', () => {
+        runButton.addEventListener('click', () => {
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = editor.getValue(); // Get content from CodeMirror
                 if (codeToSend.trim() !== '') {
@@ -411,9 +463,15 @@
             dialogue.innerHTML = "";
         });
 
+        refreshButton.addEventListener('click', () => {
+            refreshImage();
+        });
+
 
         // Connect to WebSocket when the page loads
         window.onload = connectWebSocket;
+        
+        
     </script>
 </body>
 </html>

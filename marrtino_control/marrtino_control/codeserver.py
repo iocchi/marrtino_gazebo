@@ -1,3 +1,4 @@
+import os
 import asyncio
 import websockets
 import json
@@ -89,7 +90,9 @@ async def echo(websocket):
                             print(f"Error: {e}")
                             await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
                     else:
-                        await websocket.send(json.dumps({"status": "error", "message": "Code running", "disable_send": "false"}))
+                        print("Another program running. Code discarded.")
+                        await websocket.send(json.dumps({"status": "error", "message": "Code already running", "disable_send": "false"}))
+
                 elif "signal" in data:
                     received_signal = data["signal"]
                     print(f"Signal code:\n{received_signal}")
@@ -102,10 +105,12 @@ async def echo(websocket):
                         robot.user_stop = True
                         time.sleep(1)
                         terminate_thread()
+
                 elif "say" in data:
                     received_say = data["say"]
                     print(f"Human say:\n{received_say}")
                     robot.simulated_asr = received_say
+
                 else:
                     print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))
@@ -121,6 +126,7 @@ async def echo(websocket):
         print(f"An unexpected error occurred: {e}")
     finally:
         print(f"Client {websocket.remote_address} connection closed.")
+        os.system("cp ../../www/image/noimage.jpg ../../www/lastimage.png")
 
 async def main():
     # Start the WebSocket server on server host, port 8765
