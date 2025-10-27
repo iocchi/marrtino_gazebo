@@ -1,0 +1,18 @@
+# Docker file to extend xserver with x11vnc
+
+FROM devrt/xserver
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+      x11vnc
+
+ADD x11vnc_gzsim.bash /app
+
+RUN chmod a+x /app/x11vnc_gzsim.bash
+
+WORKDIR /app
+
+
+

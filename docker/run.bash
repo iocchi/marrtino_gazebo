@@ -10,9 +10,8 @@ if nvidia-detector 2> /dev/null; then
   fi
 fi
 
-
-DOCKER_RUNTIME=${DOCKER_RUNTIME} docker compose -f ./docker-compose.yml up -d --force-recreate && \
-sleep 1 && \
+DOCKER_RUNTIME=${DOCKER_RUNTIME} USER_ID=`id -u` docker compose -f ./docker-compose.yml up -d --remove-orphans && \
+sleep 2 && \
 docker exec -it marrtino2_gz tmux a
 
 

@@ -21,10 +21,11 @@ run_code_thread = None
 def run_code(websocket):
     if code_running is not None:
         robot.user_stop = False
-        try:
-            exec(code_running)
-        except Exception:
-            print(traceback.format_exc())
+        if 'import' not in code_running:    
+            try:
+                exec(code_running)
+            except Exception:
+                print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket))
 
 def print_robot_say(websocket):
