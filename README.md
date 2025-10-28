@@ -264,6 +264,9 @@ Example
 
     python gz_objects.py -a objs.conf
 
+Models: 
+- https://app.gazebosim.org/fuel/models
+- https://github.com/osrf/gazebo_models
 
 # Create a new control script
 
