@@ -78,7 +78,7 @@ This option autodetects if nvidia drivers are present and uses nvidia runtime in
 ## Option 2: vnc 
 
     cd docker
-    ./run_vnc.bash
+    ./run.bash vnc
 
 Use a browser on `http://localhost:3000` to see the simulation.
 
