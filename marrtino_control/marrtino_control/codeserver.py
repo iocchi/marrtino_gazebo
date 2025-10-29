@@ -70,6 +70,7 @@ async def send_robot_say(websocket, sentence):
 async def echo(websocket):
     global code_running
     print(f"Client connected from {websocket.remote_address}")
+    os.system("cp ../../www/image/noimage.jpg ../../www/lastimage.png")
     try:
         async for message in websocket:
             print(f"Received message from client: {message}")
@@ -129,9 +130,9 @@ async def echo(websocket):
         os.system("cp ../../www/image/noimage.jpg ../../www/lastimage.png")
 
 async def main():
-    # Start the WebSocket server on server host, port 8765
-    async with websockets.serve(echo, "0.0.0.0", 8765) as server:
-        print("WebSocket server started on ws://localhost:8765")
+    # Start the WebSocket server on server host
+    async with websockets.serve(echo, "0.0.0.0", 9876) as server:
+        print("WebSocket server started on ws://0.0.0.0:9876")
         await server.serve_forever()  # Run forever
 
 if __name__ == "__main__":
