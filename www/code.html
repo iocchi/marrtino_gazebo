@@ -400,8 +400,8 @@
             
                 console.log("Connecting to robot framework 2 ....")
             
-                host2 = "192.168.0.126"
-                ws_nlpframework = new WebSocket("ws://"+host2+":9878");
+                // host2 = "192.168.0.126"
+                ws_nlpframework = new WebSocket("ws://"+host+":9878");
 
                 ws_nlpframework.onmessage = function(event) {
                     console.log('Message from NLprog framework server:', event.data);
