@@ -22,6 +22,7 @@
         #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
         #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #e9a9a9; width: 400px; min-height: 50px; }
         #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #d9d9f9; width: 400px; min-height: 50px; }
+        #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9f9; width: 400px; min-height: 50px; }
         #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #7defed; width: 600px; height: 300px; overflow: auto; }
 
     </style>
@@ -67,6 +68,10 @@
     <tr><td>NLProg framework</td> 
     <td><textarea id="nlpframework"></textarea></td>
     <td> <button id="nlpframeworkButton">RUN</button> </td>
+    </tr>
+    <tr><td>NLProg system</td> 
+    <td><textarea id="nlpsystem"></textarea></td>
+    <td> <button id="nlpsystemButton">RUN</button> </td>
     </tr>
     </table>
 
@@ -237,6 +242,7 @@
         const chatButton = document.getElementById('chatButton');
         const nlpButton = document.getElementById('nlpButton');
         const nlpframeworkButton = document.getElementById('nlpframeworkButton');
+        const nlpsystemButton = document.getElementById('nlpsystemButton');
         const clearDialogueButton = document.getElementById('clearDialogueButton')
 
         const statusDiv = document.getElementById('status');
@@ -596,6 +602,26 @@
                     console.log("Sent to robot " + cmdToSend)
                     appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
                     updateStatus('Status: Sent NLProg framework '+cmdToSend, 'purple');
+                } else {
+                    updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
+                }
+            });
+        }
+        catch (error) {
+          console.error(error);
+        }
+        
+        try {
+            nlpsystemButton.addEventListener('click', () => {
+                console.log("Sending to robot ....")
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const nlprog = document.getElementById('nlpsystem')
+                    const cmdToSend = nlprog.value; // Get content
+                    nlprog.value = "";
+                    ws_nlpframework.send(JSON.stringify({ system: cmdToSend }));
+                    console.log("Sent to robot " + cmdToSend)
+                    appendProgDialogue(`System: ${cmdToSend}`, 'red');
+                    updateStatus('Status: Sent NLProg system '+cmdToSend, 'purple');
                 } else {
                     updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
                 }
