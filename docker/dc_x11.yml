@@ -15,8 +15,8 @@ services:
       - GZ_SIM_RESOURCE_PATH=/home/robot/src/marrtino_gazebo/marrtino_gazebo/models
     volumes:
       - $PWD/..:/home/robot/src/marrtino_gazebo
+      - /dev/dri/:/dev/dri/
 
-#      - /dev/dri/:/dev/dri/
 #      - /tmp/.X11-unix:/tmp/.X11-unix
 #      - /run/user/1002:/run/user/1002
 #       - $HOME/.Xauthority:/home/robot/.Xauthority
