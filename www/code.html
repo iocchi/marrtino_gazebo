@@ -405,7 +405,7 @@
                 ws_nlpframework = new WebSocket("ws://"+host2+":9878");
 
                 ws_nlpframework.onmessage = function(event) {
-                    console.log('EVENT: ', event)
+                    print('EVENT: ', event)
                     console.log('Message from NLprog framework server:', event.data);
                     const data = JSON.parse(event.data);
                     if (data.status == 'say') {
@@ -610,4 +610,3 @@
     </script>
 </body>
 </html>
-
