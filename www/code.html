@@ -20,9 +20,10 @@
         #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; height: 300px; overflow: auto; }
         #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f9f9f9; width: 400px; min-height: 50px; }
         #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
-        #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #d9d9f9; width: 400px; min-height: 50px; }
+        #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #e9a9a9; width: 400px; min-height: 50px; }
         #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #d9d9f9; width: 400px; min-height: 50px; }
-        #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #d9d9f9; width: 600px; height: 300px; overflow: auto; }
+        #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9f9; width: 400px; min-height: 50px; }
+        #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #7defed; width: 600px; height: 300px; overflow: auto; }
 
     </style>
 
@@ -32,25 +33,8 @@
 <body>
     <h1>Robot Programming Interface</h1>
 
-    <table>
-    <tr>
-    <td width=400 align=center> 
-    
-    location.hostname
-    
-    <iframe id="iframesim" src="http://localhost:8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2" width="360" height="270" scrolling="no"   title="sim"></iframe>
-    </td>
-    <td width=400 align=center>
-      <iframe src="marrtina02.html" width="360" height="270" scrolling="no"   title="face"></iframe>
-    </td>
-    <td width=360 align=center>
-    <img width=320 id="cameraimage" src="lastimage.png" alt="Camera image"><br>
-    <p> <button id="refreshButton">Refresh</button> </p>
-    </td>
-    </tr>
-    </table>
 
-    <p>Control buttons</p>
+    <h2>Connection and execution status</h2>
 
     <table>
         <td width=160 align=center> <div id="connection">Not connected</div> </td>
@@ -58,6 +42,102 @@
         <td width=160 align=center> <button id="disconnectButton">DISCONNECT</button> </td>
     </table>
 
+    <div id="status">
+        <p>Status: Not connected.</p>
+    </div>
+    
+    <br><br><br>
+
+    <p>--------------------------------------</p>    
+    
+    <br><br><br>
+    
+    
+
+    <h2>Natural Language Programmer interface using LLMs</h2>
+
+    <table>
+    <tr><td>Chatbot</td> 
+    <td><textarea id="humanchat"></textarea></td>
+    <td> <button id="chatButton">CHAT</button> </td>
+    </tr>
+    <tr><td>NLProg base</td> 
+    <td><textarea id="nlprog"></textarea></td>
+    <td> <button id="nlpButton">RUN</button> </td>
+    </tr>
+    <tr><td>NLProg framework</td> 
+    <td><textarea id="nlpframework"></textarea></td>
+    <td> <button id="nlpframeworkButton">RUN</button> </td>
+    </tr>
+    <tr><td>NLProg system</td> 
+    <td><textarea id="nlpsystem"></textarea></td>
+    <td> <button id="nlpsystemButton">RUN</button> </td>
+    </tr>
+    </table>
+
+    <br><br><br>
+
+    <h3>Programmer dialogue</h3>
+
+    <div id="progdialogue"></div>
+    <p align="right"> <button id="clearProgDialogueButton">Clear</button> </p>
+
+    <br><br><br>
+
+    <p>--------------------------------------</p>    
+    
+    <br><br><br>
+
+    <h2>Interaction with Mario</h2>
+
+    <table>
+    <tr>
+    <!-- td width=400 align=center> 
+    
+    location.hostname
+    
+    <iframe id="iframesim" src="http://localhost:8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2" width="360" height="270" scrolling="no"   title="sim"></iframe>
+    </td -->
+
+    <td width=360 align=center>
+    <img width=320 id="cameraimage" src="lastimage.png" alt="Camera image"><br>
+    <p> <button id="refreshButton">Refresh</button> </p>
+    </td>
+
+    <td width=400 align=center>
+      <iframe src="marrtina02.html" width="360" height="270" scrolling="no"   title="face"></iframe>
+    </td>
+
+    <td>
+
+    <br><br><br>
+    
+    <table>
+    <tr><td><b>Mario says:</b></td> 
+    <td><textarea id="humansay"></textarea></td>
+    <td> <button id="sayButton">SAY</button> </td>
+    </tr>
+    </table>
+
+    <br><br>
+
+    <b>Mario-Robot dialogue (within the simulator)</b>
+    <div id="dialogue"></div>
+    <p align="right"> <button id="clearDialogueButton">Clear</button> </p>
+
+    </td>
+
+    </tr>
+    </table>
+    
+    <br><br><br>    
+
+    <p>--------------------------------------</p>
+
+    <br><br><br>    
+
+    <h2>Traditional programming and Debugging</h2>
+ 
     <p>Robot program</p>
     <textarea id="codeEditor"></textarea>
     
@@ -65,56 +145,6 @@
         <td width=160 align=center> <button id="runButton">RUN</button> </td>
         <td width=160 align=center> <button id="stopButton">STOP</button> </td>
     </table>
-
-    <h3>Connection and execution status</h3>
-
-
-    <div id="status">
-        <p>Status: Not connected.</p>
-    </div>
-
-    <br><br><br>
-
-
-    <h3>Mario-Robot dialogue (within the simulator)</h3>
-    
-    <table>
-    <tr><td>Mario says:</td> 
-    <td><textarea id="humansay"></textarea></td>
-    <td> <button id="sayButton">SAY</button> </td>
-    </tr>
-    </table>
-
-    <div id="dialogue"></div>
-    <p align="right"> <button id="clearDialogueButton">Clear</button> </p>
-    
-    <br><br><br>    
-
-
-    <h3>Programmer interface</h3>
-
-    <table>
-    <tr><td>Prog chat:</td> 
-    <td><textarea id="humanchat"></textarea></td>
-    <td> <button id="chatButton">CHAT</button> </td>
-    </tr>
-    <tr><td>NLProg base:</td> 
-    <td><textarea id="nlprog"></textarea></td>
-    <td> <button id="nlpButton">RUN</button> </td>
-    </tr>
-    <tr><td>NLProg framework:</td> 
-    <td><textarea id="nlpframework"></textarea></td>
-    <td> <button id="nlpframeworkButton">RUN</button> </td>
-    </tr>
-    </table>
-
-    <div id="progdialogue"></div>
-    <p align="right"> <button id="clearProgDialogueButton">Clear</button> </p>
-
-    <br><br><br>
-
-
- 
 
 
 
@@ -212,6 +242,7 @@
         const chatButton = document.getElementById('chatButton');
         const nlpButton = document.getElementById('nlpButton');
         const nlpframeworkButton = document.getElementById('nlpframeworkButton');
+        const nlpsystemButton = document.getElementById('nlpsystemButton');
         const clearDialogueButton = document.getElementById('clearDialogueButton')
 
         const statusDiv = document.getElementById('status');
@@ -250,7 +281,7 @@
 
 //            document.getElementById('iframesim').src = "http://" + host + ":8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2"
 
-            document.getElementById('iframesim').src = "http://" + host + ":8081/"
+            //document.getElementById('iframesim').src = "http://" + host + ":8081/"
 
             try {
                 ws_code = new WebSocket("ws://"+host+":9876");
@@ -400,12 +431,10 @@
             
                 console.log("Connecting to robot framework 2 ....")
             
-                //host2 = "192.168.0.126"
-                host2 = "localhost"
-                ws_nlpframework = new WebSocket("ws://"+host2+":9878");
+                // host2 = "192.168.0.126"
+                ws_nlpframework = new WebSocket("ws://"+host+":9878");
 
                 ws_nlpframework.onmessage = function(event) {
-                    print('EVENT: ', event)
                     console.log('Message from NLprog framework server:', event.data);
                     const data = JSON.parse(event.data);
                     if (data.status == 'say') {
@@ -580,6 +609,26 @@
                     console.log("Sent to robot " + cmdToSend)
                     appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
                     updateStatus('Status: Sent NLProg framework '+cmdToSend, 'purple');
+                } else {
+                    updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
+                }
+            });
+        }
+        catch (error) {
+          console.error(error);
+        }
+        
+        try {
+            nlpsystemButton.addEventListener('click', () => {
+                console.log("Sending to robot ....")
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const nlprog = document.getElementById('nlpsystem')
+                    const cmdToSend = nlprog.value; // Get content
+                    nlprog.value = "";
+                    ws_nlpframework.send(JSON.stringify({ system: cmdToSend }));
+                    console.log("Sent to robot " + cmdToSend)
+                    appendProgDialogue(`System: ${cmdToSend}`, 'red');
+                    updateStatus('Status: Sent NLProg system '+cmdToSend, 'purple');
                 } else {
                     updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
                 }
