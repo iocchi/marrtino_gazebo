@@ -281,7 +281,7 @@
 
 //            document.getElementById('iframesim').src = "http://" + host + ":8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2"
 
-            document.getElementById('iframesim').src = "http://" + host + ":8081/"
+            //document.getElementById('iframesim').src = "http://" + host + ":8081/"
 
             try {
                 ws_code = new WebSocket("ws://"+host+":9876");
@@ -443,7 +443,21 @@
                     else if (data.status == 'llmcode') {
                         console.log('RECEIVED CODE:', data.message);
                         codeToSend = data.message
+
+                        codeToSend = codeToSend.replace('START_TEXT ', '"')
+                        codeToSend = codeToSend.replace('START_TEXT', '"')
+                        codeToSend = codeToSend.replace(' END_TEXT', '"')
+                        codeToSend = codeToSend.replace('END_TEXT', '"')
+                        console.log(codeToSend);
+
                         editor.setValue(codeToSend+"\n");
+
+                        const match = codeToSend.match(/"(.*?)"/);
+                        const human_string = match ? match[1] : null;
+                        if (human_string != null)
+                        {
+                            appendDialogue(`Robot: ${human_string}`, 'blue');
+                        }
                         ws_code.send(JSON.stringify({ code: data.message }));
                     }
                     else if (data.status == 'emotion') {
@@ -544,9 +558,16 @@
 
 		// Human say simulation
         sayButton.addEventListener('click', () => {
+            const humansay = document.getElementById('humansay')
+            const sayToSend = humansay.value; // Get content
+            humansay.value = "";
+            updateStatus('Status: Sent SAY '+sayToSend, 'purple');
+            appendDialogue(`Mario: ${sayToSend}`, 'red');
+            /*
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const humansay = document.getElementById('humansay')
                 const sayToSend = humansay.value; // Get content
+                console.log('HUMAN SAY: ', humansay)
                 humansay.value = "";
                 ws_code.send(JSON.stringify({ say: sayToSend })); // Changed key to 'code'
                 updateStatus('Status: Sent SAY '+sayToSend, 'purple');
@@ -554,6 +575,7 @@
             } else {
                 updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
             }
+            */
         });
 
         try {
@@ -652,4 +674,3 @@
     </script>
 </body>
 </html>
-
