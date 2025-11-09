@@ -347,6 +347,9 @@
               console.error(error);
             }              
               
+
+
+            /*
             try {
                 ws_chat = new WebSocket("ws://"+host+":9877");
                 ws_chat.onmessage = function(event) {
@@ -381,7 +384,7 @@
             catch (error) {
               console.error(error);
             }
-
+            */      
 
 /*
             
@@ -441,6 +444,7 @@
                         appendProgDialogue(`AI: ${data.message}`, 'blue');
                     } 
                     else if (data.status == 'llmcode') {
+                        runButton.disabled = false;
                         console.log('RECEIVED CODE:', data.message);
                         codeToSend = data.message
 
@@ -453,11 +457,12 @@
                         editor.setValue(codeToSend+"\n");
 
                         const match = codeToSend.match(/"(.*?)"/);
-                        const human_string = match ? match[1] : null;
-                        if (human_string != null)
-                        {
-                            appendDialogue(`Robot: ${human_string}`, 'blue');
+                        const robot_sentence = match ? match[1] : null;
+                        
+                        if (robot_sentence != null){
+                            appendDialogue(`Robot: ${robot_sentence}`, 'blue');
                         }
+                        
                         ws_code.send(JSON.stringify({ code: data.message }));
                     }
                     else if (data.status == 'emotion') {
@@ -532,6 +537,7 @@
 
 
         runButton.addEventListener('click', () => {
+            console.log('PRESSED RUN BUTTON')
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = editor.getValue(); // Get content from CodeMirror
                 if (codeToSend.trim() !== '') {
