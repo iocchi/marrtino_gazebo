@@ -99,6 +99,7 @@ class MARRtinoController(Node):
         self.gtpose = None
         self.scan = None
         self.save_image = False
+        self.save_pre_image = False
         self.cv_bridge = CvBridge()
         
         # joint name-id map
@@ -1172,10 +1173,12 @@ class MARRtinoController(Node):
     def get_image(self):
         self.save_image = True
 
+    def get_pre_image(self):
+        self.save_pre_image = True
+
 
 
     def camera_callback(self, data):
-
         # save only one image
         if self.save_image:
             self.get_logger().info(f"Receiving image ...")
@@ -1192,6 +1195,22 @@ class MARRtinoController(Node):
                 self.save_image = False
             except Exception as e:
                 self.get_logger().error(f"Failed to save image: {e}")
+        
+        if self.save_pre_image:
+            self.get_logger().info(f"Receiving pre image ...")
+            try:
+                cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
+            except Exception as e:
+                self.get_logger().error(f"Failed to convert image: {e}")
+                return
+
+            # Save the image
+            try:
+                cv2.imwrite("../../www/pre_lastimage.png", cv_image)
+                self.get_logger().info(f"Successfully saved pre image")
+                self.save_pre_image = False
+            except Exception as e:
+                self.get_logger().error(f"Failed to save pre image: {e}")
 
 
 

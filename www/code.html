@@ -622,6 +622,23 @@
         try {
             nlpframeworkButton.addEventListener('click', () => {
                 console.log("Sending to robot ....")
+                
+                if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                    const codeToSend = "robot.get_pre_image()"
+                    if (codeToSend.trim() !== '') {
+                        // Send code as a JSON object
+                        ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
+                        updateStatus('Status: Sending code...', 'purple');
+                        // editor.setValue(''); // Optional: Clear editor after sending
+                    } else {
+                        updateStatus('Status: Please enter some code to send.', 'orange');
+                    }
+                } else {
+                    updateStatus('Status: Not connected to server. Please refresh or check server.', 'red');
+                }
+
+
+
                 if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
                     const nlprog = document.getElementById('nlpframework')
                     const cmdToSend = nlprog.value; // Get content
