@@ -443,6 +443,16 @@
                     if (data.status == 'say') {
                         appendProgDialogue(`AI: ${data.message}`, 'blue');
                     } 
+                    else if (data.status == 'llmcode_base') {
+                        // appendProgDialogue(`Robot: ${data.message}`, 'blue');
+                        if (data.message.includes('<CODE>')) {
+                            i = data.message.indexOf('<CODE>');
+                            j = data.message.indexOf('</CODE>');
+                            const codeToSend = data.message.substring(i+6,j).trim();
+                            editor.setValue(codeToSend+"\n");
+                            ws_code.send(JSON.stringify({ code: codeToSend }));
+                        }
+                    } 
                     else if (data.status == 'llmcode') {
                         runButton.disabled = false;
                         console.log('RECEIVED CODE:', data.message);
@@ -586,6 +596,20 @@
 
         try {
             chatButton.addEventListener('click', () => {
+                
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const humanchat = document.getElementById('humanchat')
+                    const chatToSend = humanchat.value; // Get content
+                    humanchat.value = "";
+                    ws_nlpframework.send(JSON.stringify({ chat: chatToSend }));
+                    console.log("Sent to robot " + chatToSend)
+                    appendProgDialogue(`Programmer: ${chatToSend}`, 'red');
+                    updateStatus('Status: Sent CHAT '+chatToSend, 'purple');
+                } else {
+                    updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
+                }
+
+                /*
                 if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
                     const humanchat = document.getElementById('humanchat')
                     const chatToSend = humanchat.value; // Get content
@@ -596,7 +620,9 @@
                 } else {
                     updateStatus('Status: Not connected to chat server. Please refresh or check server.', 'red');
                 }
+                */
             });
+            
         }
         catch (error) {
           console.error(error);
@@ -604,6 +630,7 @@
 
         try {
             nlpButton.addEventListener('click', () => {
+                /*
                 if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
                     const nlprog = document.getElementById('nlprog')
                     const cmdToSend = nlprog.value; // Get content
@@ -612,8 +639,21 @@
                     updateStatus('Status: Sent NLProg base '+cmdToSend, 'purple');
                 } else {
                     updateStatus('Status: Not connected to chat server. Please refresh or check server.', 'red');
+                }*/
+               if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const nlprog = document.getElementById('nlprog')
+                    const cmdToSend = nlprog.value; // Get content
+                    nlprog.value = "";
+                    ws_nlpframework.send(JSON.stringify({ nlprog_base: cmdToSend }));
+                    console.log("Sent to robot " + cmdToSend)
+                    appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
+                    updateStatus('Status: Sent NLProg base '+cmdToSend, 'purple');
+                } else {
+                    updateStatus('Status: Not connected to NLProg framework server. Please refresh or check server.', 'red');
                 }
             });
+
+            
         }
         catch (error) {
           console.error(error);
