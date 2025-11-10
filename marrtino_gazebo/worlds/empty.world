@@ -237,7 +237,7 @@
       
       <!-- Table top -->
       <link name="table_top">
-        <pose>0 0 0.75 0 0 0</pose>
+        <pose>0 0 0.4 0 0 0</pose>
         <collision name="collision">
           <geometry>
             <box>
@@ -261,12 +261,12 @@
 
       <!-- Leg 1 -->
       <link name="leg1">
-        <pose>0.6 0.3 0.375 0 0 0</pose>
+        <pose>0.6 0.3 0.2 0 0 0</pose>
         <collision name="collision">
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
         </collision>
@@ -274,7 +274,7 @@
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
           <material>
@@ -287,12 +287,12 @@
 
       <!-- Leg 2 -->
       <link name="leg2">
-        <pose>-0.6 0.3 0.375 0 0 0</pose>
+        <pose>-0.6 0.3 0.2 0 0 0</pose>
         <collision name="collision">
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
         </collision>
@@ -300,7 +300,7 @@
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
           <material>
@@ -313,12 +313,12 @@
 
       <!-- Leg 3 -->
       <link name="leg3">
-        <pose>0.6 -0.3 0.375 0 0 0</pose>
+        <pose>0.6 -0.3 0.2 0 0 0</pose>
         <collision name="collision">
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
         </collision>
@@ -326,7 +326,7 @@
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
           <material>
@@ -339,12 +339,12 @@
 
       <!-- Leg 4 -->
       <link name="leg4">
-        <pose>-0.6 -0.3 0.375 0 0 0</pose>
+        <pose>-0.6 -0.3 0.2 0 0 0</pose>
         <collision name="collision">
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
         </collision>
@@ -352,7 +352,7 @@
           <geometry>
             <cylinder>
               <radius>0.02</radius>
-              <length>0.75</length>
+              <length>0.4</length>
             </cylinder>
           </geometry>
           <material>
