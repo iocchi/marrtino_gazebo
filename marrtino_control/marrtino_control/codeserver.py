@@ -59,9 +59,14 @@ def terminate_thread():
 async def notify_thread_completed(websocket):
     global code_running
     print('Code execution completed.')
+    donotify = True
+    if 'get_pre_image' in code_running or 'get_post_image' in code_running:
+        donotify = False
     code_running = None
-    # notify termination to JS client websocket
-    await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
+    if donotify:
+        print("Notify termination.")
+        # notify termination to JS client websocket
+        await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
 
 async def send_robot_say(websocket, sentence):
     print(f'send robot say: {sentence}')
@@ -84,7 +89,8 @@ async def echo(websocket):
                     received_code = data["code"]
                     if code_running is None:
                         print(f"Python code:\n{received_code}")
-                        await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
+                        if not ('get_pre_image' in received_code or 'get_post_image' in received_code):
+                            await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
                         try:
                             run_thread(received_code, websocket)
                         except Exception as e:

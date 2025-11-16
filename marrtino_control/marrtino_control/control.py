@@ -100,6 +100,7 @@ class MARRtinoController(Node):
         self.scan = None
         self.save_image = False
         self.save_pre_image = False
+        self.save_post_image = False
         self.cv_bridge = CvBridge()
         
         # joint name-id map
@@ -1176,6 +1177,9 @@ class MARRtinoController(Node):
     def get_pre_image(self):
         self.save_pre_image = True
 
+    def get_post_image(self):
+        self.save_post_image = True
+
 
 
     def camera_callback(self, data):
@@ -1204,7 +1208,7 @@ class MARRtinoController(Node):
                 self.get_logger().error(f"Failed to convert image: {e}")
                 return
 
-            # Save the image
+            # Save the pre image
             try:
                 cv2.imwrite("../../www/pre_lastimage.png", cv_image)
                 self.get_logger().info(f"Successfully saved pre image")
@@ -1212,6 +1216,21 @@ class MARRtinoController(Node):
             except Exception as e:
                 self.get_logger().error(f"Failed to save pre image: {e}")
 
+        if self.save_post_image:
+            self.get_logger().info(f"Receiving post image ...")
+            try:
+                cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
+            except Exception as e:
+                self.get_logger().error(f"Failed to convert image: {e}")
+                return
+
+            # Save the post image
+            try:
+                cv2.imwrite("../../www/post_lastimage.png", cv_image)
+                self.get_logger().info(f"Successfully saved post image")
+                self.save_post_image = False
+            except Exception as e:
+                self.get_logger().error(f"Failed to save post image: {e}")
 
 
     '''
