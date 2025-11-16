@@ -365,6 +365,27 @@ Example:  Move arms in walking style
             robot.sleep(1)
 
 
+# websocket connection
+
+Launch ROS2 bridge
+
+    ros2 launch rosbridge_server rosbridge_websocket_launch.xml  port:=9890
+
+
+Open html/JS page connecting to ROS bridge
+
+    www/marrtina02.html
+
+or
+
+    www/code.html
+
+
+Test sending emotions to web face
+
+    ros2 topic pub --once /social/emotion std_msgs/msg/String "data: 'normal'"
+
+
 # xserver usage
 
 How to show the simulator in a browser window

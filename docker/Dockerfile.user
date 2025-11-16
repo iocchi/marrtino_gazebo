@@ -75,7 +75,6 @@ USER robot
 RUN pip install --break-system-packages websockets 
 
 
-
 # marrtino_gazebo setup
 
 USER robot

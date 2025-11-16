@@ -132,7 +132,7 @@ class EyeController {
     document.getElementById("bocca").src = "image/boccasad.png"; 
     document.getElementById("naso").src = "image/nose_sad.png"; 
   }	   
-  surprise() {
+  surprised() {
 	document.getElementById("soprdx").src = "image/eyebrowdxsurprise.png"; 
     document.getElementById("soprsx").src = "image/eyebrowsxsurprise.png"; 
     document.getElementById("occhiodx").src = "image/eyedx.png"; 

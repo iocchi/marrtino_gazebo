@@ -203,6 +203,9 @@
     # image
     robot.get_image()
 
+    # faces
+    robot.emotion(value)   # normal, happy, sad, angry, surprised, sings
+
     </pre>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
@@ -277,14 +280,9 @@
             // get an image before executing the program        
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = "robot.get_pre_image()"
-                if (codeToSend.trim() !== '') {
-                    // Send code as a JSON object
-                    ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
-                    updateStatus('statusframework', 'Status: Sending code...', 'purple');
-                    // editor.setValue(''); // Optional: Clear editor after sending
-                } else {
-                    updateStatus('statusframework', 'Please enter some code to send.', 'orange');
-                }
+                // Send code as a JSON object
+                ws_code.send(JSON.stringify({ syscode: codeToSend })); // Changed key to 'code'
+                // updateStatus('statusframework', 'Status: Sending code...', 'purple');
             } else {
                 updateStatus('statusframework', 'Not connected to server. Please refresh or check server.', 'red');
             }
@@ -294,14 +292,18 @@
             // get an image after executing the program        
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = "robot.get_post_image()"
-                if (codeToSend.trim() !== '') {
-                    // Send code as a JSON object
-                    ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
-                    updateStatus('statusframework', 'Status: Sending code...', 'purple');
-                    // editor.setValue(''); // Optional: Clear editor after sending
-                } else {
-                    updateStatus('statusframework', 'Please enter some code to send.', 'orange');
-                }
+                // Send code as a JSON object
+                ws_code.send(JSON.stringify({ syscode: codeToSend })); // Changed key to 'code'
+                // updateStatus('statusframework', 'Status: Sending code...', 'purple');
+            } else {
+                updateStatus('statusframework', 'Not connected to server. Please refresh or check server.', 'red');
+            }
+        }
+
+        async function send_emotion(value) {
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                const codeToSend = "robot.emotion(\"" + value+ "\")";
+                ws_code.send(JSON.stringify({ syscode: codeToSend }));
             } else {
                 updateStatus('statusframework', 'Not connected to server. Please refresh or check server.', 'red');
             }
@@ -438,7 +440,7 @@
                         console.log('RECEIVED CODE:', data.message);
                         codeToSend = data.message
 
-                        if (codeToSend.length>2) {
+                        if (codeToSend.length>2 && codeToSend.substring(0,4) != "pass" ) {
 
                             codeToSend = codeToSend.replace('START_TEXT ', '"')
                             codeToSend = codeToSend.replace('START_TEXT', '"')
@@ -459,40 +461,14 @@
                             notify_nlpframework("started");
                         }
                     }
+                    
                     else if (data.status == 'emotion') {
                         console.log('RECEIVED EMOTION:', data.message);
-                        // Ottieni riferimento all’iframe
-                        const faceFrame = document.getElementById("marrtinaFace");
 
-                        // Tenta di accedere all’oggetto "eyes" definito dentro l’iframe
-                        try {
-                            const eyes = faceFrame.contentWindow.eyes;
+                        send_emotion(data.message);
 
-                            if (!eyes) {
-                                console.error("eyes object not found in iframe");
-                                return;
-                            }
+                    }
 
-                            // Chiama la funzione giusta in base al messaggio ricevuto
-                            switch (data.message) {
-                                case "happy": eyes.happy(); break;
-                                case "sad": eyes.sad(); break;
-                                case "angry": eyes.angry(); break;
-                                case "surprise": eyes.surprise(); break;
-                                case "normal": eyes.normal(); break;
-                                case "speak": eyes.speak(); break;
-                                case "blink": eyes.blink(); break;
-                                case "startblinking": eyes.startBlinking(); break;
-                                case "stopblinking": eyes.stopBlinking(); break;
-                                default:
-                                    console.warn("Unknown emotion:", data.message);
-                            }
-
-                            updateStatus('statusframework', `Emotion received: ${data.message}`, 'blue');
-                        } catch (err) {
-                            console.error("Error accessing iframe or calling eyes:", err);
-                        }
-                    } 
                     else {
                         updateStatus('statusframework', `Robot Framework Error - ${data.message}`, 'red');
                     }
