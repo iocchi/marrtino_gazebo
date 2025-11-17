@@ -82,6 +82,8 @@ This option autodetects if nvidia drivers are present and uses nvidia runtime in
 
 Use a browser on `http://localhost:3000` to see the simulation.
 
+## Option 3: force X11
+
 To force use of X11 driver and runc runtime
 
     cd docker
