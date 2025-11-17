@@ -17,8 +17,11 @@
     }
     
     // ROS connection
+    host = window.location.hostname
+    if (host == "")
+        host = "localhost";
     var ros = new ROSLIB.Ros({
-      	 url: 'ws:' + window.location.hostname +':9890'
+      	 url: 'ws:' + host +':9890'
     });
 
     ros.on('connection', function () {
@@ -37,7 +40,7 @@
 	// emotion listener
 	var emotion_listener = new ROSLIB.Topic({
       ros: ros,
-      name: 'social/emotion/',
+      name: 'social/emotion',
       messageType: 'std_msgs/String'
     });
 
@@ -52,8 +55,8 @@
       if (m.data == "happy") {
         eyes.happy();
       } 
-	  if (m.data == "surprise") {
-        eyes.surprise();
+	  if (m.data == "surprised") {
+        eyes.surprised();
       }
 	  if (m.data == "angry") {
         eyes.angry();
@@ -95,7 +98,7 @@
     <button onclick="eyes.happy()" >Happy</button>
     <button onclick="eyes.sad()" >Sad</button>
     <button onclick="eyes.angry()" >Angry</button>
-	<button onclick="eyes.surprise()" >Surprised</button>
+	<button onclick="eyes.surprised()" >Surprised</button>
     <!-- button onclick="eyes.focused()" >Focused</button -->
     <!-- button onclick="eyes.confused()" >Confused</button -->
   

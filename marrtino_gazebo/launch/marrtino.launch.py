@@ -17,6 +17,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.actions import RegisterEventHandler, SetEnvironmentVariable
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
 from launch.conditions import IfCondition
 
@@ -220,6 +221,17 @@ def generate_launch_description():
         output='screen'
     )
 
+    # ros2 launch rosbridge_server rosbridge_websocket_launch.xml  port:=9890
+
+    pp = PathJoinSubstitution([FindPackageShare('rosbridge_server'),
+                                       'launch',
+                                       'rosbridge_websocket_launch.xml'])
+    rosbridge = \
+        IncludeLaunchDescription(
+            XMLLaunchDescriptionSource(pp),
+            launch_arguments = [
+                ('port', '9890'),
+            ] )
 
     '''
     SetEnvironmentVariable(
@@ -288,6 +300,8 @@ def generate_launch_description():
         node_marrtino_parameters,
         node_robot_state_publisher,
         gz_spawn_entity,
+
+        rosbridge,
 
         # Launch Arguments
         DeclareLaunchArgument(

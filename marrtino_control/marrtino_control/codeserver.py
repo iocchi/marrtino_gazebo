@@ -19,7 +19,7 @@ websocket = None
 
 run_code_thread = None
 
-def run_code(websocket):
+def run_code(websocket, donotify=True):
     if code_running is not None:
         robot.user_stop = False
         if 'import' not in code_running:    
@@ -27,7 +27,7 @@ def run_code(websocket):
                 exec(code_running)
             except Exception:
                 print(traceback.format_exc())
-        asyncio.run(notify_thread_completed(websocket))
+        asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 def print_robot_say(websocket):
     while code_running is not None:
@@ -36,11 +36,11 @@ def print_robot_say(websocket):
         robot.simulated_say = None
         time.sleep(0.5)
 
-def run_thread(code, websocket):
+def run_thread(code, websocket, donotify=True):
     global code_running, run_code_thread
     print("Running code in a thread ...")
     code_running = code
-    run_code_thread = Thread(target=run_code, args=(websocket, ))
+    run_code_thread = Thread(target=run_code, args=(websocket, donotify))
     run_code_thread.start()
     t2 = Thread(target=print_robot_say, args=(websocket, ))
     t2.start()
@@ -56,12 +56,14 @@ def terminate_thread():
         run_code_thread = None
         code_running = None
         
-async def notify_thread_completed(websocket):
+async def notify_thread_completed(websocket, donotify):
     global code_running
     print('Code execution completed.')
     code_running = None
-    # notify termination to JS client websocket
-    await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
+    if donotify:
+        print("Notify termination.")
+        # notify termination to JS client websocket
+        await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
 
 async def send_robot_say(websocket, sentence):
     print(f'send robot say: {sentence}')
@@ -80,6 +82,21 @@ async def echo(websocket):
                     received_text = data["text"]
                     print(f"Text:\n{received_text}")
                     await websocket.send(json.dumps({"status": "success", "message": "Text received!"}))
+
+                elif "syscode" in data:
+                    received_code = data["syscode"]
+                    if code_running is None:
+                        print(f"Python system code:\n{received_code}")
+                        # do not send code running message
+                        try:
+                            run_thread(received_code, websocket, donotify=False)
+                        except Exception as e:
+                            print(f"Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    else:
+                        print("Another program running. Code discarded.")
+                        await websocket.send(json.dumps({"status": "error", "message": "Code already running", "disable_send": "false"}))
+
                 elif "code" in data:
                     received_code = data["code"]
                     if code_running is None:

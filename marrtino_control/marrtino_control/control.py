@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64MultiArray 
+from std_msgs.msg import Float64MultiArray, String 
 from sensor_msgs.msg import JointState, LaserScan, Image
 from cv_bridge import CvBridge
 import cv2
@@ -100,6 +100,7 @@ class MARRtinoController(Node):
         self.scan = None
         self.save_image = False
         self.save_pre_image = False
+        self.save_post_image = False
         self.cv_bridge = CvBridge()
         
         # joint name-id map
@@ -178,6 +179,7 @@ class MARRtinoController(Node):
             self.pub_arm_cmd = self.create_publisher(Float64MultiArray, f'/arm_{self.control_interface}_controller/commands', 100)
         self.pub_head_pan_cmd = self.create_publisher(Float64MultiArray, f'/head_pan_{self.control_interface}_controller/commands', 100)
         self.pub_head_tilt_cmd = self.create_publisher(Float64MultiArray, f'/head_tilt_{self.control_interface}_controller/commands', 100)
+        self.pub_emotion = self.create_publisher(String, f'/social/emotion', 100)
 
         # subscribers
 
@@ -1176,6 +1178,9 @@ class MARRtinoController(Node):
     def get_pre_image(self):
         self.save_pre_image = True
 
+    def get_post_image(self):
+        self.save_post_image = True
+
 
 
     def camera_callback(self, data):
@@ -1204,7 +1209,7 @@ class MARRtinoController(Node):
                 self.get_logger().error(f"Failed to convert image: {e}")
                 return
 
-            # Save the image
+            # Save the pre image
             try:
                 cv2.imwrite("../../www/pre_lastimage.png", cv_image)
                 self.get_logger().info(f"Successfully saved pre image")
@@ -1212,14 +1217,34 @@ class MARRtinoController(Node):
             except Exception as e:
                 self.get_logger().error(f"Failed to save pre image: {e}")
 
+        if self.save_post_image:
+            self.get_logger().info(f"Receiving post image ...")
+            try:
+                cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
+            except Exception as e:
+                self.get_logger().error(f"Failed to convert image: {e}")
+                return
 
+            # Save the post image
+            try:
+                cv2.imwrite("../../www/post_lastimage.png", cv_image)
+                self.get_logger().info(f"Successfully saved post image")
+                self.save_post_image = False
+            except Exception as e:
+                self.get_logger().error(f"Failed to save post image: {e}")
+
+
+    def emotion(self, value):
+        msg = String()
+        msg.data = value
+        self.pub_emotion.publish(msg)
 
     '''
 robot.emotion(“normal”)    set normal face 
    robot.emotion(“happy”)     set happy face
    robot.emotion(“sad”)       set sad face 
    robot.emotion(“sings”)     set singing face
-   robot.emotion(“surprise”)  set face surprised  
+   robot.emotion(“surprised”)  set face surprised  
    robot.emotion(“angry”)     set angry face
    
 
