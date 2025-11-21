@@ -181,7 +181,7 @@ class ModelManager(Node):
         object_pose.orientation.w = quaternion[3]
         return object_pose
 
-    def save_model(self, model):
+    def save_model(self, model, collision=True):
         filename = '/tmp/tmp.sdf'
         print(f"Creating model {model} on file {filename} ...")
         ms = model.split('_')
@@ -193,6 +193,7 @@ class ModelManager(Node):
             geometry = "<box> <size>0.06 0.06 0.06</size> </box>"
         elif ms[0] == "line":
             geometry = "<box> <size>1.0 0.06 0.002</size> </box>"
+            collision = False
 
         if ms[1] == "red":
             material = "<ambient>0.8 0.1 0.1 0.9</ambient> <diffuse>0.8 0.1 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
@@ -211,11 +212,15 @@ class ModelManager(Node):
             f.write("<?xml version=\"1.0\" ?>\n<sdf version=\"1.5\">\n\n")
             f.write("<model name=\"cylinder\">\n")
             f.write("  <pose>0 0 0 0 0 0</pose>\n")
-            f.write("  <static>false</static>\n")
+            if collision:
+                f.write("  <static>false</static>\n")
+            else:
+                f.write("  <static>true</static>\n")
             f.write("  <link name=\"link\">\n")
-            f.write("     <inertial auto=\"true\"/>\n")
-            f.write(f"    <collision name=\"collision\"> <geometry> {geometry} </geometry> </collision>\n")
             f.write(f"    <visual name=\"visual\"> <geometry> {geometry} </geometry> <material> {material} </material> </visual>\n")
+            if collision:
+                f.write("     <inertial auto=\"true\"/>\n")
+                f.write(f"    <collision name=\"collision\"> <geometry> {geometry} </geometry> </collision>\n")
             f.write("  </link>\n")
             f.write("</model>\n\n")
             f.write("</sdf>\n")
