@@ -109,9 +109,14 @@ class MARRtinoController(Node):
         # user request to stop the robot
         self.user_stop = False
 
+        # emergency stop when too close to obstacles
+        self.emergency_stop_obstacle_threshold = 0.3
+        self.emergency_stop = False
+
         # simulated speech variables
         self.simulated_say = None
         self.simulated_asr = None
+
 
         # Spin in a separate thread
         thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
@@ -187,6 +192,14 @@ class MARRtinoController(Node):
             PoseStamped,           # Message type
             f'/model/{self.robot_name}/pose',      # Topic name
             self.gtpose_callback, # Callback function
+            10                  # QoS (Quality of Service) history depth
+        )
+        self.person_name = "mario"
+        self.person_pose = None
+        self.sub_personpose = self.create_subscription(
+            PoseStamped,           # Message type
+            f'/model/{self.person_name}/pose',      # Topic name
+            self.personpose_callback, # Callback function
             10                  # QoS (Quality of Service) history depth
         )
         self.sub_odom = self.create_subscription(
@@ -315,6 +328,11 @@ class MARRtinoController(Node):
                 self.print_gtpose()
                 '''
 
+    def personpose_callback(self, msg):
+        if msg.header.frame_id == 'default':
+            ts = self.set_ts(msg)
+            self.person_pose = msg
+
 
     def odom_callback(self, msg):
         ts = self.set_ts(msg)       
@@ -414,6 +432,15 @@ class MARRtinoController(Node):
             d = self.scan.ranges[i]
             print(f"     {deg} -> range[{i}] = {d}")
 
+
+    def check_emergency_stop(self):
+        md = min(self.scan.ranges)
+        self.emergency_stop = (md <= self.emergency_stop_obstacle_threshold)
+
+
+
+
+
     # Publishers (with stop_event handling)
     # stop_event is a threading.Event object
     # to stop the publishing behavior use stop_event.set()
@@ -425,11 +452,13 @@ class MARRtinoController(Node):
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
         rate100 = self.create_rate(100) # Hz
         for _ in range(int(ts*100)):
+            self.check_emergency_stop()
+            self.emergency_stop = self.emergency_stop and lx > 0
+            if self.user_stop or self.emergency_stop or (afuture is not None and afuture.stop_event.is_set()):
+                break
             msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
             rate100.sleep()
-            if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
-                break
         if stop_on_end:
             for _ in range(5):
                 msg.header.stamp = self.get_clock().now().to_msg()
@@ -438,8 +467,11 @@ class MARRtinoController(Node):
                 self.pub_cmd_vel.publish(msg)
                 rate100.sleep()
 
-        if self.user_stop:
+        if self.user_stop or self.emergency_stop:
             self.stop()
+
+        if self.emergency_stop:
+            self.get_logger().warn("!!! Emergency stop !!!")
 
         if afuture is not None:
             afuture.notify_termination()
