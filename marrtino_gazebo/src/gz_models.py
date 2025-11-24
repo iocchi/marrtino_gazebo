@@ -181,6 +181,52 @@ class ModelManager(Node):
         object_pose.orientation.w = quaternion[3]
         return object_pose
 
+    def save_model(self, model, collision=True):
+        filename = '/tmp/tmp.sdf'
+        print(f"Creating model {model} on file {filename} ...")
+        ms = model.split('_')
+        if ms[0] == "cylinder":
+            geometry = "<cylinder> <radius>0.03</radius> <length>0.12</length> </cylinder>"
+        elif ms[0] == "sphere":
+            geometry = "<sphere> <radius>0.05</radius> </sphere>"
+        elif ms[0] == "box":
+            geometry = "<box> <size>0.06 0.06 0.06</size> </box>"
+        elif ms[0] == "line":
+            geometry = "<box> <size>1.0 0.06 0.002</size> </box>"
+            collision = False
+
+        if ms[1] == "red":
+            material = "<ambient>0.8 0.1 0.1 0.9</ambient> <diffuse>0.8 0.1 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "blue":
+            material = "<ambient>0.1 0.1 0.8 0.9</ambient> <diffuse>0.1 0.1 0.8 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "green":
+            material = "<ambient>0.1 0.8 0.1 0.9</ambient> <diffuse>0.1 0.8 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "orange":
+            material = "<ambient>1.0 0.5 0.0 0.9</ambient> <diffuse>1.0 0.5 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "black":
+            material = "<ambient>0.0 0.0 0.0 0.9</ambient> <diffuse>0.0 0.0 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "white":
+            material = "<ambient>1.0 1.0 1.0 0.9</ambient> <diffuse>1.0 1.0 1.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+
+        with open(filename, "w") as f:
+            f.write("<?xml version=\"1.0\" ?>\n<sdf version=\"1.5\">\n\n")
+            f.write("<model name=\"cylinder\">\n")
+            f.write("  <pose>0 0 0 0 0 0</pose>\n")
+            if collision:
+                f.write("  <static>false</static>\n")
+            else:
+                f.write("  <static>true</static>\n")
+            f.write("  <link name=\"link\">\n")
+            f.write(f"    <visual name=\"visual\"> <geometry> {geometry} </geometry> <material> {material} </material> </visual>\n")
+            if collision:
+                f.write("     <inertial auto=\"true\"/>\n")
+                f.write(f"    <collision name=\"collision\"> <geometry> {geometry} </geometry> </collision>\n")
+            f.write("  </link>\n")
+            f.write("</model>\n\n")
+            f.write("</sdf>\n")
+
+        return filename
+
 
     def add_object(self, name, model, pose):
 
@@ -192,12 +238,16 @@ class ModelManager(Node):
         self.create_req = SpawnEntity.Request()
 
         models = self.get_gazebo_models()
-
         # print(models)
         
-        filename = os.path.join(models[model]['path'], models[model]['sdf'][0])
-        print(filename)
-        
+        try:
+            filename = os.path.join(models[model]['path'], models[model]['sdf'][0])
+            print(filename)
+        except Exception as e:
+            print(e)
+            filename = self.save_model(model)
+
+
         self.create_req.entity_factory.sdf_filename = filename
         self.create_req.entity_factory.name = name
         # The pose in the EntityFactory message can also be set directly

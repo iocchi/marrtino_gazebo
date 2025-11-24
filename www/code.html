@@ -97,12 +97,12 @@
 
     <table>
     <tr>
-    <!-- td width=400 align=center> 
+    <td width=400 align=center> 
     
-    location.hostname
+    <!-- location.hostname -->
     
-    <iframe id="iframesim" src="http://localhost:8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2" width="360" height="270" scrolling="no"   title="sim"></iframe>
-    </td -->
+    <iframe id="iframesim" src="http://localhost:8080/stream?topic=/top_camera/image" width="640" height="480" scrolling="no"   title="sim"></iframe>
+    </td>
 
     <td width=360 align=center>
     <img width=320 id="cameraimage" src="lastimage.png" alt="Camera image"><br>
@@ -319,11 +319,12 @@
             }
         }
 
-        async function notify_nlpframework(value) {
+        async function notify_nlpframework(key, value) {
             // notifies nlpframework that robot program execution is completed
             if (ws_nlpframework != null) {
               console.log("notify nlpframework "+value+" ...");
-              ws_nlpframework.send(JSON.stringify({ "run_code": value }));
+              // ws_nlpframework.send(JSON.stringify(`{ "${key}": "${value}" }`));
+              ws_nlpframework.send(`{ "${key}": "${value}" }`);
             }
         }
 
@@ -358,7 +359,7 @@
                             console.log("do post_image and notify....")
                             get_post_image();
                             refreshImage();
-                            notify_nlpframework("completed");
+                            notify_nlpframework("run_code", "completed");
                         }
                     } 
                     else if (data.status == 'say') {
@@ -458,7 +459,7 @@
                             }
                             
                             ws_code.send(JSON.stringify({ code: data.message }));
-                            notify_nlpframework("started");
+                            notify_nlpframework("run_code", "started");
                         }
                     }
                     
@@ -521,7 +522,7 @@
                 if (codeToSend.trim() !== '') {
                     // Send code as a JSON object
                     ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
-                    notify_nlpframework("started");
+                    notify_nlpframework("run_code", "started");
                     updateStatus('statusrobot', 'Status: Sending code...', 'purple');
                     // editor.setValue(''); // Optional: Clear editor after sending
                 } else {
@@ -535,7 +536,7 @@
         stopButton.addEventListener('click', () => {
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 ws_code.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
-                notify_nlpframework("interrupted");
+                notify_nlpframework("run_code", "interrupted");
                 updateStatus('statusrobot', 'Status: Sent signal STOP', 'purple');
             } else {
                 updateStatus('statusrobot', 'Status: Not connected to server. Please refresh or check server.', 'red');
@@ -547,8 +548,9 @@
             const humansay = document.getElementById('humansay')
             const sayToSend = humansay.value; // Get content
             humansay.value = "";
-            updateStatus('statusrobot', 'Status: Sent SAY '+sayToSend, 'purple');
+            updateStatus('statusrobot', 'Status: Sent HUMAN SAY '+sayToSend, 'purple');
             appendDialogue(`Mario: ${sayToSend}`, 'red');
+            notify_nlpframework("human_say", sayToSend);
             /*
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const humansay = document.getElementById('humansay')

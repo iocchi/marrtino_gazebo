@@ -99,17 +99,17 @@ async def echo(websocket):
 
                 elif "code" in data:
                     received_code = data["code"]
-                    if code_running is None:
-                        print(f"Python code:\n{received_code}")
-                        await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
-                        try:
-                            run_thread(received_code, websocket)
-                        except Exception as e:
-                            print(f"Error: {e}")
-                            await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
-                    else:
-                        print("Another program running. Code discarded.")
-                        await websocket.send(json.dumps({"status": "error", "message": "Code already running", "disable_send": "false"}))
+                    while code_running is not None:
+                        print("Waiting for code execution to be available....")
+                        time.sleep(0.5)
+
+                    print(f"Python code:\n{received_code}")
+                    await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
+                    try:
+                        run_thread(received_code, websocket)
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
                 elif "signal" in data:
                     received_signal = data["signal"]

@@ -200,6 +200,7 @@ def generate_launch_description():
         condition=IfCondition(has_head),
     )
 
+    person_name = 'mario'
 
     # Bridge
     bridge = Node(
@@ -211,9 +212,12 @@ def generate_launch_description():
 
             #'/model/marrtino/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose',
             PythonExpression( ["'/model/", robot_name, "/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose'"] ),
+            PythonExpression( ["'/model/", person_name, "/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose'"] ),
             
             '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/top_camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/top_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
             '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
             '/scan/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked'
