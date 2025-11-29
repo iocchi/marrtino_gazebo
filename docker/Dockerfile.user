@@ -64,14 +64,6 @@ RUN apt update && \
     apt install -y --no-install-recommends \
         python3-pip python3-venv pipx
 
-
-RUN apt update && \
-    apt install -y --no-install-recommends \
-        ros-${ROS_DISTRO}-web-video-server
-
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/*
-
 RUN cd /usr/bin && ln -s python3 python
 
 
@@ -79,8 +71,17 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
+### upgrade ###
 
-# marrtino_gazebo setup
+USER root
+
+RUN apt update && apt -y upgrade
+
+
+
+#########################
+# marrtino_gazebo setup #
+#########################
 
 USER robot
 
@@ -97,11 +98,9 @@ RUN bash -c "echo \"export PATH=${PATH}:/home/robot/.local/bin\" >> ~/.bashrc"
 RUN bash -c "echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc"
 
 
-
 USER robot
 
 WORKDIR /home/robot
 
-CMD [ "/usr/bin/tmux" ]
-
+ENTRYPOINT sudo service ssh start && tmux
 

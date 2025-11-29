@@ -428,3 +428,11 @@ NOTE: if window does not exist, check the desktop
 http://localhost:3080/vnc.html?autoconnect=1&resize=scale
 
 
+## Remote connection with ssh
+
+From remote host use
+
+    ssh -p 2222 robot@<host_running_the_container> -t tmux a
+    password: robot
+
+
