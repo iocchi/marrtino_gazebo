@@ -79,8 +79,20 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
+USER root
 
-# marrtino_gazebo setup
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        openssh-server
+
+ADD docker/etc/sshd_config /etc/ssh/sshd_config
+ADD docker/etc/sudoers /etc/sudoers
+
+RUN update-rc.d ssh defaults
+
+#########################
+# marrtino_gazebo setup #
+#########################
 
 USER robot
 
@@ -97,11 +109,9 @@ RUN bash -c "echo \"export PATH=${PATH}:/home/robot/.local/bin\" >> ~/.bashrc"
 RUN bash -c "echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc"
 
 
-
 USER robot
 
 WORKDIR /home/robot
 
-CMD [ "/usr/bin/tmux" ]
-
+ENTRYPOINT sudo service ssh start && tmux
 
