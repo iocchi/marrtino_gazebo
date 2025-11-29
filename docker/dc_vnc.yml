@@ -11,7 +11,12 @@ services:
     ports:
       - "3080:80"
       - "3081:81"
-
+    volumes:
+      - $PWD/fluxbox:/opt/fluxbox
+      - $PWD/fluxbox/menu:/root/.fluxbox/menu
+      - $PWD/fluxbox/keys:/root/.fluxbox/keys
+      - $PWD/fluxbox/init:/root/.fluxbox/init
+      - $PWD/fluxbox/apps:/root/.fluxbox/apps
 
   marrtino_gazebo:
     image: marrtino2:user
@@ -25,6 +30,7 @@ services:
       - seccomp:unconfined
     environment:
       - DISPLAY=:9
+      - GZ_SIM_RESOURCE_PATH=/home/robot/src/marrtino_gazebo/marrtino_gazebo/models
     volumes_from:
       - xserver
     depends_on:

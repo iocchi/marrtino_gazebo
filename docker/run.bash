@@ -14,6 +14,7 @@ DC="dc_x11.yml"
 
 if [ "$1" == "vnc" ]; then
   DC="dc_vnc.yml"
+  DOCKER_RUNTIME="runc"
 fi
 
 if [ "$1" == "x11" ]; then

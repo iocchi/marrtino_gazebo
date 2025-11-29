@@ -64,14 +64,6 @@ RUN apt update && \
     apt install -y --no-install-recommends \
         python3-pip python3-venv pipx
 
-
-RUN apt update && \
-    apt install -y --no-install-recommends \
-        ros-${ROS_DISTRO}-web-video-server
-
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/*
-
 RUN cd /usr/bin && ln -s python3 python
 
 
@@ -79,16 +71,13 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
+### upgrade ###
+
 USER root
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
-        openssh-server
+RUN apt update && apt -y upgrade
 
-ADD docker/etc/sshd_config /etc/ssh/sshd_config
-ADD docker/etc/sudoers /etc/sudoers
 
-RUN update-rc.d ssh defaults
 
 #########################
 # marrtino_gazebo setup #

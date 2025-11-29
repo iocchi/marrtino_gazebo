@@ -1,0 +1,7 @@
+[app] (name=gz-sim-gui) (class=Gazebo GUI)
+  [Fullscreen] {yes}
+  [Deco] {NONE}
+  [Maximized] {true}
+  [FocusNew] {true}
+  [Layer] {Normal}
+[end]
