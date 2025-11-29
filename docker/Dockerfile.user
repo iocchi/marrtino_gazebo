@@ -71,13 +71,6 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
-### upgrade ###
-
-USER root
-
-RUN apt update && apt -y upgrade
-
-
 
 #########################
 # marrtino_gazebo setup #

@@ -1,0 +1,14 @@
+# Docker file for MARRtino software
+# ROS2 Humble/Iron/Jazzy
+# User image
+
+FROM marrtino2:gazebo
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+### upgrade ###
+
+USER root
+
+RUN apt update && apt -y upgrade
+
