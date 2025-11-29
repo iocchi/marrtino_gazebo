@@ -559,7 +559,6 @@
   </gazebo>
 
 
-
   <!-- top view camera -->
 
   <link name="top_camera_link">
@@ -585,7 +584,6 @@
     <child link="top_camera_optical_link"/>
     <origin xyz="0 0 0.006" rpy="0 ${-pi/2} 0"/>
   </joint>
-
   
   <gazebo reference="top_camera_optical_link">
     <sensor name="top_camera" type="camera">
@@ -607,7 +605,7 @@
       <visualize>true</visualize>
       <topic>top_camera/image</topic>
 
-      <gz_frame_id>top_camera_optical_link</gz_frame_id>  <!-- ignore warning not defined in SDF -->
+      <gz_frame_id>top_camera_optical_link</gz_frame_id>
 
     </sensor>
   </gazebo>

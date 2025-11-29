@@ -16,7 +16,6 @@ services:
     volumes:
       - $PWD/..:/home/robot/src/marrtino_gazebo
       - /dev/dri/:/dev/dri/
-      - /run/user/1002:/run/user/1002
       - /tmp/.X11-unix:/tmp/.X11-unix
        - $HOME/.Xauthority:/home/robot/.Xauthority
 

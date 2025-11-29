@@ -451,10 +451,12 @@ class MARRtinoController(Node):
         msg.twist.angular.z = float(az)
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
         rate100 = self.create_rate(100) # Hz
+        stop_requested = False
         for _ in range(int(ts*100)):
             self.check_emergency_stop()
             self.emergency_stop = self.emergency_stop and lx > 0
             if self.user_stop or self.emergency_stop or (afuture is not None and afuture.stop_event.is_set()):
+                stop_requested = True
                 break
             msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
@@ -467,7 +469,7 @@ class MARRtinoController(Node):
                 self.pub_cmd_vel.publish(msg)
                 rate100.sleep()
 
-        if self.user_stop or self.emergency_stop:
+        if stop_requested:
             self.stop()
 
         if self.emergency_stop:
