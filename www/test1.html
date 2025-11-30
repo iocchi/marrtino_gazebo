@@ -7,9 +7,9 @@
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
         .CodeMirror {
-            border: 1px solid #ccc;
+            border: 1px solid #929292;
             height: 250px; /* Adjust height as needed */
-            width: 600px; /* Adjust width as needed */
+            width: 400px; /* Adjust width as needed */
             margin-bottom: 10px;
             font-size: 14px; /* Adjust font size */
         }
@@ -18,13 +18,14 @@
         button:disabled { color:#000000; background-color: #565757; }
         #statusrobot { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
         #statusframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
-        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; height: 300px; overflow: auto; }
-        #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f9f9f9; width: 400px; min-height: 50px; }
+        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 400px; height: 300px; overflow: auto; }
+        #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 400px; min-height: 50px; }
         #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
         #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #e9a9a9; width: 400px; min-height: 50px; }
-        #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #d9d9f9; width: 400px; min-height: 50px; }
-        #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9f9; width: 400px; min-height: 50px; }
-        #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #7defed; width: 600px; height: 300px; overflow: auto; }
+        #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f8e5be; width: 400px; min-height: 50px; }
+        #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #98e1f7; width: 400px; min-height: 50px; }
+        #nlpanswer { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #ceced5; width: 400px; min-height: 50px; }
+        #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #9ef5b1; width: 400px; height: 270px; overflow: auto; }
 
     </style>
 
@@ -32,8 +33,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     </head>
 <body>
-    <h1>Robot Programming Interface</h1>
-
+    <h1>Robot AI Interface</h1>
 
     <h2>Connection and execution status</h2>
 
@@ -62,30 +62,24 @@
     <h2>Natural Language Programmer interface using LLMs</h2>
 
     <table>
-    <tr><td>Chatbot</td> 
-    <td><textarea id="humanchat"></textarea></td>
-    <td> <button id="chatButton">CHAT</button> </td>
-    </tr>
-    <tr><td>NLProg base</td> 
-    <td><textarea id="nlprog"></textarea></td>
-    <td> <button id="nlpButton">RUN</button> </td>
-    </tr>
-    <tr><td>NLProg framework</td> 
-    <td><textarea id="nlpframework"></textarea></td>
-    <td> <button id="nlpframeworkButton">RUN</button> </td>
-    </tr>
     <tr><td>NLProg system</td> 
     <td><textarea id="nlpsystem"></textarea></td>
     <td> <button id="nlpsystemButton">RUN</button> </td>
     </tr>
+    <tr><td>NLProg user</td> 
+    <td><textarea id="nlpframework"></textarea></td>
+    <td> <button id="nlpframeworkButton">RUN</button> </td>
+    </tr>
+
+    <tr><td></td><td><p align="center" id="nlpstatus">Waiting ... </p></td><td></td></tr>
+
+    <tr><td>NLProg answer</td> 
+    <td><div id="nlpanswer"></div></td>
+    <td></td>
+    </tr>
+        
     </table>
 
-    <br><br><br>
-
-    <h3>Programmer dialogue</h3>
-
-    <div id="progdialogue"></div>
-    <p align="right"> <button id="clearProgDialogueButton">Clear</button> </p>
 
     <br><br><br>
 
@@ -93,30 +87,29 @@
     
     <br><br><br>
 
-    <h2>Interaction with Mario</h2>
+    <h2>Interaction with the environment</h2>
 
     <table>
     <tr>
-    <td width=400 align=center> 
+    <!-- td width=400 align=center> 
     
-    <!-- location.hostname -->
+    < location.hostname >
     
     <iframe id="iframesim" src="http://localhost:8080/stream?topic=/top_camera/image" width="640" height="480" scrolling="no"   title="sim"></iframe>
-    </td>
+    </td -->
 
+            
+        
     <td width=360 align=center>
+    <br><br>
+    <iframe src="marrtina02.html" width="300" height="200" scrolling="no"   title="face"></iframe>
+    <br><br>
+    <h3>Photo</h3>
     <img width=320 id="cameraimage" src="lastimage.png" alt="Camera image"><br>
     <p> <button id="refreshButton">Refresh</button> </p>
     </td>
-
-    <td width=400 align=center>
-      <iframe src="marrtina02.html" width="360" height="270" scrolling="no"   title="face"></iframe>
-    </td>
-    </tr>
-
-    <tr>
-
-    <td colspan="2" align="center">
+   
+    <td align="center">
 
     <br><br><br>
 
@@ -130,8 +123,8 @@
     <br><br>
 
     <b>Mario-Robot dialogue (within the simulator)</b>
-    <div id="dialogue"></div>
-    <p align="right"> <button id="clearDialogueButton">Clear</button> </p>
+    <div id="dialogue" align="left"></div>
+    <p align="center"> <button id="clearDialogueButton">Clear</button> </p>
 
     </td>
 
@@ -144,17 +137,30 @@
 
     <br><br><br>    
 
-    <h2>Traditional programming and Debugging</h2>
+    <table>
+    <tr>
+    <td align="center" width="450">
+    <h3>Programmer dialogue</h3>
+
+    <div id="progdialogue" align="left"></div>
+    <p> <button id="clearProgDialogueButton">Clear</button> </p>
+
+    </td>
+
+    <td align="center" width="450">
+
+    <h3>Traditional programming</h3>
  
-    <p>Robot program</p>
-    <textarea id="codeEditor"></textarea>
+    <div align="left">   <textarea id="codeEditor"></textarea> </div>
     
     <table>
         <td width=160 align=center> <button id="runButton">RUN</button> </td>
         <td width=160 align=center> <button id="stopButton">STOP</button> </td>
     </table>
+    </td>
 
-
+    </tr>
+    </table>
 
     <p>--------------------------------------</p>
 
@@ -255,6 +261,12 @@
         const nlpframeworkButton = document.getElementById('nlpframeworkButton');
         const nlpsystemButton = document.getElementById('nlpsystemButton');
         const clearDialogueButton = document.getElementById('clearDialogueButton')
+
+        const nlprog = document.getElementById('nlpframework')
+        const nlpsys = document.getElementById('nlpsystem')
+        const nlpanswer = document.getElementById('nlpanswer');
+        const nlpstatus = document.getElementById('nlpstatus');
+                        
 
         const dialogue = document.getElementById('dialogue');
         let ws_code, ws_chat, ws_nlpframework;
@@ -367,8 +379,9 @@
                         }
                     } 
                     else if (data.status == 'say') {
+                        console.log("Received robot say: "+ data.message)
                         appendDialogue(`Robot: ${data.message}`, 'blue');
-                    } 
+                    }
 				    else {
                         updateStatus('statusrobot', `Robot Error - ${data.message}`, 'red');
                     }
@@ -420,6 +433,8 @@
 
                 ws_nlpframework.onopen = function(event) {
                     updateStatus('statusframework', 'Connected to Robot Framework server.', 'green');
+                    nlpframeworkButton.disabled = false;
+                    nlpsystemButton.disabled = false;
                 }
                 
                 ws_nlpframework.onmessage = function(event) {
@@ -427,6 +442,12 @@
                     const data = JSON.parse(event.data);
                     if (data.status == 'say') {
                         appendProgDialogue(`AI: ${data.message}`, 'blue');
+                        nlpanswer.innerHTML = data.message;
+                        nlpstatus.innerHTML = "Waiting ...";
+                        nlpframeworkButton.disabled = false;
+                        nlpsystemButton.disabled = false;
+                        nlprog.value = "";
+                        nlpsys.value = "";
                     } 
                     else if (data.status == 'llmcode_base') {
                         // appendProgDialogue(`Robot: ${data.message}`, 'blue');
@@ -451,18 +472,21 @@
                             codeToSend = codeToSend.replace('START_TEXT', '"')
                             codeToSend = codeToSend.replace(' END_TEXT', '"')
                             codeToSend = codeToSend.replace('END_TEXT', '"')
+                            codeToSend = codeToSend.replace('""', '"')
+                            codeToSend = codeToSend.replace('""', '"')
                             console.log(codeToSend);
 
                             editor.setValue(codeToSend+"\n");
 
+                            /* human say is managed by actal say action in codeserver.py
                             const match = codeToSend.match(/"(.*?)"/);
                             const robot_sentence = match ? match[1] : null;
                             
                             if (robot_sentence != null){
                                 appendDialogue(`Robot: ${robot_sentence}`, 'blue');
-                            }
+                            }*/
                             
-                            ws_code.send(JSON.stringify({ code: data.message }));
+                            ws_code.send(JSON.stringify({ code: codeToSend }));
                             notify_nlpframework("run_code", "started");
                         }
                     }
@@ -617,7 +641,6 @@
                     updateStatus('statusframework', 'Status: Not connected to chat server. Please refresh or check server.', 'red');
                 }*/
                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
-                    const nlprog = document.getElementById('nlprog')
                     const cmdToSend = nlprog.value; // Get content
                     nlprog.value = "";
                     ws_nlpframework.send(JSON.stringify({ nlprog_base: cmdToSend }));
@@ -642,13 +665,15 @@
                 get_pre_image();
                 
                 if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
-                    const nlprog = document.getElementById('nlpframework')
                     const cmdToSend = nlprog.value; // Get content
-                    nlprog.value = "";
                     ws_nlpframework.send(JSON.stringify({ nlprog: cmdToSend }));
                     console.log("Sent to NLProg framework " + cmdToSend)
                     appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
                     updateStatus('statusframework', 'Sent NLProg framework '+cmdToSend, 'purple');
+                    nlpstatus.innerHTML = "Thinking ...";
+                    nlpframeworkButton.disabled = true;
+                    nlpsystemButton.disabled = true;
+                    nlpanswer.innerHTML = "";
                 } else {
                     updateStatus('statusframework', 'Not connected to NLProg framework server. Please refresh or check server.', 'red');
                 }
@@ -662,13 +687,14 @@
             nlpsystemButton.addEventListener('click', () => {
                 console.log("Sending to robot ....")
                 if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
-                    const nlprog = document.getElementById('nlpsystem')
-                    const cmdToSend = nlprog.value; // Get content
-                    nlprog.value = "";
+                    const cmdToSend = nlpsys.value; // Get content
                     ws_nlpframework.send(JSON.stringify({ system: cmdToSend }));
                     console.log("Sent to NLProg system " + cmdToSend)
                     appendProgDialogue(`System: ${cmdToSend}`, 'red');
                     updateStatus('statusframework', 'Sent NLProg system '+cmdToSend, 'purple');
+                    nlpstatus.innerHTML = "Thinking ...";
+                    nlpframeworkButton.disabled = true;
+                    nlpsystemButton.disabled = true;
                 } else {
                     updateStatus('statusframework', 'Not connected to NLProg framework server. Please refresh or check server.', 'red');
                 }
