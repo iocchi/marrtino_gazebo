@@ -64,12 +64,22 @@
       <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/>
       <material name="white"/>
     </visual>
+
     <collision>
+      <geometry>
+        <box size="${base_l+0.03} ${base_w+0.10} ${base_h}"/>
+      </geometry>      
+      <origin xyz="-0.05 0 ${base_h/2}" rpy="0 0 0"/>
+    </collision>
+
+
+    <!-- collision>
       <geometry>
         <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_body.stl" scale="0.001 0.001 0.001"/>
       </geometry>      
       <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/>
-    </collision>
+    </collision -->
+        
     <inertial>
       <origin xyz="0 0 0.1" rpy="0 0 0"/> 
       <mass value="${body_mass}"/>
@@ -206,10 +216,18 @@
     
     <collision>
       <geometry>
+        <sphere radius="${head_radius+0.05}"/>
+      </geometry>      
+      <origin xyz="-0.02 0 0.02" rpy="0 0 ${pi/2}"/>
+    </collision>
+
+    <!-- collision>
+      <geometry>
         <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_head.stl" scale="0.001 0.001 0.001"/>
       </geometry>      
       <origin xyz="0.02 0 -0.4" rpy="0 0 ${pi/2}"/>
-    </collision>
+    </collision -->
+
     <xacro:sphere_inertial_roll mass="${head_mass}" radius="${head_radius}" roll="${pi/2}"/>
   </link>
 
@@ -391,12 +409,12 @@
         <origin xyz="0.065 -0.09 -0.265" rpy="0 0 ${pi/2}"/>
         <material name="green"/>
     </visual>
-    <collision>
+    <!-- collision>
         <geometry>      
           <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_left.stl" scale="0.001 0.001 0.001"/>
         </geometry>
         <origin xyz="0.065 -0.09 -0.265" rpy="0 0 ${pi/2}"/>
-    </collision>
+    </collision -->
     <inertial>
       <origin xyz="0 0.045 -0.07" rpy="0.3 0 0"/>
       <mass value="${arm_mass}"/>
@@ -419,12 +437,12 @@
         <origin xyz="0.065 0.09 -0.265" rpy="0 0 ${pi/2}"/>
         <material name="green"/>
     </visual>
-    <collision>
+    <!-- collision>
         <geometry>      
           <mesh filename="$(find marrtino_gazebo)/urdf/meshes/smarrtino_arm_right.stl" scale="0.001 0.001 0.001"/>
         </geometry>
         <origin xyz="0.065 0.09 -0.265" rpy="0 0 ${pi/2}"/>
-    </collision>
+    </collision -->
     <inertial>
       <origin xyz="0 -0.045 -0.07" rpy="-0.3 0 0"/>
       <mass value="${arm_mass}"/>
@@ -558,8 +576,11 @@
     </sensor>
   </gazebo>
 
-
   <!-- top view camera -->
+
+  <xacro:arg name="topview_camera" default="false" />
+  
+  <xacro:if value="$(arg topview_camera)">
 
   <link name="top_camera_link">
     <visual>
@@ -590,8 +611,8 @@
       <camera>
         <horizontal_fov>2.0</horizontal_fov>
         <image>
-          <width>640</width>
-          <height>480</height>
+          <width>320</width>
+          <height>240</height>
           <format>R8G8B8</format>
         </image>
         <clip>
@@ -601,7 +622,7 @@
         <camera_info_topic>top_camera/camera_info</camera_info_topic>
       </camera>      
       <always_on>1</always_on>
-      <update_rate>10</update_rate>
+      <update_rate>1</update_rate>
       <visualize>true</visualize>
       <topic>top_camera/image</topic>
 
@@ -609,6 +630,9 @@
 
     </sensor>
   </gazebo>
+
+  </xacro:if>
+
 
 
   <ros2_control name="GazeboSimSystem" type="system">
