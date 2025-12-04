@@ -9,8 +9,8 @@ services:
     environment:
       - DISPLAY=:9
     ports:
-      - "3080:80"
-      - "3081:81"
+      - "3000:80"
+      - "3001:81"  # experimental
     volumes:
       - $PWD/fluxbox:/opt/fluxbox
       - $PWD/fluxbox/menu:/root/.fluxbox/menu

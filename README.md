@@ -314,10 +314,11 @@ Launch smarrtino robot, http server and code server
     ./smarrtino.bash
 
     cd src/marrtino_gazebo/bin
-    ./start_http.bash
-    
-    cd src/marrtino_gazebo/bin
     ./start_server.bash
+
+HTTP server running on port 3080, websocket on port 9876
+
+
 
 Run gazebo GUI
 
@@ -434,7 +435,7 @@ cd /app
 
 ## Connect with browser
 
-http://localhost:3081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2
+http://localhost:3001/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2
 
 NOTE: if window does not exist, check the desktop
 
