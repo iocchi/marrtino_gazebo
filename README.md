@@ -319,6 +319,12 @@ Launch smarrtino robot, http server and code server
     cd src/marrtino_gazebo/bin
     ./start_server.bash
 
+Run gazebo GUI
+
+    cd src/marrtino_gazebo/bin
+    ./smarrtino_gui.bash
+
+
 Connect with a browser at `http://localhost:8000/code.html`
 and write programs in the code area.
 
@@ -397,10 +403,17 @@ How to show the simulator in a browser window
 cd docker
 ./run_vnc
 
-## Run gazebo_sim
+## Run gazebo simulator
 
-cd src/marrtino_gazebo/bin
-./smarrtino.bash
+Run gazebo server (headless, no GUI)
+
+    cd src/marrtino_gazebo/bin
+    ./smarrtino.bash
+
+Run gazebo GUI
+
+    cd src/marrtino_gazebo/bin
+    ./smarrtino_gui.bash
 
 ## enter the xserver container
 
@@ -434,5 +447,23 @@ From remote host use
 
     ssh -p 2222 robot@<host_running_the_container> -t tmux a
     password: robot
+
+
+## gz sim control
+
+check status
+
+    gz topic --echo --topic /stats -n 1
+
+pause
+
+    gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 --req 'pause: true'
+
+
+start
+
+    gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 --req 'pause: false'
+
+
 
 
