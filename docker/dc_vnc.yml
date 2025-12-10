@@ -8,9 +8,10 @@ services:
       - seccomp:unconfined
     environment:
       - DISPLAY=:9
+    hostname: xserver
     ports:
-      - "3000:80"
-      - "3001:81"  # experimental
+      - 3000:80  # web vnc viewer
+      - 3001:81  # experimental     
     volumes:
       - $PWD/fluxbox:/opt/fluxbox
       - $PWD/fluxbox/menu:/root/.fluxbox/menu
@@ -23,9 +24,12 @@ services:
     container_name: marrtino2_gz
     runtime: runc
     dns: 8.8.8.8
-    network_mode: "host"
+    hostname: marrtino2
+    ports:
+      - 2222:2222  # ssh
+      - 3080:3080  # web
+      - 9876:9876  # websocket
     tty: true
-    privileged: true
     security_opt:
       - seccomp:unconfined
     environment:

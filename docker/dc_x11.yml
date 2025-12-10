@@ -5,8 +5,12 @@ services:
     container_name: marrtino2_gz
     runtime: ${DOCKER_RUNTIME}
     dns: 8.8.8.8
-    network_mode: "host"
     tty: true
+    hostname: marrtino2
+    ports:
+      - 2222:2222  # ssh
+      - 3080:3080  # web
+      - 9876:9876  # websocket
     environment:
       - DISPLAY=$DISPLAY
       - QT_X11_NO_MITSHM=1
@@ -17,5 +21,8 @@ services:
       - $PWD/..:/home/robot/src/marrtino_gazebo
       - /dev/dri/:/dev/dri/
       - /tmp/.X11-unix:/tmp/.X11-unix
-       - $HOME/.Xauthority:/home/robot/.Xauthority
+      - $HOME/.Xauthority:/home/robot/.Xauthority
+
+
+#    network_mode: "host"
 
