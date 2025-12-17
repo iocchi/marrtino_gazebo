@@ -355,7 +355,10 @@
 
             // Robot websocket
             try {
-                ws_code = new WebSocket("ws://"+robot_host+":9876");
+                // ws_code = new WebSocket("ws://"+robot_host+":9876");
+                ws_code = new WebSocket("ws://"+robot_host+":3080/code_ws");
+                
+                
                 ws_code.onopen = function(event) {
                     updateStatus('statusrobot', 'Connected to Robot server.', 'green');
                     runButton.disabled = false;
@@ -424,12 +427,11 @@
             }              
             
             // NLP Robot framework websocket
-            try {
-            
-                console.log("Connecting to Robot Framework 2 ....")
-            
-            
-                ws_nlpframework = new WebSocket("ws://"+nlp_host+":9878");
+            try {            
+                console.log("Connecting to Robot Framework 2 ....");
+
+                // ws_nlpframework = new WebSocket("ws://"+nlp_host+":9878");
+                ws_nlpframework = new WebSocket("ws://"+nlp_host+":3080/nlp_ws");
 
                 ws_nlpframework.onopen = function(event) {
                     updateStatus('statusframework', 'Connected to Robot Framework server.', 'green');

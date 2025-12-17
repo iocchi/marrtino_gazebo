@@ -1,0 +1,156 @@
+# Default server configuration
+#
+server {
+    listen 3080;
+
+    root /home/robot/src/marrtino_gazebo/www;
+
+    # Add index.php to the list if you are using PHP
+    index index.html;
+
+    server_name marrtino_gazebo;
+
+    # viewer http server
+    location /viewer/ {
+
+        # 1. If the user hits exactly /viewer/ or /viewer, send them to the VNC page
+        rewrite ^/viewer/?$ /vnc.html?autoconnect=1&resize=remote&host=localhost&port=3000 break;
+
+        # 2. For everything else (like /viewer/app), just strip /viewer/
+        rewrite ^/viewer/(.*)$ /$1 break;
+        
+        # use service name in docker compose config file
+        # use actual port in xserver container
+        proxy_pass http://xserver:80; 
+
+        # Required for VNC (WebSockets)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+            
+        # Assicura che l'host corretto e l'IP del client vengano passati al servizio
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+
+    # websockify
+    location /xxxcancwebsockify/ {
+
+        # 1. Strip the prefix so websockify sees a request to '/'
+        #rewrite ^/websockify/(.*)$ /$1 break;
+
+        # use service name in docker compose config file
+        # use actual port in xserver container
+        proxy_pass http://xserver:3000;
+
+        # 3. Essential WebSocket Headers
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # 4. Standard Proxy Headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # 5. Prevent Timeouts (Crucial for VNC)
+        # Default is 60s; this keeps the session alive for 24 hours
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+
+    }
+
+    # ROS websocket (marrtina face) - very important trailing slash for ROS ws !!!
+    location /rosws/ {
+        # Inoltra il traffico alla porta desiderata
+        proxy_pass http://marrtino_gazebo:9890/;
+
+        # Impostazioni standard per il proxy
+        proxy_http_version 1.1;
+
+        # Abilita il supporto al protocollo WebSocket (richiesto da HTTP/1.1)
+        proxy_set_header Upgrade $http_upgrade;
+        
+        # Imposta l'intestazione Connection a "upgrade" per mantenere la connessione aperta
+        proxy_set_header Connection "upgrade";
+        
+        # Assicura che l'host corretto e l'IP del client vengano passati al servizio WS
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+
+        # aumenta timeout
+        proxy_read_timeout 86400s; 
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 86400s;
+    }
+
+
+    # code websocket
+    location /code_ws {
+        # Inoltra il traffico alla porta desiderata
+        proxy_pass http://marrtino_gazebo:9876;
+
+        # Impostazioni standard per il proxy
+        proxy_http_version 1.1;
+
+        # Abilita il supporto al protocollo WebSocket (richiesto da HTTP/1.1)
+        proxy_set_header Upgrade $http_upgrade;
+        
+        # Imposta l'intestazione Connection a "upgrade" per mantenere la connessione aperta
+        proxy_set_header Connection "upgrade";
+        
+        # Assicura che l'host corretto e l'IP del client vengano passati al servizio WS
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        proxy_cache_bypass $http_upgrade;
+
+
+        # aumenta timeout
+        proxy_read_timeout 86400s; 
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 86400s;
+    }
+
+
+    # NLP websocket (TODO fix server name !!!)
+    location /nlp_ws {
+        # Inoltra il traffico alla porta desiderata
+        proxy_pass http://marrtino_gazebo:9878;
+
+        # Impostazioni standard per il proxy
+        proxy_http_version 1.1;
+
+        # Abilita il supporto al protocollo WebSocket (richiesto da HTTP/1.1)
+        proxy_set_header Upgrade $http_upgrade;
+        
+        # Imposta l'intestazione Connection a "upgrade" per mantenere la connessione aperta
+        proxy_set_header Connection "upgrade";
+        
+        # Assicura che l'host corretto e l'IP del client vengano passati al servizio WS
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        proxy_cache_bypass $http_upgrade;
+
+        # aumenta timeout
+        proxy_read_timeout 86400s; 
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 86400s;
+    }
+
+
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ =404;
+    }
+
+}
+

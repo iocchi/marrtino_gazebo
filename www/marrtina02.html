@@ -21,19 +21,20 @@
     if (host == "")
         host = "localhost";
     var ros = new ROSLIB.Ros({
-      	 url: 'ws:' + host +':9890'
+      	// url: 'ws:' + host +':9890'
+      	url: 'ws:' + host +':3080/rosws/'
     });
 
     ros.on('connection', function () {
-        console.log("Connected"); 
+        console.log("ROS bridge: Connected "); 
     });
 
     ros.on('error', function (error) {
-        console.log("Error"); 
+        console.log("ROS bridge: Error"); 
     });
 
     ros.on('close', function () {
-       console.log("Close"); 
+       console.log("ROS bridge: Close"); 
     });
      
     

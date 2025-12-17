@@ -235,6 +235,7 @@ def generate_launch_description():
             XMLLaunchDescriptionSource(pp),
             launch_arguments = [
                 ('port', '9890'),
+                ('delay_between_messages', '0.0')
             ] )
 
     '''

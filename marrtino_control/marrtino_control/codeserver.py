@@ -220,8 +220,9 @@ if __name__ == "__main__":
     # chdir to www
     os.chdir(WWW_PATH)
 
-    server_thread = threading.Thread(target=run_http_server, daemon=True)
-    server_thread.start()
+    # not needed when nginx is running
+    #server_thread = threading.Thread(target=run_http_server, daemon=True)
+    #server_thread.start()
 
     asyncio.run(main())
 

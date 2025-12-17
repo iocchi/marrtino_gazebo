@@ -71,6 +71,14 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
+USER root
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        nginx
+
+RUN adduser robot www-data
+
 
 #########################
 # marrtino_gazebo setup #
@@ -95,5 +103,5 @@ USER robot
 
 WORKDIR /home/robot
 
-ENTRYPOINT sudo service ssh start && tmux
+ENTRYPOINT sudo service ssh start && sudo service nginx start && tmux
 

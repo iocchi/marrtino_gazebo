@@ -12,6 +12,7 @@ services:
     ports:
       - 3000:80  # web vnc viewer
       - 3001:81  # experimental     
+      - 5900:5900  # websockify
     volumes:
       - $PWD/fluxbox:/opt/fluxbox
       - $PWD/fluxbox/menu:/root/.fluxbox/menu
@@ -29,6 +30,7 @@ services:
       - 2222:2222  # ssh
       - 3080:3080  # web
       - 9876:9876  # websocket
+      - 9890:9890  # ROS bridge websocket
     tty: true
     security_opt:
       - seccomp:unconfined
@@ -41,6 +43,8 @@ services:
       - xserver
     volumes:
       - $PWD/..:/home/robot/src/marrtino_gazebo
+      - $PWD/nginx/default:/etc/nginx/sites-available/default
+      - $PWD/nginx/nginx.conf:/etc/nginx/nginx.conf
 
 
 
