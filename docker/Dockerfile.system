@@ -28,8 +28,8 @@ RUN apt update && \
     apt install -y --no-install-recommends \
         tmux less sudo eom nano curl \
         openssl shellinabox netcat-openbsd \
-        wget iputils-ping net-tools openssh-client openssh-server nginx \
-        libwebsockets-dev
+        wget iputils-ping net-tools openssh-client openssh-server \
+        nginx wireguard libwebsockets-dev
 
     #apt clean && \
     #rm -rf /var/lib/apt/lists/*
@@ -38,8 +38,6 @@ ADD docker/etc/sshd_config /etc/ssh/sshd_config
 ADD docker/etc/sudoers /etc/sudoers
 
 RUN update-rc.d ssh defaults
-
-
 
 WORKDIR /opt
 

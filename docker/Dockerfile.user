@@ -29,6 +29,7 @@ RUN chown -R robot:robot /home/robot
 RUN adduser robot audio
 RUN adduser robot video
 RUN adduser robot dialout
+RUN adduser robot www-data
 
 # User robot
 
@@ -71,13 +72,7 @@ USER robot
 
 RUN pip install --break-system-packages websockets 
 
-USER root
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
-        nginx
-
-RUN adduser robot www-data
 
 
 #########################
