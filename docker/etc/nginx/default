@@ -35,34 +35,6 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-
-    # websockify
-    location /xxxcancwebsockify/ {
-
-        # 1. Strip the prefix so websockify sees a request to '/'
-        #rewrite ^/websockify/(.*)$ /$1 break;
-
-        # use service name in docker compose config file
-        # use actual port in xserver container
-        proxy_pass http://xserver:3000;
-
-        # 3. Essential WebSocket Headers
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        # 4. Standard Proxy Headers
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-        # 5. Prevent Timeouts (Crucial for VNC)
-        # Default is 60s; this keeps the session alive for 24 hours
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-
-    }
-
     # ROS websocket (marrtina face) - very important trailing slash for ROS ws !!!
     location /rosws/ {
         # Inoltra il traffico alla porta desiderata
