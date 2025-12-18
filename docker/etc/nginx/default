@@ -8,16 +8,20 @@ server {
     # Add index.php to the list if you are using PHP
     index index.html;
 
-    server_name marrtino_gazebo;
+    server_name marrtino2;
+
+
+    # /viewer redirect
+    location /viewer {
+        return 302  http://$host:3080/hviewer/vnc.html?autoconnect=1&resize=remote&port=3000;
+    }
+
 
     # viewer http server
-    location /viewer/ {
+    location /hviewer/ {
 
-        # 1. If the user hits exactly /viewer/ or /viewer, send them to the VNC page
-        rewrite ^/viewer/?$ /vnc.html?autoconnect=1&resize=remote&host=localhost&port=3000 break;
-
-        # 2. For everything else (like /viewer/app), just strip /viewer/
-        rewrite ^/viewer/(.*)$ /$1 break;
+        # strip /hviewer/
+        rewrite ^/hviewer/(.*)$ /$1 break;
         
         # use service name in docker compose config file
         # use actual port in xserver container
@@ -125,4 +129,5 @@ server {
     }
 
 }
+
 
