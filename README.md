@@ -66,7 +66,27 @@ use the script
     ./pull.bash
 
 
+
+# Setup
+
+To enable VPN inside the docker (also for Sapienza Remote Labs)
+
+
+Add a Wireguard config file (e.g., `wgXXX.conf`)  in `docker/etc` folder
+
+Create a file `config.env` in the main folder and add a line to specify the wg interface
+corresponding to the config file
+
+    WGIF=wgXXX
+
+Note: in the config file just write the name of the interface `wgXXX` and not the full name of the file `wgXXX.conf`
+
+This interface will be started within the container by the `run` script described below.
+
+
 # Run
+
+Any of the following options starts the docker container using a graphical interface.
 
 ## Option 1: local graphic card
 
@@ -90,12 +110,58 @@ To force use of X11 driver and runc runtime
     ./run.bash x11
 
 
+## Start basic services
 
-# Test
+In another terminal of the host system
+
+    cd docker
+    ./start.bash
+
+This script will start the simulator (without the GUI) and sets up some terminals in tmux
+
+Go to the containter window opened by `run.bash` 
+
+Or enter the container from another host terminal with
+
+    docker exec -it marrtino_gazebo tmux a
+
+Check in the first tab that gazebo is running correctly (no errors)
+and wait for the completion of the starting process (it may take several seconds)
+
+Move to other tabs in tmux to run the websocker server and populate the world with some
+objects. Just press Enter after the commands already written in the tmux windows.
+
+Use the web interface (see below) to control the robot.
+
+
+# Control with web interface
+
+1. Start the websocket server
+
+    cd ~/src/marrtino_gazebo/bin
+    ./start_codeserver.bash
+
+or
+
+    cd ~/src/marrtino_gazebo/marrtino_control/marrtino_control
+    python codeserver.py
+
+ 
+2. Open a browser at
+
+    http://localhost:3080/
+    
+If you are using a VPN inside the container, use
+
+    http://<VPN_IP>:3080/
+
+
+
+# Manual test
 
 Inside the container
 
-* Window 1
+* Terminal 1
 
     cd ros2_ws
     
@@ -116,7 +182,7 @@ Note: if you edit anything in `marrtino_gazebo`, relaunch with
     colcon build && ros2 launch marrtino_gazebo marrtino.launch.py
 
     
-* Window 2 (use CTRL-b c to create a new window in tmux)
+* Terminal 2 (use CTRL-b c to create a new window in tmux)
 
     cd ros2_ws
     

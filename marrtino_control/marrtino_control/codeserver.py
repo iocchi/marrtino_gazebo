@@ -9,8 +9,6 @@ import traceback
 from thread2 import Thread
 import datetime
 
-from websockets.sync.client import connect
-
 from control import MARRtinoController
 
 

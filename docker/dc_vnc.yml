@@ -22,10 +22,17 @@ services:
 
   marrtino_gazebo:
     image: marrtino2:user
-    container_name: marrtino2_gz
+    container_name: marrtino_gazebo
     runtime: runc
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+        - net.ipv4.conf.all.src_valid_mark=1
+    env_file:
+        - path: config.env
+          required: true
     dns: 8.8.8.8
-    hostname: marrtino2
+    hostname: marrtino_gazebo
     ports:
       - 2222:2222  # ssh
       - 3080:3080  # web
@@ -43,7 +50,7 @@ services:
       - xserver
     volumes:
       - $PWD/..:/home/robot/src/marrtino_gazebo
-      - $PWD/etc/nginx/default:/etc/nginx/sites-available/default
+      - $PWD/etc/nginx/default_xserver:/etc/nginx/sites-available/default
       - $PWD/etc/nginx/nginx.conf:/etc/nginx/nginx.conf
 
 
