@@ -39,6 +39,14 @@ ADD docker/etc/sudoers /etc/sudoers
 
 RUN update-rc.d ssh defaults
 
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        python3 python3-pip python3-venv pipx \
+        python3-requests python3-websockets
+
+RUN cd /usr/bin && ln -s python3 python
+
+
 WORKDIR /opt
 
 CMD [ "/usr/bin/tmux" ]

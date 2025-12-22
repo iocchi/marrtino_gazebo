@@ -1,0 +1,31 @@
+Execute the scripts within the docker container
+(from SRL VPN)
+
+
+Users in lab and waiting
+
+curl 10.96.0.2:5000/api/service/inlab
+
+curl 10.96.0.2:5000/api/service/waiting
+
+Prenotazioni attive
+
+curl 10.96.0.2:5000/api/service/bookings
+
+Informazioni dell'utente
+curl http://10.96.0.2:5000/api/user/by-ip/10.104.0.4
+
+
+Disconnette l'utente dal lab, ovvero chiude la connessione VPN (nota potrebbe far perdere informazioni se LSB non salva lo stato delle attività)
+curl -X PUT http://10.96.0.2:5000/api/user/10.104.0.4/disconnect
+
+
+I log degli accessi ad un LSB sono disponibili attraverso il servizio /api/service/audit-logs 
+
+Ad esempio:
+curl http://10.96.0.2:5000/api/service/audit-logs 
+
+curl http://10.96.0.2:5000/api/service/audit-logs?lines=10
+
+
+

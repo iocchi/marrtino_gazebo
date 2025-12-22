@@ -22,9 +22,15 @@ if [ "$1" == "x11" ]; then
 fi
 
 
-DOCKER_RUNTIME=${DOCKER_RUNTIME} USER_ID=`id -u` docker compose -f $DC up -d --remove-orphans && \
-sleep 2 && \
-docker exec -it marrtino2_gz tmux a
+DOCKER_RUNTIME=${DOCKER_RUNTIME} USER_ID=`id -u` docker compose -f $DC up -d --remove-orphans
+
+sleep 2
+
+CMD="docker exec -it marrtino_gazebo "
+
+$CMD bash -ci "sudo cp ~/src/marrtino_gazebo/docker/etc/\${WGIF}.conf /etc/wireguard && sudo wg-quick up \${WGIF}"
+
+docker exec -it marrtino_gazebo tmux a
 
 DOCKER_RUNTIME=${DOCKER_RUNTIME} docker compose -f $DC rm -f
 
