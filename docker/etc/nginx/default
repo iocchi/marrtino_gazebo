@@ -97,7 +97,7 @@ server {
     # NLP websocket (TODO fix server name !!!)
     location /nlp_ws {
         # Inoltra il traffico alla porta desiderata
-        proxy_pass http://marrtino_gazebo:9878;
+        proxy_pass http://$host:9878;
 
         # Impostazioni standard per il proxy
         proxy_http_version 1.1;
