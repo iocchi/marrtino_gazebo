@@ -14,7 +14,6 @@ from control import MARRtinoController
 
 # config variables
 
-WWW_PATH = '../../www'
 HTTP_PORT = 3080
 WS_PORT = 9876
 
@@ -99,7 +98,7 @@ def gz_gui(flag):
 async def echo(websocket):
     global code_running, robot
     print(f"Client connected from {websocket.remote_address}")
-    os.system("cp noimage.jpg lastimage.png")
+    #os.system("cp noimage.jpg lastimage.png")
     gz_pause(False)   # unpause simulation
     gz_gui(True)   # start gz gui
     try:
@@ -173,7 +172,7 @@ async def echo(websocket):
         print(f"An unexpected error occurred: {e}")
     finally:
         print(f"Client {websocket.remote_address} connection closed.")
-        os.system("cp noimage.jpg lastimage.png")
+        #os.system("cp noimage.jpg lastimage.png")
         gz_pause(True)   # pause simulation
         gz_gui(False)    # kill gz gui
 
@@ -195,6 +194,12 @@ import socketserver
 
 def run_http_server():
 
+    # NOTE conflict with path in control.py to save last_image
+    # WWW_PATH = '../../www'
+    # chdir to www
+    #os.chdir(WWW_PATH)
+
+
     try:
         httpd = socketserver.TCPServer(("", HTTP_PORT), http.server.SimpleHTTPRequestHandler)
     except OSError as e:
@@ -214,9 +219,6 @@ def run_http_server():
 
 
 if __name__ == "__main__":
-
-    # chdir to www
-    os.chdir(WWW_PATH)
 
     # not needed when nginx is running
     #server_thread = threading.Thread(target=run_http_server, daemon=True)

@@ -1218,6 +1218,7 @@ class MARRtinoController(Node):
 
 
     def camera_callback(self, data):
+    
         # save only one image
         if self.save_image:
             self.get_logger().info(f"Receiving image ...")
