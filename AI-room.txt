@@ -1,0 +1,115 @@
+AI room
+- secret rules for dynamics of the room
+
+
+AIRobot
+- robot specific capabilities
+
+
+Human
+- human specific capabilities
+
+
+Human-AIRobot interaction
+
+
+Piano iniziale
+
+1. Programmazione di robot (in linguaggio naturale)
+2. Algoritmi di ricerca nello spazio delle soluzioni
+3. Algoritmi di apprendimento di comportamenti robotici (Reinforcement Learning)
+4. Creazione di un modello personalizzato di AI embodied
+5. Interazione robot-persona basata su modello AI
+
+
+0. Playground (with top-camera)
+
+- web UI
+- basic commands (senza AI)
+
+
+
+
+1. Programmazione di robot in NL  (NLP)
+
+- marrtino_gazebo Room 1 interfaccia test1 (senza Mario)
+- task descrivere l'ambiente
+- soluzione: stanza con due uscite, un tavolo e 4 cilindri colorati, un poster sulle lettere dell'alfabeto, ...
+- team / robot ??? deve dire cosa ha visto e descruivere la stanza
+- VLM sulle immagini
+- agente AI per verificare la soluzione
+- implementazione AI.get_vision_description, AI.summarize
+
+
+2. classificazione spazio libero per uscire dal labirinto (ML)
+
+- marrtino_gazebo Room 2 labirinto (maze_gen)
+- check_free: Input immagine / laser -> Output: free / occupied
+- VLM ???
+
+Per vedere tutte le opzioni:
+
+  look_straight
+  check_free
+  look_left
+  check_free
+  look_right
+  check_free
+
+
+
+3. Uscire dal labirinto (AI ricerca soluzioni)
+
+- marrtino_gazebo Room 2 labirinto maze_gen
+- task programma generico per uscire da labirinto (NLP o manual programming or mixed)
+- AI vision + ricerca (backtracking ricorsivo)
+- ??? SLAM + esplorazione frontiere
+
+
+4. Modello di AI per parlare con Mario (HRI interfaccia testuale)
+
+- marrtino gazebo Room 3 con persona
+- modello AI del robot
+- dialogo con Mario per ottenere il codice per aprire la porta
+- AI di Mario predefinita (quests specifiche della Room 3)
+- environmental sensors: room temperature and humidity
+- poster con elementi scritti da interpretare
+
+
+5. Modello di AI integrato (LLM + vector DB + RAG)
+
+- marrtino gazebo Room 4 con libro
+- robot legge tutti i libri nella stanza e li memorizza in un Vector DB
+- query per uscire dalla stanza deve essere ottenuta tramite RAG
+
+
+
+
+NEXT. Interazione vocale ??? / Planning ???
+
+- marrtino gazebo Room 4 + blocks world
+- unified-planning 
+- 
+
+
+
+Progetto finale:
+- esecuzione del percorso su nuovo ambiente (nuove feature nelle stanze,
+nuova interazione con Mario)
+
+
+
+TODO: 
+- gazebo_sim: configurazione iniziale per utente
+
+- programmi: 
+    robot.fn (funzioni robot marrtino gazebo ws)
+    AI.fn (funzioni AI sviluppate dal team, team AI ws)
+
+- robot.get_robot_pose
+- robot.set_robot_pose 
+
+- AI.get_vision_description
+- AI.summarize
+
+
