@@ -5,11 +5,72 @@
 <body>
 <h1 align="center">Lab Robot Sociali + AI</h1>
 
+<p><span style="font-size:24px"> Status </span> &nbsp;&nbsp;&nbsp; <span id="status"  style="color: blue; font-size:24px">Not Connected</span></p>
+
+<p><span style="font-size:24px"> Message </span> &nbsp;&nbsp;&nbsp; <span id="message"  style="color: red; font-size:24px"> </span></p>
+
+<br><br>
+
 <p align="center">
-La connessione al laboratorio remoto di Robotica Sociale e Intelligenza Artificiale
-funziona correttamente!
+<span id="message"  style="color: green; font-size:24px">
+La connessione al laboratorio remoto di Robotica Sociale e Intelligenza Artificiale funziona correttamente!</span></p>
+
 
 </body>
+
+<script>
+
+    // websocket global variable
+    var websocket = null;
+    var ip = window.location.hostname;
+    const url = "ws://" + ip + ":3080/code_ws"
+    console.log("URL: "+url);
+    websocket = new WebSocket(url);
+
+    websocket.onmessage = function (event) {
+      console.log("message received: " + event.data);
+      document.getElementById("message").innerHTML = event.data;
+    }
+
+    websocket.onopen = function () {
+      console.log("connection received");
+      console.log("websocket state: " + this.readyState);
+      document.getElementById("status").innerHTML = "Connected";
+    }
+
+    websocket.onclose = function (event) {
+        console.log('Connection closed.');
+        console.log(event.code)
+        console.log(event.reason)
+
+        if (event.wasClean)
+        {
+            console.log('The connection was closed cleanly.');
+        }
+        else
+        {
+            console.log('The connection was closed abruptly.');
+            //try to reconnect or notify the user
+        }
+    };
+
+
+    websocket.onerror = function () {
+      console.log("!!!connection error!!!");
+      document.getElementById("status").innerHTML = "Error !!!";
+    }
+
+
+    // ping to keep the connection alive
+    const PING_INTERVAL = 10;   // ping every sec.
+    var ping_interval = setInterval(function() {
+          if (websocket.readyState == 1) {
+            console.log('__ping__'); websocket.send('__ping__');
+          }
+        }, 
+        PING_INTERVAL * 1000);
+
+</script>
 
 </html>
 

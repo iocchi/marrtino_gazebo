@@ -9,6 +9,7 @@ import math, random
 import traceback
 from thread2 import Thread
 import datetime
+import requests
 
 from control import MARRtinoController
 
@@ -59,7 +60,7 @@ def printt(s):
     t = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     flog.write("%s;%s\n" %(t,s))
     flog.flush()
-
+    print(s)
 
 
 def run_code(websocket, donotify=True):
@@ -133,28 +134,41 @@ def gz_gui(flag):
     os.system(cmd)
 
 
-async def echo(websocket):
+# global
+nconnections = 0
+
+
+async def handler(websocket):
     global code_running, robot, gz_models, simulation_run, keepalive
-    print(f"Client connected from {websocket.remote_address}")
-    clientIP = websocket.remote_address[0]
+    global nconnections
+
+    clientIP = websocket.request_headers.get('X-Real-Ip', '')
+    print(f"Client connected from {clientIP} id: {websocket.id}")
+    nconnections += 1
+    print(f"Connected clients: {nconnections}")
+    await websocket.send(f"USER IP {clientIP}")
+    lsb_user = False
 
     try:
         j = safe_fetch_json("api/service/inlab")
         if j is not None:
-            print(j)
+            print(f"inlab {j}")
         j = safe_fetch_json(f"api/user/by-ip/{clientIP}")
-        #print(j)
+        if j is not None and j['user'] is not None:
+            print(f"user {j}")
 
-        firstname = j['user']['first_name']
-        lastname = j['user']['last_name']
-        email = j['user']['email']
-        userid = j['user']['id']
-        if 'studenti.uniroma1.it' in email:
-            uname = email.split('@')[0]
-            userid = uname.split('.')[1]
+            firstname = j['user']['first_name']
+            lastname = j['user']['last_name']
+            email = j['user']['email']
+            userid = j['user']['id']
+            if 'studenti.uniroma1.it' in email:
+                uname = email.split('@')[0]
+                userid = uname.split('.')[1]
 
-        printt(f"Connected {clientIP} {firstname} {lastname} {email} {userid}")
-        self.write_message(f"USER {firstname} {lastname} {userid} IP {clientIP}")
+            lsb_user = True
+
+            printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
+            await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
 
     except Exception as e:
         print("Error in accessing SRL services")
@@ -168,6 +182,9 @@ async def echo(websocket):
     try:
         async for message in websocket:
             print(f"Received message from client: {message}")
+            if message == '__ping__':
+                print(f"{clientIP} {message}")
+                continue
             try:
                 data = json.loads(message)
                 if "text" in data:
@@ -268,14 +285,25 @@ async def echo(websocket):
                 print(f"Received non-JSON message: {message}")
                 await websocket.send(json.dumps({"status": "error", "message": "Expected JSON format."}))
 
+        print(f"Connection closed for {clientIP}")
+        #if lsb_user:
+        #    url = f"api/user/{clientIP}/disconnect"
+        #    method = 'PUT'
+        #    safe_fetch_json(url, method)
+        #    print(f"LSB Disconnected {clientIP}")
+        await websocket.close()
+
     except websockets.exceptions.ConnectionClosedOK:
-        printt(f"Client {websocket.remote_address} disconnected normally.")
+        printt(f"Client {clientIP} disconnected normally.")
     except websockets.exceptions.ConnectionClosedError as e:
-        printt(f"Client {websocket.remote_address} disconnected with error: {e}")
+        printt(f"Client {clientIP} disconnected with error: {e}")
     except Exception as e:
         printt(f"An unexpected error occurred: {e}")
     finally:
-        printt(f"Client {websocket.remote_address} connection closed.")
+        printt(f"Finally client {clientIP} connection closed.")
+        nconnections -= 1
+        print(f"Connected clients: {nconnections}")
+
         #os.system("cp noimage.jpg lastimage.png")
         if simulation_run and not keepalive: # stop simulation
             gz_pause(True)   # pause simulation
@@ -291,7 +319,7 @@ async def main():
     gz_pause(True)
 
     # Start the WebSocket server on server host
-    async with websockets.serve(echo, "0.0.0.0", WS_PORT) as server:
+    async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_timeout=60) as server:
         print(f"WebSocket server started on ws://0.0.0.0:{WS_PORT}")
         await server.serve_forever()  # Run forever
 
