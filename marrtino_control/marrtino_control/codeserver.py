@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import websockets
 import json
@@ -11,18 +12,55 @@ import datetime
 
 from control import MARRtinoController
 
+sys.path.append("../../marrtino_gazebo/src")
+from gz_models import ModelManager
+
 
 # config variables
 
 HTTP_PORT = 3080
 WS_PORT = 9876
 
-ronot = None
+robot = None
+gz_models = None
 
 code_running = None
 websocket = None
 
 run_code_thread = None
+
+simulation_run = False  # simulation is running
+keepalive = True  # keep alive when client disconnects
+
+
+# SRL connection
+SRL_SERVICE = 'http://10.96.0.2:5000'
+
+def safe_fetch_json(url, method='GET'):
+    """Esegue una richiesta HTTP sincrona al servizio SRL."""
+    try:
+        response = requests.request(method, f"{SRL_SERVICE}/{url}", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        print(f"API Error fetching {url}: Status {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed for {url}: {e}")
+    return None
+
+# log file
+flog = None
+
+def printt(s):
+    global flog
+    if flog==None:
+        flog = open("codeserver.log" , "a", encoding='utf-8')
+    #s = s.decode('utf-8')
+    
+    t = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    flog.write("%s;%s\n" %(t,s))
+    flog.flush()
+
+
 
 def run_code(websocket, donotify=True):
     global robot
@@ -96,11 +134,37 @@ def gz_gui(flag):
 
 
 async def echo(websocket):
-    global code_running, robot
+    global code_running, robot, gz_models, simulation_run, keepalive
     print(f"Client connected from {websocket.remote_address}")
+    clientIP = websocket.remote_address[0]
+
+    try:
+        j = safe_fetch_json("api/service/inlab")
+        if j is not None:
+            print(j)
+        j = safe_fetch_json(f"api/user/by-ip/{clientIP}")
+        #print(j)
+
+        firstname = j['user']['first_name']
+        lastname = j['user']['last_name']
+        email = j['user']['email']
+        userid = j['user']['id']
+        if 'studenti.uniroma1.it' in email:
+            uname = email.split('@')[0]
+            userid = uname.split('.')[1]
+
+        printt(f"Connected {clientIP} {firstname} {lastname} {email} {userid}")
+        self.write_message(f"USER {firstname} {lastname} {userid} IP {clientIP}")
+
+    except Exception as e:
+        print("Error in accessing SRL services")
+        print(e)
+
     #os.system("cp noimage.jpg lastimage.png")
-    gz_pause(False)   # unpause simulation
-    gz_gui(True)   # start gz gui
+    if not simulation_run: # start simulation
+        gz_pause(False)   # unpause simulation
+        gz_gui(True)   # start gz gui
+        simulation_run = True
     try:
         async for message in websocket:
             print(f"Received message from client: {message}")
@@ -125,6 +189,7 @@ async def echo(websocket):
                         print("Another program running. Code discarded.")
                         await websocket.send(json.dumps({"status": "error", "message": "Code already running", "disable_send": "false"}))
 
+                # full code
                 elif "code" in data:
                     received_code = data["code"]
                     while code_running is not None:
@@ -138,6 +203,45 @@ async def echo(websocket):
                     except Exception as e:
                         print(f"Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+
+                # single robot function
+                elif "robotfn" in data:
+                    received_code = data["robotfn"]
+                    while code_running is not None:
+                        print("Waiting for code execution to be available....")
+                        time.sleep(0.5)
+
+                    print(f"Robot function: {received_code}")
+
+                    r = None
+                    try:
+                        r = eval(received_code)
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+
+                    print(f"Robot function result: [{r}]")
+                    await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
+
+                elif "gazebo" in data:
+                    gz_fn = data["gazebo"]  # should be gz_models.fn(...) 
+
+                    print(f"Gazebo function: {gz_fn}")
+
+                    r = None
+                    try:
+                        r = eval(gz_fn)
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+
+                    print(f"Gazebo function result: [{r}]")
+                    await websocket.send(json.dumps({"status": "gazebo_done", "result": r}))
+
+
+                elif "keepalive" in data:
+                    # keepalive = data["keepalive"] == "True"
+                    pass
 
                 elif "signal" in data:
                     received_signal = data["signal"]
@@ -156,7 +260,7 @@ async def echo(websocket):
                     received_say = data["say"]
                     print(f"Human say:\n{received_say}")
                     robot.simulated_asr = received_say
-
+        
                 else:
                     print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))
@@ -165,22 +269,25 @@ async def echo(websocket):
                 await websocket.send(json.dumps({"status": "error", "message": "Expected JSON format."}))
 
     except websockets.exceptions.ConnectionClosedOK:
-        print(f"Client {websocket.remote_address} disconnected normally.")
+        printt(f"Client {websocket.remote_address} disconnected normally.")
     except websockets.exceptions.ConnectionClosedError as e:
-        print(f"Client {websocket.remote_address} disconnected with error: {e}")
+        printt(f"Client {websocket.remote_address} disconnected with error: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        printt(f"An unexpected error occurred: {e}")
     finally:
-        print(f"Client {websocket.remote_address} connection closed.")
+        printt(f"Client {websocket.remote_address} connection closed.")
         #os.system("cp noimage.jpg lastimage.png")
-        gz_pause(True)   # pause simulation
-        gz_gui(False)    # kill gz gui
+        if simulation_run and not keepalive: # stop simulation
+            gz_pause(True)   # pause simulation
+            gz_gui(False)    # kill gz gui
+            simulation_run = False
 
 async def main():
-    global robot
+    global robot, gz_models
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
+    gz_models = ModelManager()
     gz_pause(True)
 
     # Start the WebSocket server on server host
@@ -188,7 +295,7 @@ async def main():
         print(f"WebSocket server started on ws://0.0.0.0:{WS_PORT}")
         await server.serve_forever()  # Run forever
 
-
+'''
 import http.server
 import socketserver
 
@@ -216,7 +323,7 @@ def run_http_server():
     finally:
         httpd.server_close()
         print("Server HTTP closed.")
-
+'''
 
 if __name__ == "__main__":
 
