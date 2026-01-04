@@ -182,7 +182,7 @@ class ModelManager(Node):
         return object_pose
 
     def save_model(self, model, collision=True):
-        filename = '/tmp/tmp.sdf'
+        filename = f'/tmp/tmp_{model}.sdf'
         print(f"Creating model {model} on file {filename} ...")
         ms = model.split('_')
         if ms[0] == "cylinder":
@@ -191,18 +191,27 @@ class ModelManager(Node):
             geometry = "<sphere> <radius>0.05</radius> </sphere>"
         elif ms[0] == "box":
             geometry = "<box> <size>0.06 0.06 0.06</size> </box>"
+        elif ms[0] == "door":
+            geometry = "<box> <size>0.06 1.0 1.0</size> </box>"
         elif ms[0] == "line":
             geometry = "<box> <size>1.0 0.06 0.002</size> </box>"
             collision = False
+        #elif ms[0] == "poster":
+        #   cmd = "cd ../models/poster/materials/textures && ln -sf  .. && cd -"
+            
 
         if ms[1] == "red":
             material = "<ambient>0.8 0.1 0.1 0.9</ambient> <diffuse>0.8 0.1 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "blue":
             material = "<ambient>0.1 0.1 0.8 0.9</ambient> <diffuse>0.1 0.1 0.8 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "yellow":
+            material = "<ambient>0.9 0.9 0.0 0.9</ambient> <diffuse>0.9 0.9 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "green":
             material = "<ambient>0.1 0.8 0.1 0.9</ambient> <diffuse>0.1 0.8 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "orange":
             material = "<ambient>1.0 0.5 0.0 0.9</ambient> <diffuse>1.0 0.5 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+        elif ms[1] == "brown":
+            material = "<ambient>0.5 0.2 0.0 1.0</ambient> <diffuse>0.5 0.2 0.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"            
         elif ms[1] == "black":
             material = "<ambient>0.0 0.0 0.0 0.9</ambient> <diffuse>0.0 0.0 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "white":
@@ -210,8 +219,11 @@ class ModelManager(Node):
 
         with open(filename, "w") as f:
             f.write("<?xml version=\"1.0\" ?>\n<sdf version=\"1.5\">\n\n")
-            f.write("<model name=\"cylinder\">\n")
-            f.write("  <pose>0 0 0 0 0 0</pose>\n")
+            f.write(f"<model name=\"{model}\">\n")
+            if ms[0] == "door":
+                f.write("  <pose>0 0 0.5 0 0 0</pose>\n")
+            else:
+                f.write("  <pose>0 0 0 0 0 0</pose>\n")
             if collision:
                 f.write("  <static>false</static>\n")
             else:
