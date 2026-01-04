@@ -80,6 +80,12 @@ RUN bash -c "echo \"export PATH=${PATH}:/home/robot/.local/bin\" >> ~/.bashrc"
 RUN bash -c "echo \"source ~/ros2_ws/install/setup.bash\" >> ~/.bashrc"
 
 
+USER root
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        python3-websocket
+
 USER robot
 
 WORKDIR /home/robot

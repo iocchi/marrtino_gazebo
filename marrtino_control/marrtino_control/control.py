@@ -1195,6 +1195,8 @@ class MARRtinoController(Node):
     # obstacle distance [deg] -> [m]
 
     def obstacle_distance(self, deg=0):
+        if self.scan is None:
+            return 100.0
         r = deg/180.0*math.pi
         i = int((r - self.scan.angle_min) / self.scan.angle_increment)
         if (i>len(self.scan.ranges)):

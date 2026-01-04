@@ -21,7 +21,7 @@ class WSRobot():
     def send(self, robot_cmd):
     
         message = {
-            "code": robot_cmd+"\n",
+            "robotfn": robot_cmd+"\n",
         }
         
         self.websocket.send(json.dumps(message))
@@ -30,8 +30,10 @@ class WSRobot():
         print(f"Risposta dal server: {json.loads(response)}")
 
         response = self.websocket.recv()
-        print(f"Risposta dal server: {json.loads(response)}")
+        jr = json.loads(response)
+        print(f"Risposta dal server: {jr}")
 
+        return jr['result']
 
 
 class Robot:
@@ -49,10 +51,10 @@ class Robot:
         def wrapper(*args, **kwargs):
 
             # Trasformiamo args (posizionali) in stringhe: 1, 2, 3
-            pos_args_str = ", ".join(map(str, args))
+            pos_args_str = ", ".join(map(repr, args))
             
             # Trasformiamo kwargs (nominali) in stringhe: chiave=valore
-            kw_args_str = ", ".join([f"{k}={v}" for k, v in kwargs.items()])
+            kw_args_str = ", ".join([f"{k}={repr(v)}" for k, v in kwargs.items()])
             
             # Uniamo le due stringhe per rappresentare la chiamata completa
             all_params = ", ".join(filter(None, [pos_args_str, kw_args_str]))
@@ -61,33 +63,30 @@ class Robot:
             print(f"[Robot Proxy] to send: {full_call_str}")
             
             # Se abbiamo un client websocket, inviamo il comando
+            r = None
             if self.ws_robot:
-                self.ws_robot.send(full_call_str)
+                r = self.ws_robot.send(full_call_str)
             #    print(f"[Robot Proxy] Invio JSON al WebSocket: {json.dumps(command)}")
             
-            return f"Eseguito {full_call_str} via WS"
+            return r
 
         return wrapper
 
-# --- Esempio di utilizzo ---
 
-# Simuliamo un oggetto Robot
-robot = Robot()
+if __name__ == "__main__":
 
-# Possiamo chiamare QUALSIASI metodo, anche se non definito!
-robot.left(90)
-robot.right(90)
-robot.get_image()
+    # --- Esempio di utilizzo ---
 
-time.sleep(3)
+    # Simuliamo un oggetto Robot
+    robot = Robot()
 
-print(f"\nDone\n")
+    # Possiamo chiamare QUALSIASI metodo, anche se non definito!
+    robot.left(90)
+    robot.right(90)
+    robot.get_image()
 
+    time.sleep(3)
 
-
-#
-#if __name__ == "__main__":
-#    # Esegue la coroutine del client
-#    asyncio.run(send_message())
+    print(f"\nDone\n")
 
 

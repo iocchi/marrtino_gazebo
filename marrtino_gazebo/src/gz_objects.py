@@ -51,7 +51,9 @@ if __name__ == '__main__':
 
         elif sys.argv[1]=='-d' and len(sys.argv)>2:
             name = sys.argv[2]
-            if os.path.isfile(name):
+            if name=='all':
+                mm.del_all_objects()
+            elif os.path.isfile(name):
                 mm.del_objects(name)
             else:
                 mm.delete_object(name)

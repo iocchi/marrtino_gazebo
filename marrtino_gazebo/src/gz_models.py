@@ -99,7 +99,16 @@ class ModelManager(Node):
 
 
     def list_objects(self):
-        os.system(f"gz model --list")
+        os.system(f"gz model --list > /tmp/objlist.txt")
+        listobj = []
+        with open("/tmp/objlist.txt", "r") as f:
+            for line in f:
+                #print(line.rstrip())
+                if line[0:5] == "    -":
+                    objname = line[6:].strip()
+                    listobj.append(objname)
+        print(listobj)
+        return listobj
 
     def print_object_state(self, model_name):
         os.system(f"gz model -m {model_name}")
@@ -268,6 +277,14 @@ class ModelManager(Node):
         # However, if you're loading from a file and want to override the pose,
         # you would do:
 
+        if type(pose) == str:
+            pose_str = pose
+            pose = []
+            vp = pose_str.split(" ");
+            for x in vp:
+                if x.strip() != '':
+                    pose.append(float(x))
+
         object_pose = self.coords2pose(pose)
 
         self.create_req.entity_factory.pose = object_pose
@@ -348,7 +365,7 @@ class ModelManager(Node):
     # name = 'abc*'
     # delete all objects starting with abc
     def delete_all_objects_like(self, name):
-        l = list_object_names()
+        l = list_objects()
         for obj in l:
             if obj.startswith(name[:-1]):
                 self.delete_object(obj)
@@ -368,14 +385,14 @@ class ModelManager(Node):
                 l = f.readline()
             f.close()
 
-    '''
+
     def del_all_objects(self):
-        l = self.list_object_names()
-        excluded = ['ground_plane','table1','table2','unit_box','BlueBin','GreenBin','robot']
+        l = self.list_objects()
+        excluded = ['ground_plane','robot','smarrtino',
+'black_wall1', 'black_wall2', 'black_wall3', 'black_wall4' ]
         for obj in l:
             if obj not in excluded:
                 self.delete_object(obj)
-        
-    '''
+                time.sleep(0.1)
 
 
