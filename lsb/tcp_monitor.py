@@ -2,13 +2,13 @@ import subprocess as sub
 import requests
 import threading
 import time, datetime
-import sys
+import sys, os
 
 SRL_SERVICE = 'http://10.96.0.2:5000'
 
 lsb_ip = '10.112.0.11'   # Lab VPN IP = IP of the machine running this program
 lsb_port = 3080         # Lab VPN port = port on which the LSB is running
-wg_if = 'wg0'           # Wire>Guard interface
+wg_if = 'lsb11'           # Wire>Guard interface
 
 check_interval = 30     # Check intervale [sec]
 timeout_disconnect = 60 # Inactivity threhold [sec]
@@ -68,6 +68,31 @@ def disconnect(client_ip):
         ts = dt.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] ERROR Request failed for {url}: {e}")
     return None
+
+
+def gz_pause(flag):
+    cmd = "gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 "
+    cmd = cmd + ( "--req 'pause: true'" if flag else "--req 'pause: false'" )
+    print(cmd)
+    os.system(cmd)
+
+
+def gz_gui(flag):
+    if flag:
+        cmd = "tmux send-keys -t 0:4 './smarrtino_gui.bash' C-m"
+    else:
+        cmd = "tmux send-keys -t 0:4 C-c"
+    print(cmd)
+    os.system(cmd)
+
+def gz_get_paused():
+    cmd = "gz topic -t /stats -e -n 1 > /tmp/_gz_stats"
+    os.system(cmd)
+    with open("/tmp/_gz_stats", "r") as f:
+        for l in f.readlines():
+            if "pause" in l and "true" in l:
+                return True
+    return False
 
 # global
 last_timestamp = time.time()
@@ -132,7 +157,6 @@ try:
                     print(f"[{ts}] New user in lab {uid} {client_ip}")
 
 
-
         to_disconnect = []
         for c,lts in clients.items():
             d = t - lts
@@ -167,6 +191,17 @@ try:
             else:
                 print(f"[{ts}] Client {c} disconnected.")
                 del clients[c]
+
+
+        paused = gz_get_paused()
+        if nc==0 and not paused:
+            print("Simulation paused, GUI off")
+            gz_pause(True)   # pause simulation
+            gz_gui(False)    # kill gz gui
+        elif nc>0 and paused:
+            print("Simulation running, GUI on")
+            gz_pause(False)  # unpause simulation
+            gz_gui(True)     # start gz gui
 
         sys.stdout.flush()
 

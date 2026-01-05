@@ -181,10 +181,10 @@ async def handler(websocket):
         simulation_run = True
     try:
         async for message in websocket:
-            print(f"Received message from client: {message}")
             if message == '__ping__':
-                print(f"{clientIP} {message}")
+                #print(f"{clientIP} {message}")
                 continue
+            print(f"Received message from client: {message}")
             try:
                 data = json.loads(message)
                 if "text" in data:
