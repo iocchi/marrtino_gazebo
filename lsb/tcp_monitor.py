@@ -21,10 +21,32 @@ def inlab():
         response = requests.request(method, f"{SRL_SERVICE}/{url}", timeout=10)
         if response.status_code == 200:
             return response.json()
-        print(f"ERROR API Error fetching {url}: Status {response.status_code}")
+
+        t = time.time()
+        dt = datetime.datetime.fromtimestamp(t)
+        ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{ts}] ERROR API Error fetching {url}: Status {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"ERROR Request failed for {url}: {e}")
+        t = time.time()
+        dt = datetime.datetime.fromtimestamp(t)
+        ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{ts}] ERROR Request failed for {url}: {e}")
     return None
+
+
+def is_user_in_lab(cip):
+    # check if user with IP cip is in lab
+    uinlab = False
+    if users_in_lab is None:
+        uinlab = True  # we don't know yet, let's try again later
+    else:
+        for user in users_in_lab:
+            uid = user['id']
+            client_ip = user['vpn_ip']
+            if client_ip == cip:
+                uinlab = True
+    return uinlab
+
 
 def active_bookings():
     url = f"api/service/bookings"
@@ -51,6 +73,11 @@ def active_bookings():
     return None
 
 def disconnect(client_ip):
+
+    if not is_user_in_lab(client_ip):  # already disconnected
+        print(f"User {client_ip} to disconnect is not in lab.")
+        return "OK"
+
     url = f"api/user/{client_ip}/disconnect"
     method='PUT'
     try:
@@ -170,16 +197,8 @@ try:
             if r is None:
                 print(f"[{ts}] Disconnect {c} failed.")
                 
-                # check users in lab
-                uinlab = False
-                if users_in_lab is None:
-                    uinlab = True  # we don't know yet, let's try again later
-                else:
-                    for user in users_in_lab:
-                        uid = user['id']
-                        client_ip = user['vpn_ip']
-                        if client_ip == c:
-                            uinlab = True
+                # check if user is still in lab
+                uinlab = is_user_in_lab(c)
 
                 if uinlab:
                     print("    User still in lab, trying to disconnect later.")

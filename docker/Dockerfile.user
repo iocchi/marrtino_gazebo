@@ -84,7 +84,7 @@ USER root
 
 RUN apt update && \
     apt install -y --no-install-recommends \
-        python3-websocket
+        python3-websocket tcpdump
 
 USER robot
 

@@ -36,7 +36,8 @@ services:
     ports:
       - 2222:2222  # ssh
       - 3080:3080  # web
-      - 9876:9876  # websocket
+      - 9876:9876  # websocket code_server
+      - 9877:9877  # websocket lsb_admin
       - 9890:9890  # ROS bridge websocket
     tty: true
     security_opt:

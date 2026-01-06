@@ -532,5 +532,34 @@ start
     gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 --req 'pause: false'
 
 
+# Sapienza Remote Labs - LSB 11
+
+
+## SRL Access
+
+    https://remotelab.diag.uniroma1.it/Service?ServiceId=11
+
+Connects to 
+
+    http://10.112.0.11:3080/index.html
+
+
+## Direct access
+
+From `wgdiag` netowrk:
+
+    http://10.95.1.5:3080/index.html
+
+
+## LSB monitor 
+
+From `wgdiag` netowrk:
+
+        http://10.95.1.5:3080/lsb_admin.html
+
+Server `lsb_admin.py` websocker port 9877
+
+
+
 
 

@@ -13,7 +13,7 @@ server {
 
     # /viewer redirect
     location /viewer {
-        return 302  http://$host:3080/hviewer/vnc.html?autoconnect=1&resize=remote&port=3080;
+        return 302  http://$host:3080/hviewer/vnc.html?autoconnect=1&resize=remote&port=3080&reconnect=1;
     }
 
 
