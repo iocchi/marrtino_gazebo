@@ -13,6 +13,8 @@ wg_if = 'lsb11'           # Wire>Guard interface
 check_interval = 30     # Check intervale [sec]
 timeout_disconnect = 60 # Inactivity threhold [sec]
 
+
+
 def inlab():
     url = f"api/service/inlab"
     method='GET'
@@ -33,9 +35,11 @@ def inlab():
         print(f"[{ts}] ERROR Request failed for {url}: {e}")
     return None
 
+users_in_lab = None
 
+# check if user with IP cip is in lab
 def is_user_in_lab(cip):
-    # check if user with IP cip is in lab
+    global users_in_lab
     uinlab = False
     if users_in_lab is None:
         uinlab = True  # we don't know yet, let's try again later
@@ -124,10 +128,9 @@ def gz_get_paused():
 # global
 last_timestamp = time.time()
 clients = {}
-first = False
 
 def tcp_listen():
-    global last_timestamp, first
+    global last_timestamp
     #filter_expr = f"src host {lsb_ip} and src port {lsb_port} and dst host {client_ip}"
     filter_expr = f"src host {lsb_ip} and src port {lsb_port}"
     p = sub.Popen(('sudo', 'tcpdump', '-i', wg_if, '-n', '-l', filter_expr),
@@ -136,14 +139,14 @@ def tcp_listen():
         l = l.strip().decode('utf-8')
 #        c = f"{lsb_ip}.{lsb_port} > {client_ip}"
         if l:
-            first = True
             last_timestamp = time.time()
             # print(f"{l[0:70]} ...")
             v = l.split(' ')
             vv = v[4].split('.')
             client_ip = vv[0]+'.'+vv[1]+'.'+vv[2]+'.'+vv[3]
             #print(client_ip)
-            clients[client_ip] = last_timestamp
+            if is_user_in_lab(client_ip):
+                clients[client_ip] = last_timestamp
 
 th = threading.Thread(target=tcp_listen, daemon=True)  # exit with main
 th.start()
@@ -184,8 +187,8 @@ try:
                 client_ip = user['vpn_ip']
                 #print(f"User in lab {uid} {client_ip}")
                 if client_ip not in clients.keys():
-                    clients[client_ip] = time.time()
                     print(f"[{ts}] New user in lab {uid} {client_ip}")
+                    clients[client_ip] = time.time()
 
 
         # create list of users to be disconnected
@@ -206,7 +209,8 @@ try:
             if not uinlab:
                 print(" -- User not in lab, delete from the monitor list.")
                 del clients[c]
-                print(f"[{ts}] Client {c} disconnected.")
+                nc = len(clients.keys())
+                print(f"[{ts}] Client {c} disconnected (remaining {nc}).")
             else:   # disconnect user that is in lab
                 r = disconnect(c)
                 if r is None:
@@ -214,7 +218,8 @@ try:
                     print(" -- User still in lab, trying to disconnect later.")
                 else:
                     del clients[c]
-                    print(f"[{ts}] Client {c} disconnected.")
+                    nc = len(clients.keys())
+                    print(f"[{ts}] Client {c} disconnected (remaining {nc}).")
 
 
         # LSB 11 specific policy to start/stop simulation and GUI
