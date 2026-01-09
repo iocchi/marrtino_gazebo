@@ -10,9 +10,9 @@ $CMD tmux new-window -t $SESSION:2 -n 'ws'
 $CMD tmux new-window -t $SESSION:3 -n 'world'
 $CMD tmux new-window -t $SESSION:4 -n 'gui'
 $CMD tmux new-window -t $SESSION:5 -n 'lsb'
-$CMD tmux new-window -t $SESSION:5 -n 'lsb_admin'
-$CMD tmux new-window -t $SESSION:5 -n 'tcp_monitor'
-$CMD tmux new-window -t $SESSION:5 -n 'tcp_monitor.log'
+$CMD tmux new-window -t $SESSION:6 -n 'lsb_admin'
+$CMD tmux new-window -t $SESSION:7 -n 'tcp_monitor'
+$CMD tmux new-window -t $SESSION:8 -n 'tcp_monitor.log'
 
 
 $CMD tmux send-keys -t $SESSION:0 'cd ~/src/marrtino_gazebo/bin' C-m

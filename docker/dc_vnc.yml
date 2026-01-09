@@ -19,6 +19,8 @@ services:
       - $PWD/fluxbox/keys:/root/.fluxbox/keys
       - $PWD/fluxbox/init:/root/.fluxbox/init
       - $PWD/fluxbox/apps:/root/.fluxbox/apps
+      - $PWD/xvnc/xvnc.conf:/app/conf.d/xvnc.conf
+      - $PWD/xvnc/websockify.conf:/app/conf.d/websockify.conf
 
   marrtino_gazebo:
     image: marrtino2:user
