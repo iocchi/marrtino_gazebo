@@ -156,24 +156,28 @@ try:
         t = time.time()
         dt = datetime.datetime.fromtimestamp(t)
         ts = dt.strftime("%Y-%m-%d %H:%M:%S")
-        nc = len(clients.keys())
-        if nc>0:
-            print(f"[{ts}] nr. clients: {nc}")
 
         # check users in lab
         users_in_lab = inlab()
-
         user_bookings = active_bookings()
-
+        nc = 0
+        nl = 0
+        nb = 0
         try:
             nc = len(clients.keys())
-            nl = len(users_in_lab)
-            nb = len(user_bookings)
+            if users_in_lab is not None:
+                nl = len(users_in_lab)
+            if user_bookings is not None:
+                nb = len(user_bookings)
+            if nc>0:
+                print(f"[{ts}] nr. clients: {nc}")
             if nc != nl or nc != nb:
                 print(f"[{ts}] WARNING - clients: {nc}, inlab: {nl}, bookings: {nb}");
-        except:
-            pass
+        except Exception as e:
+            print(f"DEBUG: {e}")
 
+
+        # update timestamp of users in lab
         if users_in_lab is not None:
             for user in users_in_lab:
                 uid = user['id']
@@ -184,33 +188,36 @@ try:
                     print(f"[{ts}] New user in lab {uid} {client_ip}")
 
 
+        # create list of users to be disconnected
         to_disconnect = []
         for c,lts in clients.items():
             d = t - lts
-            print(f"[{ts}] Check {c} : {d:.2f} < {timeout_disconnect}")
-
-            if (d>timeout_disconnect):
+            actual_timeout_disconnect = timeout_disconnect if nl>0 else timeout_disconnect/2
+            print(f"[{ts}] Check {c} : {d:.2f} < {actual_timeout_disconnect}")
+            if (d>actual_timeout_disconnect):
                 to_disconnect.append(c)
 
+        # disconnect users
         for c in to_disconnect:
-            r = disconnect(c)
-            if r is None:
-                print(f"[{ts}] Disconnect {c} failed.")
-                
-                # check if user is still in lab
-                uinlab = is_user_in_lab(c)
 
-                if uinlab:
-                    print("    User still in lab, trying to disconnect later.")
-                else:
-                    print("    User not in lab, deleted from the monitor list.")
-                    del clients[c]
+            # check if user is still in lab
+            uinlab = is_user_in_lab(c)
 
-
-            else:
-                print(f"[{ts}] Client {c} disconnected.")
+            if not uinlab:
+                print(" -- User not in lab, delete from the monitor list.")
                 del clients[c]
+                print(f"[{ts}] Client {c} disconnected.")
+            else:   # disconnect user that is in lab
+                r = disconnect(c)
+                if r is None:
+                    print(f"[{ts}] Disconnect {c} failed.")
+                    print(" -- User still in lab, trying to disconnect later.")
+                else:
+                    del clients[c]
+                    print(f"[{ts}] Client {c} disconnected.")
 
+
+        # LSB 11 specific policy to start/stop simulation and GUI
 
         paused = gz_get_paused()
         if nc==0 and not paused:
@@ -221,6 +228,8 @@ try:
             print("Simulation running, GUI on")
             gz_pause(False)  # unpause simulation
             gz_gui(True)     # start gz gui
+
+
 
         sys.stdout.flush()
 
