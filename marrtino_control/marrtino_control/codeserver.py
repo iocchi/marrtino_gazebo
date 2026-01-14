@@ -146,7 +146,7 @@ async def handler(websocket):
     print(f"Client connected from {clientIP} id: {websocket.id}")
     nconnections += 1
     print(f"Connected clients: {nconnections}")
-    await websocket.send(f"USER IP {clientIP}")
+    #await websocket.send(f"USER IP {clientIP}")
     await websocket.send(
         json.dumps({ "user": "Unknown", 
                      "id": "none", 
