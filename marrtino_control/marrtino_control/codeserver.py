@@ -148,8 +148,9 @@ async def handler(websocket):
     print(f"Connected clients: {nconnections}")
     #await websocket.send(f"USER IP {clientIP}")
     await websocket.send(
-        json.dumps({ "user": "Unknown", 
-                     "id": "none", 
+        json.dumps({ "status": "user",
+                     "name": "Unknown", 
+                     "id": "noID", 
                      "ip": clientIP } ))
 
     lsb_user = False
@@ -175,7 +176,8 @@ async def handler(websocket):
             printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
             # await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
             await websocket.send(
-                json.dumps({ "user": f"{firstname} {lastname}", 
+                json.dumps({ "status": "user",
+                             "name": f"{firstname} {lastname}", 
                              "id": userid, 
                              "ip": clientIP } ))
 

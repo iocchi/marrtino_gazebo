@@ -300,6 +300,10 @@
                         console.log("Received robot say: "+ data.message)
                         appendDialogue(`Robot: ${data.message}`, 'blue');
                     }
+                    else if (data.status == 'user') {
+                        console.log("Received robot say: "+ data.message)
+                        appendDialogue(`Robot: ${data.message}`, 'blue');
+                    }
 				    else {
                         updateStatus('statusrobot', `Robot Error - ${data.message}`, 'red');
                     }
