@@ -47,7 +47,10 @@
         <p>Robot connection: Not connected.</p>
     </div>
     
-
+    <div id="statusframework">
+        <p>RobotFramework connection: Not connected.</p>
+    </div>
+    
     <br><br><br>
 
     <p>--------------------------------------</p>    
@@ -55,6 +58,34 @@
     <br><br><br>
     
     
+
+    <h2>Natural Language Programmer interface using LLMs</h2>
+
+    <table>
+    <tr><td>NLProg system</td> 
+    <td><textarea id="nlpsystem"></textarea></td>
+    <td> <button id="nlpsystemButton">RUN</button> </td>
+    </tr>
+    <tr><td>NLProg user</td> 
+    <td><textarea id="nlpframework"></textarea></td>
+    <td> <button id="nlpframeworkButton">RUN</button> </td>
+    </tr>
+
+    <tr><td></td><td><p align="center" id="nlpstatus">Waiting ... </p></td><td></td></tr>
+
+    <tr><td>NLProg answer</td> 
+    <td><textarea readonly="true" id="nlpanswer"></textarea></td>
+    <td></td>
+    </tr>
+
+    </table>
+
+
+    <br><br><br>
+
+    <p>--------------------------------------</p>    
+    
+    <br><br><br>
 
     <h2>Robot Interaction with the environment</h2>
 
@@ -83,7 +114,7 @@
     <br><br><br>
 
     <table>
-    <tr><td><b>Human says:</b></td> 
+    <tr><td><b>Robot says:</b></td> 
     <td><textarea id="humansay"></textarea></td>
     <td> <button id="sayButton">SAY</button> </td>
     </tr>
@@ -91,7 +122,7 @@
 
     <br><br>
 
-    <b>Human-Robot dialogue</b>
+    <b>User answer:</b>
     <div id="dialogue" align="left"></div>
     <p align="center"> <button id="clearDialogueButton">Clear</button> </p>
 
@@ -108,8 +139,15 @@
 
     <table>
     <tr>
+    <td align="center" width="450">
+    <h3>Programmer dialogue</h3>
 
-    <td align="center">
+    <div id="progdialogue" align="left"></div>
+    <p> <button id="clearProgDialogueButton">Clear</button> </p>
+
+    </td>
+
+    <td align="center" width="450">
 
     <h3>Traditional programming</h3>
  
@@ -218,9 +256,20 @@
         const stopButton = document.getElementById('stopButton');
 
         const sayButton = document.getElementById('sayButton');
+        const chatButton = document.getElementById('chatButton');
+        const nlpButton = document.getElementById('nlpButton');
+        const nlpframeworkButton = document.getElementById('nlpframeworkButton');
+        const nlpsystemButton = document.getElementById('nlpsystemButton');
+        const clearDialogueButton = document.getElementById('clearDialogueButton')
+
+        const nlprog = document.getElementById('nlpframework')
+        const nlpsys = document.getElementById('nlpsystem')
+        const nlpanswer = document.getElementById('nlpanswer');
+        const nlpstatus = document.getElementById('nlpstatus');
                         
 
-        let ws_code;
+        const dialogue = document.getElementById('dialogue');
+        let ws_code, ws_chat, ws_nlpframework;
 
         function updateStatus(statusname, message, color = 'black') {
             const statusDiv = document.getElementById(statusname);
@@ -231,11 +280,37 @@
             dialogue.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
         }
 
+        function appendProgDialogue(message, color = 'black') {
+            progdialogue.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
+        }
 
         function sleep(ms) {
           return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+        async function get_pre_image() {
+            // get an image before executing the program        
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                const codeToSend = "robot.get_pre_image()"
+                // Send code as a JSON object
+                ws_code.send(JSON.stringify({ syscode: codeToSend })); // Changed key to 'code'
+                // updateStatus('statusframework', 'Status: Sending code...', 'purple');
+            } else {
+                updateStatus('statusframework', 'Not connected to server. Please refresh or check server.', 'red');
+            }
+        }
+
+        async function get_post_image() {
+            // get an image after executing the program        
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                const codeToSend = "robot.get_post_image()"
+                // Send code as a JSON object
+                ws_code.send(JSON.stringify({ syscode: codeToSend })); // Changed key to 'code'
+                // updateStatus('statusframework', 'Status: Sending code...', 'purple');
+            } else {
+                updateStatus('statusframework', 'Not connected to server. Please refresh or check server.', 'red');
+            }
+        }
 
         async function send_emotion(value) {
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
@@ -256,6 +331,14 @@
             }
         }
 
+        async function notify_nlpframework(key, value) {
+            // notifies nlpframework that robot program execution is completed
+            if (ws_nlpframework != null) {
+              console.log("notify nlpframework "+value+" ...");
+              // ws_nlpframework.send(JSON.stringify(`{ "${key}": "${value}" }`));
+              ws_nlpframework.send(`{ "${key}": "${value}" }`);
+            }
+        }
 
         function connectWebSocket() {
             var host = location.hostname;
@@ -342,6 +425,103 @@
             catch (error) {
               console.error(error);
             }              
+            
+            // NLP Robot framework websocket
+            try {            
+                console.log("Connecting to Robot Framework 2 ....");
+
+                ws_nlpframework = new WebSocket("ws://"+nlp_host+":9878");
+                // ws_nlpframework = new WebSocket("ws://"+nlp_host+":3080/nlp_ws");
+
+                ws_nlpframework.onopen = function(event) {
+                    updateStatus('statusframework', 'Connected to Robot Framework server.', 'green');
+                    nlpframeworkButton.disabled = false;
+                    nlpsystemButton.disabled = false;
+                }
+                
+                ws_nlpframework.onmessage = function(event) {
+                    console.log('Message from NLprog framework server:', event.data);
+                    const data = JSON.parse(event.data);
+                    if (data.status == 'say') {
+                        appendProgDialogue(`AI: ${data.message}`, 'blue');
+                        nlpanswer.innerHTML = data.message;
+                        nlpstatus.innerHTML = "Waiting ...";
+                        nlpframeworkButton.disabled = false;
+                        nlpsystemButton.disabled = false;
+                        nlprog.value = "";
+                        nlpsys.value = "";
+                    } 
+                    else if (data.status == 'llmcode_base') {
+                        // appendProgDialogue(`Robot: ${data.message}`, 'blue');
+                        if (data.message.includes('<CODE>')) {
+                            i = data.message.indexOf('<CODE>');
+                            j = data.message.indexOf('</CODE>');
+                            const codeToSend = data.message.substring(i+6,j).trim();
+                            if (codeToSend.length>2) {
+                                editor.setValue(codeToSend+"\n");
+                                ws_code.send(JSON.stringify({ code: codeToSend }));
+                            }
+                        }
+                    } 
+                    else if (data.status == 'llmcode') {
+                        runButton.disabled = false;
+                        console.log('RECEIVED CODE:', data.message);
+                        codeToSend = data.message
+
+                        if (codeToSend.length>2 && codeToSend.substring(0,4) != "pass" ) {
+
+                            codeToSend = codeToSend.replace('START_TEXT ', '"')
+                            codeToSend = codeToSend.replace('START_TEXT', '"')
+                            codeToSend = codeToSend.replace(' END_TEXT', '"')
+                            codeToSend = codeToSend.replace('END_TEXT', '"')
+                            codeToSend = codeToSend.replace('""', '"')
+                            codeToSend = codeToSend.replace('""', '"')
+                            console.log(codeToSend);
+
+                            editor.setValue(codeToSend+"\n");
+
+                            /* human say is managed by actal say action in codeserver.py
+                            const match = codeToSend.match(/"(.*?)"/);
+                            const robot_sentence = match ? match[1] : null;
+                            
+                            if (robot_sentence != null){
+                                appendDialogue(`Robot: ${robot_sentence}`, 'blue');
+                            }*/
+                            
+                            ws_code.send(JSON.stringify({ code: codeToSend }));
+                            notify_nlpframework("run_code", "started");
+                        }
+                    }
+                    
+                    else if (data.status == 'emotion') {
+                        console.log('RECEIVED EMOTION:', data.message);
+
+                        send_emotion(data.message);
+
+                    }
+
+                    else {
+                        updateStatus('statusframework', `Robot Framework Error - ${data.message}`, 'red');
+                    }
+                };
+
+                ws_nlpframework.onclose = function(event) {
+                    if (event.wasClean) {
+                        updateStatus('statusframework', `Robot Framework Connection closed cleanly, code=${event.code}, reason=${event.reason}`, 'orange');
+                    } else {
+                        updateStatus('statusframework', `Robot Framework Connection closed unexpectedly, code=${event.code}, reason=${event.reason}`, 'red');
+                    }
+                };
+                
+                ws_nlpframework.onerror = function(error) {
+                    updateStatus('statusframework', 'Robot Framework Error: ' + error.message, 'red');
+                    // sendButton.disabled = true;
+                };
+
+            }
+            catch (error) {
+              console.error(error);
+            }
 
         }  // connectWebSocket
 
@@ -399,7 +579,7 @@
             const sayToSend = humansay.value; // Get content
             humansay.value = "";
             updateStatus('statusrobot', 'Status: Sent HUMAN SAY '+sayToSend, 'purple');
-            appendDialogue(`Human: ${sayToSend}`, 'red');
+            appendDialogue(`Mario: ${sayToSend}`, 'red');
             notify_nlpframework("human_say", sayToSend);
             /*
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
@@ -416,9 +596,123 @@
             */
         });
 
+        try {
+            chatButton.addEventListener('click', () => {
+                
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const humanchat = document.getElementById('humanchat')
+                    const chatToSend = humanchat.value; // Get content
+                    humanchat.value = "";
+                    ws_nlpframework.send(JSON.stringify({ chat: chatToSend }));
+                    console.log("Sent to LLM " + chatToSend)
+                    appendProgDialogue(`Programmer: ${chatToSend}`, 'red');
+                    updateStatus('statusframework', 'CHAT sent '+chatToSend, 'purple');
+                } else {
+                    updateStatus('statusframework', 'Not connected to Chat server. Please refresh or check server.', 'red');
+                }
 
+                /*
+                if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
+                    const humanchat = document.getElementById('humanchat')
+                    const chatToSend = humanchat.value; // Get content
+                    humanchat.value = "";
+                    ws_chat.send(JSON.stringify({ chat: chatToSend })); // Changed key to 'code'
+                    updateStatus('Status: Sent CHAT '+chatToSend, 'purple');
+                    appendDialogue(`Human: ${chatToSend}`, 'red');
+                } else {
+                    updateStatus('Status: Not connected to chat server. Please refresh or check server.', 'red');
+                }
+                */
+            });
+            
+        }
+        catch (error) {
+          console.error(error);
+        }
+
+        try {
+            nlpButton.addEventListener('click', () => {
+                /*
+                if (ws_chat && ws_chat.readyState === WebSocket.OPEN) {
+                    const nlprog = document.getElementById('nlprog')
+                    const cmdToSend = nlprog.value; // Get content
+                    nlprog.value = "";
+                    ws_chat.send(JSON.stringify({ nlprog: cmdToSend })); // Changed key to 'code'
+                    updateStatus('statusframework', 'Status: Sent NLProg base '+cmdToSend, 'purple');
+                } else {
+                    updateStatus('statusframework', 'Status: Not connected to chat server. Please refresh or check server.', 'red');
+                }*/
+               if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const cmdToSend = nlprog.value; // Get content
+                    nlprog.value = "";
+                    ws_nlpframework.send(JSON.stringify({ nlprog_base: cmdToSend }));
+                    console.log("Sent to NLProg base " + cmdToSend)
+                    appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
+                    updateStatus('statusframework', 'Sent NLProg base '+cmdToSend, 'purple');
+                } else {
+                    updateStatus('statusframework', 'Not connected to NLProg base server. Please refresh or check server.', 'red');
+                }
+            });
+
+            
+        }
+        catch (error) {
+          console.error(error);
+        }
+
+        try {
+            nlpframeworkButton.addEventListener('click', () => {
+                console.log("Sending to robot ....")
+                
+                get_pre_image();
+                
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const cmdToSend = nlprog.value; // Get content
+                    ws_nlpframework.send(JSON.stringify({ nlprog: cmdToSend }));
+                    console.log("Sent to NLProg framework " + cmdToSend)
+                    appendProgDialogue(`Programmer: ${cmdToSend}`, 'red');
+                    updateStatus('statusframework', 'Sent NLProg framework '+cmdToSend, 'purple');
+                    nlpstatus.innerHTML = "Thinking ...";
+                    nlpframeworkButton.disabled = true;
+                    nlpsystemButton.disabled = true;
+                    nlpanswer.innerHTML = "";
+                } else {
+                    updateStatus('statusframework', 'Not connected to NLProg framework server. Please refresh or check server.', 'red');
+                }
+            });
+        }
+        catch (error) {
+          console.error(error);
+        }
+        
+        try {
+            nlpsystemButton.addEventListener('click', () => {
+                console.log("Sending to robot ....")
+                if (ws_nlpframework && ws_nlpframework.readyState === WebSocket.OPEN) {
+                    const cmdToSend = nlpsys.value; // Get content
+                    ws_nlpframework.send(JSON.stringify({ system: cmdToSend }));
+                    console.log("Sent to NLProg system " + cmdToSend)
+                    appendProgDialogue(`System: ${cmdToSend}`, 'red');
+                    updateStatus('statusframework', 'Sent NLProg system '+cmdToSend, 'purple');
+                    nlpstatus.innerHTML = "Thinking ...";
+                    nlpframeworkButton.disabled = true;
+                    nlpsystemButton.disabled = true;
+                } else {
+                    updateStatus('statusframework', 'Not connected to NLProg framework server. Please refresh or check server.', 'red');
+                }
+            });
+        }
+        catch (error) {
+          console.error(error);
+        }
+        
+        
         clearDialogueButton.addEventListener('click', () => {
             dialogue.innerHTML = "";
+        });
+
+        clearProgDialogueButton.addEventListener('click', () => {
+            progdialogue.innerHTML = "";
         });
 
         refreshButton.addEventListener('click', () => {
