@@ -292,9 +292,7 @@
                     if (data.status == 'success') {
                         updateStatus('statusrobot', `Robot received: ${data.message}`, 'blue');
                         if (data.message.includes("completed")) {
-                            console.log("do post_image and notify....")
-                            get_post_image();
-                            refreshImage();
+                            console.log("notify....")
                             notify_nlpframework("run_code", "completed");
                         }
                     } 

@@ -168,7 +168,11 @@ async def handler(websocket):
             lsb_user = True
 
             printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
-            await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
+            # await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
+            await websocket.send(
+                json.dumps({ "user": f"{firstname} {lastname}", 
+                             "id": userid, 
+                             "ip": clientIP } ))
 
     except Exception as e:
         print("Error in accessing SRL services")

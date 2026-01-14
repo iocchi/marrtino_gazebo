@@ -23,7 +23,8 @@ La connessione al laboratorio remoto di Robotica Sociale e Intelligenza Artifici
     function initializeWebSocketListeners(websocket) {
         websocket.onmessage = function (event) {
           console.log("message received: " + event.data);
-          document.getElementById("message").innerHTML = event.data;
+          const data = JSON.parse(event.data);         
+          document.getElementById("message").innerHTML = `${data.user} ${data.id} ${data.ip}`;
         };
 
         websocket.onopen = function () {
