@@ -147,6 +147,11 @@ async def handler(websocket):
     nconnections += 1
     print(f"Connected clients: {nconnections}")
     await websocket.send(f"USER IP {clientIP}")
+    await websocket.send(
+        json.dumps({ "user": "Unknown", 
+                     "id": "none", 
+                     "ip": clientIP } ))
+
     lsb_user = False
 
     try:
