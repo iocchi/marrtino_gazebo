@@ -26,6 +26,7 @@ La connessione al laboratorio remoto di Robotica Sociale e Intelligenza Artifici
           const data = JSON.parse(event.data);
           if (data.status=="user") {   
             document.getElementById("message").innerHTML = `${data.name} ${data.id} ${data.ip}`;
+          }
         };
 
         websocket.onopen = function () {
