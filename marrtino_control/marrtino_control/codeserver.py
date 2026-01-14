@@ -143,7 +143,8 @@ async def handler(websocket):
     global nconnections
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
-    print(f"Client connected from {clientIP} id: {websocket.id}")
+    printt(f"Client connected from {clientIP} id: {websocket.id}")
+    
     nconnections += 1
     print(f"Connected clients: {nconnections}")
     #await websocket.send(f"USER IP {clientIP}")
