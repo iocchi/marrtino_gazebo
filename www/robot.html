@@ -292,8 +292,8 @@
                     if (data.status == 'success') {
                         updateStatus('statusrobot', `Robot received: ${data.message}`, 'blue');
                         if (data.message.includes("completed")) {
-                            console.log("notify....")
-                            notify_nlpframework("run_code", "completed");
+                            // console.log("notify....")
+                            // notify ???
                         }
                     } 
                     else if (data.status == 'say') {
@@ -374,7 +374,7 @@
                 if (codeToSend.trim() !== '') {
                     // Send code as a JSON object
                     ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
-                    notify_nlpframework("run_code", "started");
+                    // notify_nlpframework("run_code", "started");
                     updateStatus('statusrobot', 'Status: Sending code...', 'purple');
                     // editor.setValue(''); // Optional: Clear editor after sending
                 } else {
@@ -388,7 +388,7 @@
         stopButton.addEventListener('click', () => {
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 ws_code.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
-                notify_nlpframework("run_code", "interrupted");
+                // notify_???? ("run_code", "interrupted");
                 updateStatus('statusrobot', 'Status: Sent signal STOP', 'purple');
             } else {
                 updateStatus('statusrobot', 'Status: Not connected to server. Please refresh or check server.', 'red');
@@ -402,7 +402,7 @@
             humansay.value = "";
             updateStatus('statusrobot', 'Status: Sent HUMAN SAY '+sayToSend, 'purple');
             appendDialogue(`Human: ${sayToSend}`, 'red');
-            notify_nlpframework("human_say", sayToSend);
+            // notify_nlpframework("human_say", sayToSend);
             /*
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const humansay = document.getElementById('humansay')
