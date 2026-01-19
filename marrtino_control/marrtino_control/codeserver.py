@@ -11,11 +11,15 @@ from thread2 import Thread
 import datetime
 import requests
 
+# robot object
 from control import MARRtinoController
 
+# gz_models object
 sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
+# ai object TODO
+# from ai import AI
 
 # config variables
 
@@ -24,6 +28,7 @@ WS_PORT = 9876
 
 robot = None
 gz_models = None
+ai = None
 
 code_running = None
 websocket = None
@@ -139,7 +144,7 @@ nconnections = 0
 
 
 async def handler(websocket):
-    global code_running, robot, gz_models, simulation_run, keepalive
+    global code_running, robot, gz_models, ai, simulation_run, keepalive
     global nconnections
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
@@ -235,7 +240,7 @@ async def handler(websocket):
 
                 # single robot function
                 elif "robotfn" in data:
-                    received_code = data["robotfn"]
+                    received_code = data["robotfn"]  # should be robot.fn(...) 
                     while code_running is not None:
                         print("Waiting for code execution to be available....")
                         time.sleep(0.5)
@@ -246,7 +251,7 @@ async def handler(websocket):
                     try:
                         r = eval(received_code)
                     except Exception as e:
-                        print(f"Error: {e}")
+                        print(f"Robot Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
                     print(f"Robot function result: [{r}]")
@@ -261,11 +266,26 @@ async def handler(websocket):
                     try:
                         r = eval(gz_fn)
                     except Exception as e:
-                        print(f"Error: {e}")
+                        print(f"Gazebo Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
                     print(f"Gazebo function result: [{r}]")
                     await websocket.send(json.dumps({"status": "gazebo_done", "result": r}))
+
+                elif "ai" in data:
+                    ai_fn = data["ai"]  # should be ai.fn(...) 
+
+                    print(f"AI function: {ai_fn}")
+
+                    r = None
+                    try:
+                        r = eval(gz_fn)
+                    except Exception as e:
+                        print(f"AI Error: {e}")
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+
+                    print(f"AI function result: [{r}]")
+                    await websocket.send(json.dumps({"status": "ai_done", "result": r}))
 
 
                 elif "keepalive" in data:
@@ -323,12 +343,13 @@ async def handler(websocket):
             simulation_run = False
 
 async def main():
-    global robot, gz_models
+    global robot, gz_models, ai
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
     gz_models = ModelManager()
     gz_pause(True)
+    # ai = AI() TODO
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_timeout=60) as server:
