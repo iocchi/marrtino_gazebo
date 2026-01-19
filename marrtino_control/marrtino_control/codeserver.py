@@ -18,8 +18,8 @@ from control import MARRtinoController
 sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
-# ai object TODO
-# from ai import AI
+# ai object
+from ai import AI
 
 # config variables
 
@@ -349,7 +349,7 @@ async def main():
     robot = MARRtinoController()
     gz_models = ModelManager()
     gz_pause(True)
-    # ai = AI() TODO
+    ai = AI()
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_timeout=60) as server:
