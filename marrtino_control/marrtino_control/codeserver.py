@@ -38,6 +38,8 @@ run_code_thread = None
 simulation_run = False  # simulation is running
 keepalive = True  # keep alive when client disconnects
 
+lsb_mode = os.getenv("WGIF") == 'lsb11'
+print(f"LSB mode: {lsb_mode}")
 
 # SRL connection
 SRL_SERVICE = 'http://10.96.0.2:5000'
@@ -144,7 +146,7 @@ nconnections = 0
 
 
 async def handler(websocket):
-    global code_running, robot, gz_models, ai, simulation_run, keepalive
+    global code_running, robot, gz_models, ai, simulation_run, keepalive, lsb_mode
     global nconnections
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
@@ -152,50 +154,54 @@ async def handler(websocket):
     
     nconnections += 1
     print(f"Connected clients: {nconnections}")
-    #await websocket.send(f"USER IP {clientIP}")
-    await websocket.send(
-        json.dumps({ "status": "user",
-                     "name": "Unknown", 
-                     "id": "noID", 
-                     "ip": clientIP } ))
 
     lsb_user = False
 
-    try:
-        j = safe_fetch_json("api/service/inlab")
-        if j is not None:
-            print(f"inlab {j}")
-        j = safe_fetch_json(f"api/user/by-ip/{clientIP}")
-        if j is not None and j['user'] is not None:
-            print(f"user {j}")
+    if lsb_mode:
+        try:
+            j = safe_fetch_json("api/service/inlab")
+            if j is not None:
+                print(f"inlab {j}")
+            j = safe_fetch_json(f"api/user/by-ip/{clientIP}")
+            if j is not None and j['user'] is not None:
+                print(f"user {j}")
 
-            firstname = j['user']['first_name']
-            lastname = j['user']['last_name']
-            email = j['user']['email']
-            userid = j['user']['id']
-            if 'studenti.uniroma1.it' in email:
-                uname = email.split('@')[0]
-                userid = uname.split('.')[1]
+                firstname = j['user']['first_name']
+                lastname = j['user']['last_name']
+                email = j['user']['email']
+                userid = j['user']['id']
+                if 'studenti.uniroma1.it' in email:
+                    uname = email.split('@')[0]
+                    userid = uname.split('.')[1]
 
-            lsb_user = True
+                lsb_user = True
 
-            printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
-            # await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
-            await websocket.send(
-                json.dumps({ "status": "user",
-                             "name": f"{firstname} {lastname}", 
-                             "id": userid, 
-                             "ip": clientIP } ))
+                printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
+                # await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
+                await websocket.send(
+                    json.dumps({ "status": "user",
+                                 "name": f"{firstname} {lastname}", 
+                                 "id": userid, 
+                                 "ip": clientIP } ))
 
-    except Exception as e:
-        print("Error in accessing SRL services")
-        print(e)
+        except Exception as e:
+            print("Error in accessing SRL services")
+            print(e)
+
+    if not lsb_user:
+        await websocket.send(
+            json.dumps({ "status": "user",
+                         "name": "Unknown", 
+                         "id": "noID", 
+                         "ip": clientIP } ))
+
 
     #os.system("cp noimage.jpg lastimage.png")
-    if not simulation_run: # start simulation
+    if lsb_mode and not simulation_run: # start simulation
         gz_pause(False)   # unpause simulation
         gz_gui(True)   # start gz gui
         simulation_run = True
+
     try:
         async for message in websocket:
             if message == '__ping__':
@@ -337,18 +343,19 @@ async def handler(websocket):
         print(f"Connected clients: {nconnections}")
 
         #os.system("cp noimage.jpg lastimage.png")
-        if simulation_run and not keepalive: # stop simulation
+        if lsb_mode and simulation_run and not keepalive: # stop simulation
             gz_pause(True)   # pause simulation
             gz_gui(False)    # kill gz gui
             simulation_run = False
 
 async def main():
-    global robot, gz_models, ai
+    global robot, gz_models, ai, lsb_mode
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
     gz_models = ModelManager()
-    gz_pause(True)
+    if lsb_mode:
+        gz_pause(True)
     ai = AI()
 
     # Start the WebSocket server on server host

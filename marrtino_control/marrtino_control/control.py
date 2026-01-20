@@ -1,4 +1,4 @@
-import time, threading, math, os
+import time, threading, math, os, copy
 from marrtino_control.thread2 import Thread
 
 import rclpy
@@ -1036,6 +1036,68 @@ class MARRtinoController(Node):
 
 
 
+    # error = target - gtpose in direction th
+    def pos_err(self, tx, ty, th_rad):
+        x1 = self.gtpose.pose.position.x
+        y1 = self.gtpose.pose.position.y
+        e = (tx-x1)*math.cos(th_rad) + (ty-y1)*math.sin(th_rad)
+        return e
+
+    # error = target - gtpose
+    def ang_err_rad(self, target_rad):
+        (_, _, th_rad) = euler_from_orientation(self.gtpose.pose.orientation)
+        
+        e = target_rad - th_rad
+
+        # norm pi
+        if e > math.pi:
+            e -= 2*math.pi
+        elif e < -math.pi:
+            e += 2*math.pi
+
+        return e
+
+    # relative forward/backward
+    def setLinPos(self, m=1, tol = 0.01, max_vel=0.2, Kp = 0.5):
+        init_pose = copy.deepcopy(self.gtpose)
+
+		# target pos
+        (_, _, th_rad) = euler_from_orientation(init_pose.pose.orientation)
+        tx = init_pose.pose.position.x + m * math.cos(th_rad)
+        ty = init_pose.pose.position.y + m * math.sin(th_rad)
+
+        e = self.pos_err(tx,ty,th_rad)
+        while abs(e)>tol:       	    
+            # linear velocity
+            lx = Kp * e
+            if lx > max_vel:
+                lx = max_vel
+            elif lx < -max_vel:
+                lx = -max_vel
+            self.setSpeed(lx,0,0.1)
+            e = self.pos_err(tx,ty,th_rad)
+        self.setSpeed(0,0,0.2)
+
+    def setAngPos(self, deg=90, tol_deg=1, max_ang_vel=0.5, Kp = 0.5):
+        init_pose = copy.deepcopy(self.gtpose)
+        
+        # target ang
+        (_, _, th_rad) = euler_from_orientation(init_pose.pose.orientation)
+        target_rad = th_rad + deg*math.pi/180.0
+        tol_rad = tol_deg * math.pi / 180
+        e = self.ang_err_rad(target_rad)
+        while abs(e)>tol_rad:
+            # angular velocity
+            az = Kp * e
+            if az > max_ang_vel:
+                az = max_ang_vel
+            elif az < -max_ang_vel:
+                az = -max_ang_vel
+            self.setSpeed(0,az,0.1)
+            e = self.ang_err_rad(target_rad)
+        self.setSpeed(0,0,0.2)
+
+
     # robot interface
 
     '''
@@ -1046,24 +1108,29 @@ class MARRtinoController(Node):
     robot.right(r)      turn right r [deg]
     '''
 
+
+
     # relative forward/backward
     def forward(self, m=1, _async=False):
-        lx = 0.2 # linear velocity
-        if (m<0):
-            lx *= -1
-        tm = abs(m) / abs(lx)
-        return self.setSpeed(lx,0,tm,stopend=True,_async=_async)
+        if _async:
+            afuture = ActionFuture()
+            afuture.start(target=self.setLinPos, args=(m), daemon=True)
+            return afuture
+        else:
+            self.setLinPos(m)
+            return None
 
     def backward(self, m=1, _async=False):
         return self.forward(-m, _async=_async)
 
     # relative turn
     def turn(self, deg=90, _async=False):
-        az = 0.5 # angular velocity
-        if (deg<0):
-            az *= -1
-        tm = abs(deg)/180.0*math.pi / abs(az)
-        return self.setSpeed(0,az,tm,stopend=True,_async=_async)
+        if _async:
+            afuture = ActionFuture()
+            afuture.start(target=self.setAngPos, args=(deg), daemon=True)
+            return afuture        
+        else:
+            self.setAngPos(deg)
 
     def left(self, deg=90, _async=False):
         return self.turn(deg, _async=_async)
