@@ -1,6 +1,6 @@
 import json
 import requests
-import os
+import os, sys
 
 import argparse
 
@@ -8,6 +8,10 @@ import tornado.httpserver
 import tornado.websocket
 import tornado.ioloop
 import tornado.web
+
+if os.getenv("WGIF") != 'lsb11':
+    sys.exit(0)
+
 
 # --- Configurazione --- (valori di default - impostati da linea di comando)
 

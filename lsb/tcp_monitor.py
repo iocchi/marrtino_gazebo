@@ -4,11 +4,15 @@ import threading
 import time, datetime
 import sys, os
 
+if os.getenv("WGIF") != 'lsb11':
+    sys.exit(0)
+
+
 SRL_SERVICE = 'http://10.96.0.2:5000'
 
 lsb_ip = '10.112.0.11'   # Lab VPN IP = IP of the machine running this program
-lsb_port = 3080         # Lab VPN port = port on which the LSB is running
-wg_if = 'lsb11'           # Wire>Guard interface
+lsb_port = 3080          # Lab VPN port = port on which the LSB is running
+wg_if = 'lsb11'          # WireGuard interface
 
 check_interval = 30     # Check intervale [sec]
 timeout_disconnect = 60 # Inactivity threhold [sec]
