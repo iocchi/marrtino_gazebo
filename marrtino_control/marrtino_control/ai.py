@@ -28,7 +28,7 @@ class AI:
             api_key = os.getenv("OPENAI_API_KEY").strip()
         except:
             pass
-        if api_key is None:
+        if api_key is None or api_key=="":
             with open("key.txt", "r") as f:
                 api_key = f.read().strip()
         self.client = openai.OpenAI(api_key = api_key)
