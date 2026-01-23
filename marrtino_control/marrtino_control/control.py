@@ -709,7 +709,7 @@ class MARRtinoController(Node):
             else:
                 self.publish_head_pan_command(rad, time)
 
-        return None, None
+        return None
 
 
     def setHeadTiltPosition(self, rad, time=1, _async=False):
