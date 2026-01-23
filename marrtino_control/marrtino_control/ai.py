@@ -1,6 +1,6 @@
 import os
 import openai
-import chromadb
+#import chromadb
 
 MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M token
 MODEL_cost_input = 0.05
