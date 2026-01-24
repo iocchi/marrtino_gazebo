@@ -7,6 +7,7 @@ from __future__ import print_function
 import time
 import os
 import sys
+import math
 
 import rclpy
 from rclpy.node import Node
@@ -23,6 +24,8 @@ class ModelManager(Node):
         self.get_logger().info('ModelManager node initialized and service client created.')
 
         self.GAZEBO_MODELS = None
+
+        self.get_gazebo_models()
 
     def spawn_box(self, model_name, x, y, z):
         # Define the SDF for a simple red box
@@ -168,7 +171,7 @@ class ModelManager(Node):
 
 
     def print_models(self):
-        models = self.get_gazebo_models()
+        models = self.GAZEBO_MODELS
         for tag in sorted(models):
             print("%s\t%s" %(tag, models[tag]['path']))
 
@@ -194,37 +197,50 @@ class ModelManager(Node):
         filename = f'/tmp/tmp_{model}.sdf'
         print(f"Creating model {model} on file {filename} ...")
         ms = model.split('_')
+
+        # standard sizes
+        sizes = {
+            'cylinder': [0.03, 0.12],
+            'sphere': [0.05],
+            'box': [0.06, 0.06, 0.06],
+            'door': [0.06, 1.0, 1.0],
+            'line': [1.0, 0.06, 0.002],
+        }
+        if len(ms)>2: # custom size
+            for i in range(2,len(ms)):
+                sizes[ms[0]][i-2] = float(ms[i])
+
         if ms[0] == "cylinder":
-            geometry = "<cylinder> <radius>0.03</radius> <length>0.12</length> </cylinder>"
+            geometry = f"<cylinder> <radius>{sizes[ms[0]][0]}</radius> <length>{sizes[ms[0]][1]}</length> </cylinder>"
         elif ms[0] == "sphere":
-            geometry = "<sphere> <radius>0.05</radius> </sphere>"
+            geometry = f"<sphere> <radius>{sizes[ms[0]][0]}</radius> </sphere>"
         elif ms[0] == "box":
-            geometry = "<box> <size>0.06 0.06 0.06</size> </box>"
+            geometry = f"<box> <size>{sizes[ms[0]][0]} {sizes[ms[0]][1]} {sizes[ms[0]][2]}</size> </box>"
         elif ms[0] == "door":
-            geometry = "<box> <size>0.06 1.0 1.0</size> </box>"
+            geometry = f"<box> <size>{sizes[ms[0]][0]} {sizes[ms[0]][1]} {sizes[ms[0]][2]}</size> </box>"
         elif ms[0] == "line":
-            geometry = "<box> <size>1.0 0.06 0.002</size> </box>"
+            geometry = f"<box> <size>{sizes[ms[0]][0]} {sizes[ms[0]][1]} {sizes[ms[0]][2]}</size> </box>"
             collision = False
         #elif ms[0] == "poster":
         #   cmd = "cd ../models/poster/materials/textures && ln -sf  .. && cd -"
             
 
         if ms[1] == "red":
-            material = "<ambient>0.8 0.1 0.1 0.9</ambient> <diffuse>0.8 0.1 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>0.8 0.1 0.1 1.0</ambient> <diffuse>0.8 0.1 0.1 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "blue":
-            material = "<ambient>0.1 0.1 0.8 0.9</ambient> <diffuse>0.1 0.1 0.8 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>0.1 0.1 0.8 1.0</ambient> <diffuse>0.1 0.1 0.8 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "yellow":
-            material = "<ambient>0.9 0.9 0.0 0.9</ambient> <diffuse>0.9 0.9 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>0.9 0.9 0.0 1.0</ambient> <diffuse>0.9 0.9 0.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "green":
-            material = "<ambient>0.1 0.8 0.1 0.9</ambient> <diffuse>0.1 0.8 0.1 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>0.1 0.8 0.1 1.0</ambient> <diffuse>0.1 0.8 0.1 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "orange":
-            material = "<ambient>1.0 0.5 0.0 0.9</ambient> <diffuse>1.0 0.5 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>1.0 0.5 0.0 1.0</ambient> <diffuse>1.0 0.5 0.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "brown":
             material = "<ambient>0.5 0.2 0.0 1.0</ambient> <diffuse>0.5 0.2 0.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"            
         elif ms[1] == "black":
-            material = "<ambient>0.0 0.0 0.0 0.9</ambient> <diffuse>0.0 0.0 0.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>0.0 0.0 0.0 1.0</ambient> <diffuse>0.0 0.0 0.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
         elif ms[1] == "white":
-            material = "<ambient>1.0 1.0 1.0 0.9</ambient> <diffuse>1.0 1.0 1.0 0.9</diffuse> <specular>0.3 0.3 0.3 1</specular>"
+            material = "<ambient>1.0 1.0 1.0 1.0</ambient> <diffuse>1.0 1.0 1.0 1.0</diffuse> <specular>0.3 0.3 0.3 1</specular>"
 
         with open(filename, "w") as f:
             f.write("<?xml version=\"1.0\" ?>\n<sdf version=\"1.5\">\n\n")
@@ -258,8 +274,8 @@ class ModelManager(Node):
             self.get_logger().info(f'Service {self.srv_name} not available, waiting...')
         self.create_req = SpawnEntity.Request()
 
-        models = self.get_gazebo_models()
-        # print(models)
+        models = self.GAZEBO_MODELS
+        #print(models)
         
         try:
             filename = os.path.join(models[model]['path'], models[model]['sdf'][0])
@@ -302,7 +318,8 @@ class ModelManager(Node):
         else:
             self.get_logger().error('Service call failed (no response)')
 
-
+    def del_object(self, model_name):
+        self.delete_object(model_name)
 
     def delete_object(self, model_name):
 
@@ -396,3 +413,15 @@ class ModelManager(Node):
                 time.sleep(0.1)
 
 
+    def move_robot(self, x, y, th_deg):
+        stype = "-s /world/default/set_pose --reqtype gz.msgs.Pose --reptype gz.msgs.Boolean --timeout 2000"
+
+        spos = "{ " + f"x: {x}, y: {y}, z: 0.25" + " }"
+        quaternion = quaternion_from_euler(0, 0, th_deg/180.0*math.pi)
+        squat = "{ " + f"x: {quaternion[0]}, y: {quaternion[1]}, z: {quaternion[2]}, w: {quaternion[3]}" + " }"
+
+        spar = f"name: \\\"smarrtino\\\", position: {spos}, orientation: {squat}"
+        cmd = f"gz service {stype} --req \"{spar}\""
+        print(cmd)
+        os.system(cmd)
+        time.sleep(1)

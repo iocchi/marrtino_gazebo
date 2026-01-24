@@ -74,14 +74,13 @@ class ActionFuture:
         self.callback_fn = fn
 
 
+rclpy.init()
 
 NODE_NAME = 'marrtino_control_client'
 
 class MARRtinoController(Node):
 
     def __init__(self):
-        
-        rclpy.init()
 
         super().__init__(NODE_NAME)
 
@@ -117,9 +116,8 @@ class MARRtinoController(Node):
         self.simulated_say = None
         self.simulated_asr = None
 
-
-        # Spin in a separate thread
-        thread = threading.Thread(target=rclpy.spin, args=(self, ), daemon=True)
+        # Spin in a separate thread  (daemon = quits when the node quits)
+        thread = threading.Thread(target=self.my_spin_fn, args=(), daemon=True)
         thread.start()
         time.sleep(0.5)
 
@@ -140,6 +138,8 @@ class MARRtinoController(Node):
                 time.sleep(0.1) # Use real-time sleep while waiting for sim time
                 rclpy.spin_once(self, timeout_sec=0.1)
             self.get_logger().info(f"Simulated time is now active: {self.get_clock().now().to_msg().sec} seconds")
+
+
 
         # rates
         rate10 = self.create_rate(10) # Hz
@@ -236,6 +236,19 @@ class MARRtinoController(Node):
  
         self.get_logger().info(f'{self.robot_name} controller node initialized ')
 
+
+    def __del__(self):
+        self.sub_personpose = None
+        self.get_logger().info(f'{self.robot_name} controller node terminated ')
+
+
+    def my_spin_fn(self):
+        # function to spin the node in a separate thread
+        while True:
+            try:
+                rclpy.spin_once(self, timeout_sec=0.1)
+            except Exception as e:
+                self.get_logger().warn(f"spin thread exception: {e}")
 
     def reset_data(self):
         self.gt_ts = []
@@ -450,9 +463,9 @@ class MARRtinoController(Node):
         msg.twist.linear.x = float(lx)
         msg.twist.angular.z = float(az)
         self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
-        rate100 = self.create_rate(100) # Hz
+        prate = self.create_rate(20) # Hz
         stop_requested = False
-        for _ in range(int(ts*100)):
+        for _ in range(int(ts*20)):
             self.check_emergency_stop()
             self.emergency_stop = self.emergency_stop and lx > 0
             if self.user_stop or self.emergency_stop or (afuture is not None and afuture.stop_event.is_set()):
@@ -460,24 +473,29 @@ class MARRtinoController(Node):
                 break
             msg.header.stamp = self.get_clock().now().to_msg()
             self.pub_cmd_vel.publish(msg)
-            rate100.sleep()
+            prate.sleep()
         if stop_on_end:
             for _ in range(5):
                 msg.header.stamp = self.get_clock().now().to_msg()
                 msg.twist.linear.x = 0.0
                 msg.twist.angular.z = 0.0
                 self.pub_cmd_vel.publish(msg)
-                rate100.sleep()
+                prate.sleep()
+
+        prate = None  # del the object
+
+        r = True
 
         if stop_requested:
             self.stop()
-
-        if self.emergency_stop:
-            self.get_logger().warn("!!! Emergency stop !!!")
+            r = False
+            if self.emergency_stop:
+                self.get_logger().warn("!!! Emergency stop !!!")
 
         if afuture is not None:
             afuture.notify_termination()
     
+        return r   # False: abnormal stop, close other behaviors looping on this function
 
 
     def publish_arms_command(self, fl, fr, ts=1, afuture=None):
@@ -1067,7 +1085,7 @@ class MARRtinoController(Node):
         ty = init_pose.pose.position.y + m * math.sin(th_rad)
 
         e = self.pos_err(tx,ty,th_rad)
-        while abs(e)>tol:       	    
+        while abs(e)>tol:
             # linear velocity
             lx = Kp * e
             if lx > max_vel:
@@ -1075,6 +1093,8 @@ class MARRtinoController(Node):
             elif lx < -max_vel:
                 lx = -max_vel
             self.setSpeed(lx,0,0.1)
+            if self.emergency_stop:  # check after at least one command sent
+                break
             e = self.pos_err(tx,ty,th_rad)
         self.setSpeed(0,0,0.2)
 

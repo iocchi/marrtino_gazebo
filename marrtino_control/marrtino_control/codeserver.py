@@ -14,7 +14,7 @@ import requests
 # robot object
 from control import MARRtinoController
 
-# gz_models object
+# gz object
 sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
@@ -27,7 +27,7 @@ HTTP_PORT = 3080
 WS_PORT = 9876
 
 robot = None
-gz_models = None
+gz = None
 ai = None
 
 code_running = None
@@ -146,7 +146,7 @@ nconnections = 0
 
 
 async def handler(websocket):
-    global code_running, robot, gz_models, ai, simulation_run, keepalive, lsb_mode
+    global code_running, robot, gz, ai, simulation_run, keepalive, lsb_mode
     global nconnections
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
@@ -244,6 +244,15 @@ async def handler(websocket):
                         print(f"Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
+
+                # robot reset
+                elif "robotreset" in data:
+                    print("Robot reset !!!")
+                    robot = None
+                    time.sleep(1)
+                    robot = MARRtinoController()
+                    time.sleep(1)
+
                 # single robot function
                 elif "robotfn" in data:
                     received_code = data["robotfn"]  # should be robot.fn(...) 
@@ -264,7 +273,7 @@ async def handler(websocket):
                     await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
 
                 elif "gazebo" in data:
-                    gz_fn = data["gazebo"]  # should be gz_models.fn(...) 
+                    gz_fn = data["gazebo"]  # should be gz.fn(...) 
 
                     print(f"Gazebo function: {gz_fn}")
 
@@ -349,11 +358,11 @@ async def handler(websocket):
             simulation_run = False
 
 async def main():
-    global robot, gz_models, ai, lsb_mode
+    global robot, gz, ai, lsb_mode
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
-    gz_models = ModelManager()
+    gz = ModelManager()
     if lsb_mode:
         gz_pause(True)
     ai = AI()
