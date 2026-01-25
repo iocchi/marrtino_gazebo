@@ -1,5 +1,7 @@
 import os
 import openai
+import base64
+
 #import chromadb
 
 MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M token
@@ -81,3 +83,77 @@ class AI:
         return response
 
 
+    def vision(self, prompt, image_b64):
+        # img must be a base64 encoding of the image !!!
+        try:           
+            completion = self.client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {
+                    "role": "user",
+                    "content": [
+                        {
+                        "type": "text",
+                            "text":f"{prompt}"},
+                        {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}",
+                        },
+                        },
+                    ],
+                    }
+                ],
+                # temperature=0.1,
+                )
+            response = (completion.choices[0].message.content)
+
+            usage = completion.usage
+            
+            self.gpt_total_tokens += usage.total_tokens
+            self.gpt_completion_tokens += usage.completion_tokens
+            self.gpt_prompt_tokens += usage.prompt_tokens
+
+            self.logf.write("vision\n")
+            self.logf.write(f"{prompt}\n{response}\n{usage.prompt_tokens};{usage.completion_tokens}\n----\n")
+            self.logf.flush()
+
+            return response
+        except Exception as e:
+            print(f"AI vision:: Getting response - {e}")
+            return None
+
+
+    def vision_file(self, prompt, img_filepath):
+    
+        image_b64 = None
+
+        # Read current image with the view of the robot
+        try:
+            with open(img_filepath, "rb") as img_file:
+                encoded_image = base64.b64encode(img_file.read()).decode("utf-8")
+        except Exception as e:
+            print(f"AI vision:: Reading image {img_filepath} - {e}")
+            return None
+
+        if image_b64 is None:
+            return None
+        
+        return self.vision(prompt, image_b64)
+        
+
+
+    def query(self, description, query):
+        query_system = { 
+            'role': 'system',
+            'content': "Answer the user request about this description: " + description
+        }
+        user_message = {
+            'role': 'user',
+            'content': query,
+        }
+        self.logf.write("query\n")
+        self.logf.write(f"{description}\n")        
+        response = self.send_llm_messages([query_system, user_message])
+        return response
+    

@@ -245,6 +245,7 @@ async def handler(websocket):
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
 
+                    '''
                 # robot reset
                 elif "robotreset" in data:
                     print("Robot reset !!!")
@@ -252,6 +253,7 @@ async def handler(websocket):
                     time.sleep(1)
                     robot = MARRtinoController()
                     time.sleep(1)
+                    '''
 
                 # single robot function
                 elif "robotfn" in data:
@@ -269,7 +271,10 @@ async def handler(websocket):
                         print(f"Robot Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
-                    print(f"Robot function result: [{r}]")
+                    if len(r)<80:
+                        print(f"Robot function result: [{r}]")
+                    else:
+                        print(f"Robot function result: [{r[0:20]}...] len={len(r)}")
                     await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
 
                 elif "gazebo" in data:

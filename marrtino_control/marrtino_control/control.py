@@ -9,6 +9,7 @@ from std_msgs.msg import Float64MultiArray, String
 from sensor_msgs.msg import JointState, LaserScan, Image
 from cv_bridge import CvBridge
 import cv2
+import base64
 
 from tf_transformations import euler_from_quaternion
 
@@ -74,13 +75,14 @@ class ActionFuture:
         self.callback_fn = fn
 
 
-rclpy.init()
 
 NODE_NAME = 'marrtino_control_client'
 
 class MARRtinoController(Node):
 
     def __init__(self):
+
+        rclpy.init()
 
         super().__init__(NODE_NAME)
 
@@ -97,6 +99,7 @@ class MARRtinoController(Node):
         self.joint_states = None
         self.gtpose = None
         self.scan = None
+        self.cv_image = None
         self.save_image = False
         self.save_pre_image = False
         self.save_post_image = False
@@ -242,9 +245,10 @@ class MARRtinoController(Node):
         self.get_logger().info(f'{self.robot_name} controller node terminated ')
 
 
+    # https://github.com/ros2/rclpy/blob/1a6c662400aa8eaa578503748e2a16c2dde27d65/rclpy/rclpy/executors.py#L266-L269
     def my_spin_fn(self):
         # function to spin the node in a separate thread
-        while True:
+        while self._context.ok():
             try:
                 rclpy.spin_once(self, timeout_sec=0.1)
             except Exception as e:
@@ -517,21 +521,21 @@ class MARRtinoController(Node):
                 msgr = Float64MultiArray()
                 msgr.data = [float(fr)]
                 self.get_logger().info(f'Publishing individual arm {interface} left:{fl:.3f} right:{fr:.3f}')
-                rate100 = self.create_rate(100) # Hz
-                for _ in range(int(ts*100)):
+                rate20 = self.create_rate(20) # Hz
+                for _ in range(int(ts*20)):
                     self.pub_lshp_cmd.publish(msgl)
                     self.pub_rshp_cmd.publish(msgr)
-                    rate100.sleep()
+                    rate20.sleep()
                     if self.user_stop or (afuture is not None and afuture.stop_event.is_set()):
                         break
             else:
                 msg = Float64MultiArray()
                 msg.data = [float(fl), float(fr)]
                 self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
-                rate100 = self.create_rate(100) # Hz
-                for _ in range(int(ts*100)):
+                rate20 = self.create_rate(20) # Hz
+                for _ in range(int(ts*20)):
                     self.pub_arm_cmd.publish(msg)
-                    rate100.sleep()
+                    rate20.sleep()
                     if self.user_stop or (stop_event is not None and stop_event.is_set()):
                         break
             if self.user_stop:
@@ -1296,7 +1300,18 @@ class MARRtinoController(Node):
 
 
     def get_image(self):
+        self.cv_image = None
         self.save_image = True
+        # wait for image from callback
+        rate10 = self.create_rate(10) # Hz
+        while self.cv_image is None:
+            rate10.sleep()
+        # we have an image now - encode in JPG and base64
+        success, buffer = cv2.imencode('.jpg', self.cv_image)
+        if success:
+            base64_image = base64.b64encode(buffer).decode('utf-8')
+            return base64_image
+        return None
 
     def get_pre_image(self):
         self.save_pre_image = True
@@ -1312,14 +1327,14 @@ class MARRtinoController(Node):
         if self.save_image:
             self.get_logger().info(f"Receiving image ...")
             try:
-                cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
+                self.cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
             except Exception as e:
                 self.get_logger().error(f"Failed to convert image: {e}")
                 return
 
             # Save the image
             try:
-                cv2.imwrite("../../www/lastimage.png", cv_image)
+                cv2.imwrite("../../www/lastimage.png", self.cv_image)
                 self.get_logger().info(f"Successfully saved image")
                 self.save_image = False
             except Exception as e:
