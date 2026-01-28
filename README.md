@@ -67,10 +67,12 @@ use the script
 
 
 
-# Setup
+# VPN Setup
+
+Ignore this step for local setup or if you are using a direct network connection.
+
 
 To enable VPN inside the docker (also for Sapienza Remote Labs)
-
 
 Add a Wireguard config file (e.g., `wgXXX.conf`)  in `docker/etc` folder
 
@@ -95,7 +97,7 @@ This option autodetects if nvidia drivers are present and uses nvidia runtime in
     cd docker
     ./run.bash
 
-## Option 2: vnc 
+## Option 2: VNC 
 
     cd docker
     ./run.bash vnc
@@ -146,18 +148,44 @@ or
     cd ~/src/marrtino_gazebo/marrtino_control/marrtino_control
     python codeserver.py
 
+
+2. Start the simulation GUI
+
+The simulation GUI is off at startup. In SRL-LSB mode, it is automatically activated upon user connection and deactivated when the user disconnects from the service. In other modes, it must be run manually
+
+    cd ~/src/marrtino_gazebo/bin
+    ./smarrtino_gui.bash
+
+
  
-2. Open a browser at
+3. Open a browser at
 
     http://localhost:3080/
     
-If you are using a VPN inside the container, use
+For remote connecions
+
+    http://<host_running_the_server>:3080/
+
+
+If you are using a VPN inside the container, activate the VPN and then use
 
     http://<VPN_IP>:3080/
 
 
+3. From the browser interface you can edit and run robot programs and access the web-based viewer if you are using VNC.
 
-# Manual test
+For example,
+
+Web interface to control the robot
+
+    http://<host>:3080/robot.html
+
+Web interface to view the simulation (in VNC mode)
+
+    http://<host>:3080/viewer
+
+
+# Manual test and detailed operations
 
 Inside the container
 

@@ -271,10 +271,11 @@ async def handler(websocket):
                         print(f"Robot Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
-                    if len(r)<80:
-                        print(f"Robot function result: [{r}]")
-                    else:
+                    if type(r) is str and len(r)>80:
                         print(f"Robot function result: [{r[0:20]}...] len={len(r)}")
+                    else:
+                        print(f"Robot function result: [{r}]")
+
                     await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
 
                 elif "gazebo" in data:
@@ -299,7 +300,7 @@ async def handler(websocket):
 
                     r = None
                     try:
-                        r = eval(gz_fn)
+                        r = eval(ai_fn)
                     except Exception as e:
                         print(f"AI Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
