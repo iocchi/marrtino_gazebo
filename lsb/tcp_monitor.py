@@ -108,7 +108,8 @@ def disconnect(client_ip):
 def gz_pause(flag):
     cmd = "gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 "
     cmd = cmd + ( "--req 'pause: true'" if flag else "--req 'pause: false'" )
-    print(cmd)
+    cmd = cmd + " > /dev/null"
+    #print(cmd)
     os.system(cmd)
 
 
@@ -117,7 +118,7 @@ def gz_gui(flag):
         cmd = "tmux send-keys -t 0:4 './smarrtino_gui.bash' C-m"
     else:
         cmd = "tmux send-keys -t 0:4 C-c"
-    print(cmd)
+    #print(cmd)
     os.system(cmd)
 
 def gz_get_paused():
@@ -176,8 +177,8 @@ try:
                 nl = len(users_in_lab)
             if user_bookings is not None:
                 nb = len(user_bookings)
-            if nc>0:
-                print(f"[{ts}] nr. clients: {nc}")
+            #if nc>0:
+            #    print(f"[{ts}] nr. clients: {nc}")
             if nc != nl or nc != nb:
                 print(f"[{ts}] WARNING - clients: {nc}, inlab: {nl}, bookings: {nb}");
         except Exception as e:
@@ -193,7 +194,7 @@ try:
                 if client_ip not in clients.keys():
                     print(f"[{ts}] New user in lab {uid} {client_ip}")
                     clients[client_ip] = time.time()
-
+                    nc = len(clients.keys())
 
         # create list of users to be disconnected
         to_disconnect = []
@@ -230,11 +231,11 @@ try:
 
         paused = gz_get_paused()
         if nc==0 and not paused:
-            print("Simulation paused, GUI off")
+            print(f"[{ts}] Simulation paused, GUI off")
             gz_pause(True)   # pause simulation
             gz_gui(False)    # kill gz gui
         elif nc>0 and paused:
-            print("Simulation running, GUI on")
+            print(f"[{ts}] Simulation running, GUI on")
             gz_pause(False)  # unpause simulation
             gz_gui(True)     # start gz gui
 
