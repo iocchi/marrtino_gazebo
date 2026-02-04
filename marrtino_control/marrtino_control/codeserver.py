@@ -100,6 +100,12 @@ def run_thread(code, websocket, donotify=True):
     print("Running code in a thread started.")
 
 
+def run_eval(fn):
+    global robot, ai, gz
+    r = eval(fn)
+    return r
+
+
 def terminate_thread():
     global code_running, run_code_thread
     if run_code_thread is not None:
@@ -266,7 +272,9 @@ async def handler(websocket):
 
                     r = None
                     try:
-                        r = eval(received_code)
+                        # r = run_eval(received_code)   -- blocking does not allow ping and causes disconnection !!!
+                        r = await asyncio.to_thread(run_eval, received_code)
+
                     except Exception as e:
                         print(f"Robot Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
@@ -374,7 +382,7 @@ async def main():
     ai = AI()
 
     # Start the WebSocket server on server host
-    async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_timeout=60) as server:
+    async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_interval=30, ping_timeout=10) as server:
         print(f"WebSocket server started on ws://0.0.0.0:{WS_PORT}")
         await server.serve_forever()  # Run forever
 

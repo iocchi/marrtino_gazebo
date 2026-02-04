@@ -318,33 +318,6 @@ class ModelManager(Node):
         else:
             self.get_logger().error('Service call failed (no response)')
 
-    def del_object(self, model_name):
-        self.delete_object(model_name)
-
-    def delete_object(self, model_name):
-
-        self.delete_cli = self.create_client(DeleteEntity, '/world/default/remove')
-        while not self.delete_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Service remove not available, waiting...')
-        self.delete_req = DeleteEntity.Request()
-    
-        self.delete_req.entity.id = 0 # ???
-        self.delete_req.entity.name = model_name
-        self.delete_req.entity.type = 2  # MODEL
-
-        future = self.delete_cli.call_async(self.delete_req)
-        rclpy.spin_until_future_complete(self, future)
-
-        if future.result() is not None:
-            if future.result().success:
-                self.get_logger().info(f'Successfully removed {model_name}')
-            else:
-                self.get_logger().error(f'Failed to remove {model_name}: {future.result().message}')
-        else:
-            self.get_logger().error('Service call failed (no response)')
-
-
-
 
     def add_objects(self, infile):
         with open(infile,'r') as f:
@@ -378,6 +351,32 @@ class ModelManager(Node):
             %(pose.position.x,pose.position.y,pose.position.z,a[0],a[1],a[2])
 
 
+    def del_object(self, model_name):
+        self.delete_object(model_name)
+
+    def delete_object(self, model_name):
+
+        self.delete_cli = self.create_client(DeleteEntity, '/world/default/remove')
+        while not self.delete_cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service remove not available, waiting...')
+        self.delete_req = DeleteEntity.Request()
+    
+        self.delete_req.entity.id = 0 # ???
+        self.delete_req.entity.name = model_name
+        self.delete_req.entity.type = 2  # MODEL
+
+        future = self.delete_cli.call_async(self.delete_req)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            if future.result().success:
+                self.get_logger().info(f'Successfully removed {model_name}')
+            else:
+                self.get_logger().error(f'Failed to remove {model_name}: {future.result().message}')
+        else:
+            self.get_logger().error('Service call failed (no response)')
+
+        time.sleep(0.1)
 
     # name = 'abc*'
     # delete all objects starting with abc
@@ -387,21 +386,26 @@ class ModelManager(Node):
             if obj.startswith(name[:-1]):
                 self.delete_object(obj)
 
-    def del_objects(self, infile):
-        with open(infile,'r') as f:
-            l = f.readline()
-            while l!=''  and l[0:4] != '#END':
-                l = l.strip()
-                if len(l)>1 and l[0]!='#':
-                    v = l.split()
-                    name = v[0]
-                    if '*' in name:
-                        self.delete_all_objects_like(name)
-                    else:
-                        self.delete_object(name)
+    def del_objects(self, objs):
+        if type(objs) == list:
+            for ob in objs:
+                self.del_object(ob)
+        elif type(objs) == str:
+            with open(objs,'r') as f:
                 l = f.readline()
-            f.close()
-
+                while l!=''  and l[0:4] != '#END':
+                    l = l.strip()
+                    if len(l)>1 and l[0]!='#':
+                        v = l.split()
+                        name = v[0]
+                        if '*' in name:
+                            self.delete_all_objects_like(name)
+                        else:
+                            self.delete_object(name)
+                    l = f.readline()
+                f.close()
+        else:
+            print(f"Error del_objects unkwnown type {obsj}")
 
     def del_all_objects(self):
         l = self.list_objects()
