@@ -81,13 +81,20 @@ def run_code(websocket, donotify=True):
                 print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
-def print_robot_say(websocket):
+
+def print_robot_say(websocket, client_connected):  # use list as reference arg
     global robot
-    while code_running is not None:
-        if robot.simulated_say is not None:
-            asyncio.run(send_robot_say(websocket, robot.simulated_say))
-        robot.simulated_say = None
+    #print("print_robot_say started ...")
+    while client_connected[0]: #code_running is not None:
+        if robot is not None: 
+            if robot.simulated_say is not None:
+                print(" -- send websocket {robot.simulated_say}")
+                asyncio.run(send_robot_say(websocket, robot.simulated_say))
+            robot.simulated_say = None
         time.sleep(0.5)
+    #print("print_robot_say finished ...")
+
+
 
 def run_thread(code, websocket, donotify=True):
     global code_running, run_code_thread
@@ -95,8 +102,8 @@ def run_thread(code, websocket, donotify=True):
     code_running = code
     run_code_thread = Thread(target=run_code, args=(websocket, donotify))
     run_code_thread.start()
-    t2 = Thread(target=print_robot_say, args=(websocket, ))
-    t2.start()
+    #t2 = Thread(target=print_robot_say, args=(websocket, ))
+    #t2.start()
     print("Running code in a thread started.")
 
 
@@ -160,6 +167,13 @@ async def handler(websocket):
     
     nconnections += 1
     print(f"Connected clients: {nconnections}")
+
+    # use list as reference arg
+    client_connected = [ True ]
+
+    th_robot_say = Thread(target=print_robot_say, args=(websocket, client_connected ), daemon=True)
+    th_robot_say.start()
+
 
     lsb_user = False
 
@@ -251,15 +265,6 @@ async def handler(websocket):
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
 
-                    '''
-                # robot reset
-                elif "robotreset" in data:
-                    print("Robot reset !!!")
-                    robot = None
-                    time.sleep(1)
-                    robot = MARRtinoController()
-                    time.sleep(1)
-                    '''
 
                 # single robot function
                 elif "robotfn" in data:
@@ -364,6 +369,9 @@ async def handler(websocket):
         printt(f"Finally client {clientIP} connection closed.")
         nconnections -= 1
         print(f"Connected clients: {nconnections}")
+
+        client_connected[0] = False
+        th_robot_say.join()
 
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation

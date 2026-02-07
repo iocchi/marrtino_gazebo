@@ -466,7 +466,7 @@ class MARRtinoController(Node):
         msg = TwistStamped()
         msg.twist.linear.x = float(lx)
         msg.twist.angular.z = float(az)
-        self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
+        # self.get_logger().info(f'Publishing cmd_vel: {lx:.3f} {az:.3f} time: {ts:.2f} s')
         prate = self.create_rate(20) # Hz
         stop_requested = False
         for _ in range(int(ts*20)):
@@ -520,7 +520,7 @@ class MARRtinoController(Node):
                 msgl.data = [float(fl)]
                 msgr = Float64MultiArray()
                 msgr.data = [float(fr)]
-                self.get_logger().info(f'Publishing individual arm {interface} left:{fl:.3f} right:{fr:.3f}')
+                # self.get_logger().info(f'Publishing individual arm {interface} left:{fl:.3f} right:{fr:.3f}')
                 rate20 = self.create_rate(20) # Hz
                 for _ in range(int(ts*20)):
                     self.pub_lshp_cmd.publish(msgl)
@@ -531,7 +531,7 @@ class MARRtinoController(Node):
             else:
                 msg = Float64MultiArray()
                 msg.data = [float(fl), float(fr)]
-                self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
+                # self.get_logger().info(f'Publishing arm {interface}: {fl:.3f} {fr:.3f}')
                 rate20 = self.create_rate(20) # Hz
                 for _ in range(int(ts*20)):
                     self.pub_arm_cmd.publish(msg)
@@ -588,7 +588,7 @@ class MARRtinoController(Node):
             msg = Float64MultiArray()
             val = self.safe_arm_command(val, which)
             msg.data = [float(val)]
-            self.get_logger().info(f'Publishing {which} arm {self.control_interface}: {val:.3f}')
+            # self.get_logger().info(f'Publishing {which} arm {self.control_interface}: {val:.3f}')
             rate100 = self.create_rate(100) # Hz
             for _ in range(int(ts*100)):
                 val = self.safe_arm_command(val, which)
@@ -632,7 +632,7 @@ class MARRtinoController(Node):
 
             msg = Float64MultiArray()
             msg.data = [float(value)]
-            self.get_logger().info(f'Publishing head {which} {interface}: {value:.3f}')
+            # self.get_logger().info(f'Publishing head {which} {interface}: {value:.3f}')
             rate100 = self.create_rate(100) # Hz
             for _ in range(int(ts*100)):
                 pub.publish(msg)
@@ -1222,7 +1222,7 @@ class MARRtinoController(Node):
     '''
 
     def say(self, sentence, language='en'):
-        print(f"saying '{sentence}' ...")
+        print(f"saying [{language}] '{sentence}' ...")
         self.simulated_say = sentence
         self.sleep(0.5)  # wait for say message to go through
 

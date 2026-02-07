@@ -76,7 +76,7 @@ To enable VPN inside the docker (also for Sapienza Remote Labs)
 
 Add a Wireguard config file (e.g., `wgXXX.conf`)  in `docker/etc` folder
 
-Create a file `config.env` in the main folder and add a line to specify the wg interface
+Create a file `config.env` in the `docker` folder and add a line to specify the wg interface
 corresponding to the config file
 
     WGIF=wgXXX
