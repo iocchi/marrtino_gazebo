@@ -265,6 +265,11 @@ class ModelManager(Node):
         return filename
 
 
+    def move_object(self, name, model, pose):
+        self.del_object(name)
+        self.add_object(name, model, pose)
+
+
     def add_object(self, name, model, pose):
 
         self.srv_name = '/world/default/create'
@@ -356,6 +361,11 @@ class ModelManager(Node):
 
     def delete_object(self, model_name):
 
+        if type(model_name) is list:
+            for m in model_name:
+                self.delete_object(m)
+            return
+
         self.delete_cli = self.create_client(DeleteEntity, '/world/default/remove')
         while not self.delete_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Service remove not available, waiting...')
@@ -415,6 +425,10 @@ class ModelManager(Node):
             if obj not in excluded:
                 self.delete_object(obj)
                 time.sleep(0.1)
+
+
+
+
 
 
     def move_robot(self, x, y, th_deg):

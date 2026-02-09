@@ -88,9 +88,10 @@ def print_robot_say(websocket, client_connected):  # use list as reference arg
     while client_connected[0]: #code_running is not None:
         if robot is not None: 
             if robot.simulated_say is not None:
-                print(" -- send websocket {robot.simulated_say}")
+                print(f" -- send websocket {robot.simulated_say}")
                 asyncio.run(send_robot_say(websocket, robot.simulated_say))
-            robot.simulated_say = None
+                time.sleep(2)  # wait for other clients to do the same
+                robot.simulated_say = None
         time.sleep(0.5)
     #print("print_robot_say finished ...")
 
@@ -134,7 +135,7 @@ async def notify_thread_completed(websocket, donotify):
 
 
 async def send_robot_say(websocket, sentence):
-    print(f'send robot say: {sentence}')
+    print(f' -- send robot say: {sentence}')
     await websocket.send(json.dumps({"status": "say", "message": sentence }))
 
 
@@ -276,13 +277,16 @@ async def handler(websocket):
                     print(f"Robot function: {received_code}")
 
                     r = None
-                    try:
-                        # r = run_eval(received_code)   -- blocking does not allow ping and causes disconnection !!!
-                        r = await asyncio.to_thread(run_eval, received_code)
-
-                    except Exception as e:
-                        print(f"Robot Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    success = False
+                    while not success:
+                        try:
+                            # r = run_eval(received_code)   -- blocking does not allow ping and causes disconnection !!!
+                            r = await asyncio.to_thread(run_eval, received_code)
+                            success = True
+                        except Exception as e:
+                            print(f"Robot Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}"}))
+                            time.sleep(1)
 
                     if type(r) is str and len(r)>80:
                         print(f"Robot function result: [{r[0:20]}...] len={len(r)}")
@@ -297,11 +301,15 @@ async def handler(websocket):
                     print(f"Gazebo function: {gz_fn}")
 
                     r = None
-                    try:
-                        r = eval(gz_fn)
-                    except Exception as e:
-                        print(f"Gazebo Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    success = False
+                    while not success:
+                        try:
+                            r = eval(gz_fn)
+                            success = True
+                        except Exception as e:
+                            print(f"Gazebo Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}"}))
+                            time.sleep(1)
 
                     print(f"Gazebo function result: [{r}]")
                     await websocket.send(json.dumps({"status": "gazebo_done", "result": r}))
@@ -312,11 +320,15 @@ async def handler(websocket):
                     print(f"AI function: {ai_fn}")
 
                     r = None
-                    try:
-                        r = eval(ai_fn)
-                    except Exception as e:
-                        print(f"AI Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    success = False
+                    while not success:
+                        try:
+                            r = await asyncio.to_thread(run_eval, ai_fn)
+                            success = True
+                        except Exception as e:
+                            print(f"AI Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                            time.sleep(1)
 
                     print(f"AI function result: [{r}]")
                     await websocket.send(json.dumps({"status": "ai_done", "result": r}))
