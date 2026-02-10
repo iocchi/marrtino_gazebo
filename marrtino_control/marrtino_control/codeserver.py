@@ -82,19 +82,18 @@ def run_code(websocket, donotify=True):
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
-def print_robot_say(websocket, client_connected):  # use list as reference arg
+def notify_robot_say(G_connections):
     global robot
-    #print("print_robot_say started ...")
-    while client_connected[0]: #code_running is not None:
+    while True:
         if robot is not None: 
             if robot.simulated_say is not None:
                 print(f" -- send websocket {robot.simulated_say}")
-                asyncio.run(send_robot_say(websocket, robot.simulated_say))
-                time.sleep(2)  # wait for other clients to do the same
+                for websocket in G_connections:
+                    asyncio.run(send_robot_say(websocket, robot.simulated_say))
+                    time.sleep(0.2)
+                time.sleep(1)
                 robot.simulated_say = None
         time.sleep(0.5)
-    #print("print_robot_say finished ...")
-
 
 
 def run_thread(code, websocket, donotify=True):
@@ -103,8 +102,6 @@ def run_thread(code, websocket, donotify=True):
     code_running = code
     run_code_thread = Thread(target=run_code, args=(websocket, donotify))
     run_code_thread.start()
-    #t2 = Thread(target=print_robot_say, args=(websocket, ))
-    #t2.start()
     print("Running code in a thread started.")
 
 
@@ -156,25 +153,24 @@ def gz_gui(flag):
 
 
 # global
+G_connections = []
 nconnections = 0
 
+th_robot_say = Thread(target=notify_robot_say, args=(G_connections, ), daemon=True)
+th_robot_say.start()
 
 async def handler(websocket):
     global code_running, robot, gz, ai, simulation_run, keepalive, lsb_mode
-    global nconnections
+    global nconnections, G_connections
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
     printt(f"Client connected from {clientIP} id: {websocket.id}")
     
     nconnections += 1
+    G_connections.append(websocket)
+    
     print(f"Connected clients: {nconnections}")
-
-    # use list as reference arg
-    client_connected = [ True ]
-
-    th_robot_say = Thread(target=print_robot_say, args=(websocket, client_connected ), daemon=True)
-    th_robot_say.start()
-
+    #print(f"WS Connections: {G_connections}")
 
     lsb_user = False
 
@@ -380,10 +376,9 @@ async def handler(websocket):
     finally:
         printt(f"Finally client {clientIP} connection closed.")
         nconnections -= 1
+        G_connections.remove(websocket)
         print(f"Connected clients: {nconnections}")
-
-        client_connected[0] = False
-        th_robot_say.join()
+        #print(f"WS Connections: {G_connections}")
 
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation
