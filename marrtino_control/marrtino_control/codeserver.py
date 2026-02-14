@@ -410,6 +410,7 @@ async def handler(websocket):
             current_userid = None
 
         # send a stop command to the robot (just in case...)
+        print("Stop robot on disconnect.")
         await asyncio.to_thread(run_eval, "robot.stop()")
         time.sleep(1)
 
