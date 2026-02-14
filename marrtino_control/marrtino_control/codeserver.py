@@ -100,7 +100,7 @@ def run_thread(code, websocket, donotify=True):
     global code_running, run_code_thread
     print("Running code in a thread ...")
     code_running = code
-    run_code_thread = Thread(target=run_code, args=(websocket, donotify))
+    run_code_thread = Thread(target=run_code, args=(websocket, donotify), daemon=True)
     run_code_thread.start()
     print("Running code in a thread started.")
 
