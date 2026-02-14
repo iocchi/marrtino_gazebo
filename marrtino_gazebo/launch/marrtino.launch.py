@@ -105,6 +105,12 @@ def generate_launch_description():
             ]
     )
 
+    node_gz_objects_srv = Node(
+            package='marrtino_gazebo',
+            executable='gz_objects_srv.py',
+            name='gz_objects_srv',
+            output='screen'
+        )
 
     gz_spawn_entity = Node(
         package='ros_gz_sim',
@@ -303,6 +309,7 @@ def generate_launch_description():
         
         bridge,
         node_marrtino_parameters,
+        node_gz_objects_srv,
         node_robot_state_publisher,
         gz_spawn_entity,
 

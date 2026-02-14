@@ -30,6 +30,8 @@ CMD="docker exec -it marrtino_gazebo "
 
 $CMD bash -ci "sudo cp ~/src/marrtino_gazebo/docker/etc/\${WGIF}.conf /etc/wireguard && sudo wg-quick up \${WGIF}"
 
+$CMD bash -ci "cd ~/ros2_ws && colcon build"
+
 docker exec -it marrtino_gazebo tmux a
 
 DOCKER_RUNTIME=${DOCKER_RUNTIME} docker compose -f $DC rm -f

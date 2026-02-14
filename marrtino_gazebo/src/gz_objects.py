@@ -12,10 +12,11 @@ if __name__ == '__main__':
             print("Options")
             print("-h\thelp")
             print("-l\tlist of existing objects in the simulation")
-            print("-s <obj>\tobject properties and state")
+            print("-p\tprint existing objects in the simulation")
+            print("-o <obj>\tobject properties and state")
             print("-m\tlist of available models")
             print("-a <name> <type> <x> <y> <z> <yaw> <pitch> <roll>|<filename>\tadd an object or all objects in config file")
-            print("-d <obj>|<filename>\tdelete one object or all objects in config file")
+            print("-d <obj>|<filename>|all\tdelete one object or all objects in config file")
             #print("-w\tworld properties")
 
     else:
@@ -24,21 +25,19 @@ if __name__ == '__main__':
 
         elif sys.argv[1]=='-l':
             l = mm.list_objects()
-            '''
-            l = mm.list_object_names()
-            for obj in l:
-                p = get_object_pose(obj)
-                #s = get_model_state(obj)
-                print("%s  %s" %(obj,pose_str(p)))
-            '''
 
-        elif sys.argv[1]=='-s' and len(sys.argv)>2:
+        elif sys.argv[1]=='-p':
+            mm.print_all_objects_state()
+
+        elif sys.argv[1]=='-o' and len(sys.argv)>2:
             name = sys.argv[2]
             print("Object %s" %name)
-            mm.print_object_state(name)
+            # mm.print_object_state(name)
+            s = mm.get_object_state(name)
+            print(s)
 
-        #elif sys.argv[1]=='-w':
-        #    print(get_world_properties())
+        elif sys.argv[1]=='-s' and len(sys.argv)>2:
+            mm.save_world(sys.argv[2])
 
         elif sys.argv[1]=='-a' and len(sys.argv)>2:
             name = sys.argv[2]

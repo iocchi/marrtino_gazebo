@@ -1,0 +1,8 @@
+# Request
+string action     # "add", "del", or "list"
+string value      # The string to add or remove (ignored for "list")
+---
+# Response
+bool success      # True if the operation worked
+string[] list     # The current state of the list
+string message    # Informational message (e.g., "String not found")

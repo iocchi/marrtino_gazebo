@@ -15,6 +15,12 @@ find_package(joint_state_broadcaster REQUIRED)
 find_package(joint_trajectory_controller REQUIRED)
 find_package(controller_manager REQUIRED)
 
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/GazeboObjects.srv"
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -39,5 +45,12 @@ install(
   DIRECTORY urdf config worlds models
   DESTINATION share/${PROJECT_NAME}
 )
+
+# Install Python service
+install(PROGRAMS
+  src/gz_objects_srv.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 
 ament_package()

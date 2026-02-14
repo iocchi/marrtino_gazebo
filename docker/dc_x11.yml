@@ -26,6 +26,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       - GZ_SIM_RESOURCE_PATH=/home/robot/src/marrtino_gazebo/marrtino_gazebo/models
+      - PATH_USERS=/home/robot/src/marrtino_gazebo/users
     volumes:
       - $PWD/..:/home/robot/src/marrtino_gazebo
       - $PWD/etc/nginx/default:/etc/nginx/sites-available/default

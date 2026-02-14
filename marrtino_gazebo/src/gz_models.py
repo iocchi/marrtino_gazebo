@@ -16,6 +16,8 @@ from ros_gz_interfaces.msg import EntityFactory
 from geometry_msgs.msg import Pose, Point, Quaternion
 from tf_transformations import quaternion_from_euler
 
+from marrtino_gazebo.srv import GazeboObjects
+
 
 class ModelManager(Node):
     def __init__(self):
@@ -27,6 +29,38 @@ class ModelManager(Node):
 
         self.get_gazebo_models()
 
+        # dict of static object strings (for save/load worlds)
+        # name: obj_str
+
+        # Wait for the service to be available
+        self.cli_gz = self.create_client(GazeboObjects, 'gz_current_objects')
+        while not self.cli_gz.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service gz_current_objects not available, waiting...')
+        self.gz_currobj_req = GazeboObjects.Request()
+
+
+    # blocking call for service gz_current_objects
+    def send_srv_request(self, action, value=""):
+        self.gz_currobj_req.action = action
+        self.gz_currobj_req.value = value
+        # Call the service and return the future
+        future = self.cli_gz.call_async(self.gz_currobj_req)
+    
+        # Spin until the response is received
+        rclpy.spin_until_future_complete(self, future)
+        
+        response = future.result()
+        if response.success:
+            #self.get_logger().info(f"Success: {response.message}")
+            #self.get_logger().info(f"Current List: {response.list}")
+            return response.list
+        else:
+            self.get_logger().error(f"Failed: {response.message}")
+
+        return None
+
+
+    '''
     def spawn_box(self, model_name, x, y, z):
         # Define the SDF for a simple red box
         box_sdf = f"""<?xml version="1.0" ?>
@@ -97,12 +131,12 @@ class ModelManager(Node):
                 self.get_logger().error(f'Failed to spawn {model_name}: {future.result().message}')
         else:
             self.get_logger().error('Service call failed (no response)')
-
+    '''
 
 
 
     def list_objects(self):
-        os.system(f"gz model --list > /tmp/objlist.txt")
+        os.system(f"gz model --list 2> /dev/null > /tmp/objlist.txt ")
         listobj = []
         with open("/tmp/objlist.txt", "r") as f:
             for line in f:
@@ -112,6 +146,34 @@ class ModelManager(Node):
                     listobj.append(objname)
         print(listobj)
         return listobj
+
+    def get_object_state(self, name):
+        '''
+        os.system(f"gz model -m {model_name}  2> /dev/null > /tmp/objstate.txt")
+        with open("/tmp/objstate.txt", "r") as f:
+            pos = 0
+            for line in f:
+                if line[0:8] == "  - Pose":
+                    pos = 1  # next line is poss
+                elif pos==1:
+                    print(f"Pos: {line}")
+                    pos += 1  # next line is RPY
+                elif pos==2:
+                    print(f"RPY: {line}")
+                    pos = 0  # nothing else
+                    break
+        '''
+        r = self.send_srv_request("get", name)
+        return r[0] if r is not None else None
+
+    def print_all_objects_state(self):
+            lo = self.list_objects()
+            for o in lo:
+                s = self.get_object_state(o)
+                if s is not None:
+                    print(s)
+
+
 
     def print_object_state(self, model_name):
         os.system(f"gz model -m {model_name}")
@@ -192,6 +254,8 @@ class ModelManager(Node):
         object_pose.orientation.z = quaternion[2]
         object_pose.orientation.w = quaternion[3]
         return object_pose
+
+
 
     def save_model(self, model, collision=True):
         filename = f'/tmp/tmp_{model}.sdf'
@@ -318,6 +382,9 @@ class ModelManager(Node):
         if future.result() is not None:
             if future.result().success:
                 self.get_logger().info(f'Successfully spawned {name}')
+                pose_str = ' '.join([str(v) for v in pose])
+                r = self.send_srv_request("add", value=f"{name} {model} {pose_str}")
+                #self.get_logger().info(f'Service gz_current_objects result: {r}')
             else:
                 self.get_logger().error(f'Failed to spawn {name}: {future.result().message}')
         else:
@@ -344,9 +411,6 @@ class ModelManager(Node):
                         print("Parse error: %s" %l)
                 l = f.readline()
             f.close()
-
-
-
 
 
     def pose_str(self, pose):
@@ -381,6 +445,8 @@ class ModelManager(Node):
         if future.result() is not None:
             if future.result().success:
                 self.get_logger().info(f'Successfully removed {model_name}')
+                r = self.send_srv_request("del", value=model_name)
+                #self.get_logger().info(f'Service gz_current_objects result: {r}')
             else:
                 self.get_logger().error(f'Failed to remove {model_name}: {future.result().message}')
         else:
@@ -427,10 +493,6 @@ class ModelManager(Node):
                 time.sleep(0.1)
 
 
-
-
-
-
     def move_robot(self, x, y, th_deg):
         stype = "-s /world/default/set_pose --reqtype gz.msgs.Pose --reptype gz.msgs.Boolean --timeout 2000"
 
@@ -443,3 +505,43 @@ class ModelManager(Node):
         print(cmd)
         os.system(cmd)
         time.sleep(1)
+
+    def get_user_path(self):
+        upath = os.getenv('PATH_USERS')
+        if upath is None:
+            self.get_logger().warn(f"Gazebo Objects Service: PATH_USERS env not found. Using '/op/users'")
+            upath = '/opt/users'
+
+        cuf = os.path.join(upath,"current_user")
+        try:
+            with open(cuf, "r") as f:
+                l = f.readline().strip()
+        except:
+            l = ''
+        if l == '':
+            l = 'anonymous'
+
+        userpath = os.path.join(upath, l)
+        if not os.path.isdir(userpath):
+            os.mkdir(userpath)
+
+        return userpath
+
+    def save_world(self, world_file):
+        lo = self.list_objects()
+        world_path = os.path.join(self.get_user_path(), world_file)
+        with open(world_path, "w") as f:
+            for o in lo:
+                r = self.send_srv_request("get", o)
+                if r is not None:
+                    f.write(r[0]+'\n')
+        print(f"Saved gazebo world file {world_path}")
+
+    def load_world(self, world_file):
+        world_path = os.path.join(self.get_user_path(), world_file)
+        if os.path.isfile(world_path):
+            self.del_all_objects()
+            self.add_objects(world_path)
+            print(f"Loaded gazebo world file {world_path}")
+
+

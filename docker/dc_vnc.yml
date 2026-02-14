@@ -47,6 +47,7 @@ services:
     environment:
       - DISPLAY=:9
       - GZ_SIM_RESOURCE_PATH=/home/robot/src/marrtino_gazebo/marrtino_gazebo/models
+      - PATH_USERS=/home/robot/src/marrtino_gazebo/users
     volumes_from:
       - xserver
     depends_on:

@@ -155,13 +155,22 @@ def gz_gui(flag):
 # global
 G_connections = []
 nconnections = 0
+current_userid = None
 
 th_robot_say = Thread(target=notify_robot_say, args=(G_connections, ), daemon=True)
 th_robot_say.start()
 
+
+def get_user_path():
+    upath = os.getenv('PATH_USERS')
+    if upath is None:
+        print(f"codeserver: PATH_USERS env not found. Using '/op/users'")
+        upath = '/opt/users'
+    return upath
+
 async def handler(websocket):
     global code_running, robot, gz, ai, simulation_run, keepalive, lsb_mode
-    global nconnections, G_connections
+    global nconnections, G_connections, current_userid
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
     printt(f"Client connected from {clientIP} id: {websocket.id}")
@@ -172,6 +181,10 @@ async def handler(websocket):
     print(f"Connected clients: {nconnections}")
     #print(f"WS Connections: {G_connections}")
 
+    userid = clientIP   # default user_id
+    firstname = "No"
+    lastname = "Name"
+    email = "@"
     lsb_user = False
 
     if lsb_mode:
@@ -193,25 +206,30 @@ async def handler(websocket):
 
                 lsb_user = True
 
-                printt(f"LSB Connected {clientIP} {firstname} {lastname} {email} {userid}")
-                # await websocket.send(f"USER {firstname} {lastname} {userid} IP {clientIP}")
-                await websocket.send(
-                    json.dumps({ "status": "user",
-                                 "name": f"{firstname} {lastname}", 
-                                 "id": userid, 
-                                 "ip": clientIP } ))
 
         except Exception as e:
             print("Error in accessing SRL services")
             print(e)
 
-    if not lsb_user:
-        await websocket.send(
-            json.dumps({ "status": "user",
-                         "name": "Unknown", 
-                         "id": "noID", 
-                         "ip": clientIP } ))
+    lsb_str = "LSB " if lsb_user else ''
+    printt(f"{lsb_str}User Connected {userid} {firstname} {lastname} {email} {clientIP}")
+    t0 = time.time()
 
+    if nconnections == 1:  # current user
+        current_userid = userid
+        cuf = os.path.join(get_user_path(),"current_user")
+        with open(cuf, "w") as f:
+            f.write(userid+"\n")
+
+    elif nconnections > 1:
+        if current_userid != userid:
+            printt("BIG WARNING: multiple users!!! current {current_userid} - now {userid} !!!")
+
+    await websocket.send(
+        json.dumps({ "status": "user",
+                        "name": f"{firstname} {lastname}", 
+                        "id": userid, 
+                        "ip": clientIP } ))
 
     #os.system("cp noimage.jpg lastimage.png")
     if lsb_mode and not simulation_run: # start simulation
@@ -359,7 +377,6 @@ async def handler(websocket):
                 print(f"Received non-JSON message: {message}")
                 await websocket.send(json.dumps({"status": "error", "message": "Expected JSON format."}))
 
-        print(f"Connection closed for {clientIP}")
         #if lsb_user:
         #    url = f"api/user/{clientIP}/disconnect"
         #    method = 'PUT'
@@ -375,10 +392,22 @@ async def handler(websocket):
         printt(f"An unexpected error occurred: {e}")
     finally:
         printt(f"Finally client {clientIP} connection closed.")
+
+        lsb_str = "LSB " if lsb_user else ''
+        printt(f"{lsb_str}User Disconnect {userid} {firstname} {lastname} {email} {clientIP}")
+        tend = time.time()
+        printt(f"{lsb_str}User Connection Time {userid} {tend-t0:.1f} sec")
+
         nconnections -= 1
         G_connections.remove(websocket)
         print(f"Connected clients: {nconnections}")
         #print(f"WS Connections: {G_connections}")
+
+        if nconnections == 0:
+            cuf = os.path.join(get_user_path(),"current_user")
+            with open(cuf, "w") as f:
+                f.write("\n")
+            current_userid = None
 
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation
