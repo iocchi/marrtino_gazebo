@@ -409,6 +409,10 @@ async def handler(websocket):
                 f.write("\n")
             current_userid = None
 
+        # send a stop command to the robot (just in case...)
+        await asyncio.to_thread(run_eval, "robot.stop()")
+        time.sleep(1)
+
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation
             gz_pause(True)   # pause simulation
