@@ -122,14 +122,15 @@ class MARRtinoController(Node):
         # Spin in a separate thread  (daemon = quits when the node quits)
         thread = threading.Thread(target=self.my_spin_fn, args=(), daemon=True)
         thread.start()
-        time.sleep(0.5)
+        time.sleep(1)
 
         print("Setting use_sim_time to True ...")
         os.system(f"ros2 param set {NODE_NAME} use_sim_time True")
         '''  DOES NOT WORK !!!
         pp = Parameter('use_sim_time', ParameterType.PARAMETER_BOOL, True)
+        pp = Parameter('use_sim_time', ParameterType.PARAMETER_INT, 1)
         self.set_parameters([pp])
-        '''    
+        '''
 
         print(f"use_sim_time = {self.get_parameter('use_sim_time').get_parameter_value().bool_value}")
 
