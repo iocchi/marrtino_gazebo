@@ -52,6 +52,9 @@ class ModelManager(Node):
             except IndexError as e:
                 self.get_logger().error(f"Index Error: {e}")
                 time.sleep(0.1)
+            except ValueError as e:
+                self.get_logger().error(f"Value Error: {e}")
+                time.sleep(0.1)
 
 
 

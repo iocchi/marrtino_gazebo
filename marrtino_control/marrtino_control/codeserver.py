@@ -116,6 +116,9 @@ def run_eval(fn):
         except IndexError as e:
             self.get_logger().error(f"Index Error in run_eval: {e}")
             time.sleep(0.1)
+ #       except ValueError as e:
+ #           self.get_logger().error(f"Value Error in run_eval: {e}")
+ #           time.sleep(0.1)
 
     return r
 
