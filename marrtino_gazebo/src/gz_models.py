@@ -29,6 +29,10 @@ class ModelManager(Node):
 
         self.get_gazebo_models()
 
+        # object to exclude from state and delete
+        self.excluding = ['smarrtino', 'ground_plane', 
+                     'black_wall1','black_wall2','black_wall3','black_wall4']
+
         # dict of static object strings (for save/load worlds)
         # name: obj_str
 
@@ -39,6 +43,18 @@ class ModelManager(Node):
         self.gz_currobj_req = GazeboObjects.Request()
 
 
+    def safe_spin_until_future_complete(self, future):
+        complete = False
+        while not complete:
+            try:
+                rclpy.spin_until_future_complete(self, future)
+                complete = True
+            except IndexError as e:
+                self.get_logger().error(f"Index Error: {e}")
+                time.sleep(0.1)
+
+
+
     # blocking call for service gz_current_objects
     def send_srv_request(self, action, value=""):
         self.gz_currobj_req.action = action
@@ -47,8 +63,8 @@ class ModelManager(Node):
         future = self.cli_gz.call_async(self.gz_currobj_req)
     
         # Spin until the response is received
-        rclpy.spin_until_future_complete(self, future)
-        
+        self.safe_spin_until_future_complete(future)
+
         response = future.result()
         if response.success:
             #self.get_logger().info(f"Success: {response.message}")
@@ -163,6 +179,8 @@ class ModelManager(Node):
                     pos = 0  # nothing else
                     break
         '''
+        if name in self.excluding:
+            return None
         r = self.send_srv_request("get", name)
         return r[0] if r is not None else None
 
@@ -377,7 +395,7 @@ class ModelManager(Node):
         self.get_logger().info(f'Attempting to spawn model: {name} of type {model} at {pose}')
         
         future = self.create_cli.call_async(self.create_req)
-        rclpy.spin_until_future_complete(self, future)
+        self.safe_spin_until_future_complete(future)
 
         if future.result() is not None:
             if future.result().success:
@@ -430,6 +448,9 @@ class ModelManager(Node):
                 self.delete_object(m)
             return
 
+        if model_name in self.excluding:
+            return
+
         self.delete_cli = self.create_client(DeleteEntity, '/world/default/remove')
         while not self.delete_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Service remove not available, waiting...')
@@ -440,7 +461,7 @@ class ModelManager(Node):
         self.delete_req.entity.type = 2  # MODEL
 
         future = self.delete_cli.call_async(self.delete_req)
-        rclpy.spin_until_future_complete(self, future)
+        self.safe_spin_until_future_complete(future)
 
         if future.result() is not None:
             if future.result().success:
@@ -532,9 +553,10 @@ class ModelManager(Node):
         world_path = os.path.join(self.get_user_path(), world_file)
         with open(world_path, "w") as f:
             for o in lo:
-                r = self.send_srv_request("get", o)
-                if r is not None:
-                    f.write(r[0]+'\n')
+                if o not in self.excluding:
+                    r = self.send_srv_request("get", o)
+                    if r is not None:
+                        f.write(r[0]+'\n')
         print(f"Saved gazebo world file {world_path}")
 
     def load_world(self, world_file):
@@ -543,5 +565,7 @@ class ModelManager(Node):
             self.del_all_objects()
             self.add_objects(world_path)
             print(f"Loaded gazebo world file {world_path}")
+            return True
+        return False
 
 

@@ -107,7 +107,16 @@ def run_thread(code, websocket, donotify=True):
 
 def run_eval(fn):
     global robot, ai, gz
-    r = eval(fn)
+    # try unitl completed
+    complete = False
+    while not complete:
+        try:
+            r = eval(fn)
+            complete = True
+        except IndexError as e:
+            self.get_logger().error(f"Index Error in run_eval: {e}")
+            time.sleep(0.1)
+
     return r
 
 
@@ -220,6 +229,10 @@ async def handler(websocket):
         cuf = os.path.join(get_user_path(),"current_user")
         with open(cuf, "w") as f:
             f.write(userid+"\n")
+        if lsb_mode:
+            gz.load_world("autosave")
+            gz.move_robot(0,0,0)
+
 
     elif nconnections > 1:
         if current_userid != userid:
@@ -404,6 +417,10 @@ async def handler(websocket):
         #print(f"WS Connections: {G_connections}")
 
         if nconnections == 0:
+            if lsb_mode:
+                gz.save_world("autosave")
+                gz.del_all_objects()
+                gz.move_robot(0,0,0)
             cuf = os.path.join(get_user_path(),"current_user")
             with open(cuf, "w") as f:
                 f.write("\n")
@@ -411,7 +428,7 @@ async def handler(websocket):
 
         # send a stop command to the robot (just in case...)
         print("Stop robot on disconnect.")
-        await asyncio.to_thread(run_eval, "robot.stop()")
+        robot.stop()
         time.sleep(1)
 
         #os.system("cp noimage.jpg lastimage.png")
