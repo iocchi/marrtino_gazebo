@@ -429,7 +429,7 @@ async def handler(websocket):
                     success = False
                     while not success:
                         try:
-                            r = await asyncio.to_thread(run_eval, ai_fn)
+                            r = await asyncio.to_thread(run_eval, gz_fn)
                             success = True
                         except Exception as e:
                             print(f"Gazebo Error: {e}")
