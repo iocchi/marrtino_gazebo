@@ -86,7 +86,6 @@ def count_commands(code_string):
 def count_function_calls(code_string):
     tree = ast.parse(code_string)
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
-    print(calls)
     return len(calls)
 
 
