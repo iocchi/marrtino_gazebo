@@ -3,10 +3,10 @@ import sys
 import asyncio
 import websockets
 import json
-import threading
 import time
-import math, random
+import math, random  # can be used in robot code
 import traceback
+import threading
 from thread2 import Thread
 import datetime
 import requests
@@ -70,15 +70,24 @@ def printt(s):
     print(s)
 
 
+def safe_code(code):
+    safecode = ""
+    vc = code.split("\n")
+    for c in vc:
+        cs = c.strip()
+        if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.':
+            safecode += c + "\n"
+    return safecode
+
 def run_code(websocket, donotify=True):
     global robot
     if code_running is not None:
         robot.user_stop = False
-        if 'import' not in code_running:    
-            try:
-                exec(code_running)
-            except Exception:
-                print(traceback.format_exc())
+        safe_code_running = safe_code(code_running)
+        try:
+            exec(safe_code_running)
+        except Exception:
+            print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
@@ -105,13 +114,23 @@ def run_thread(code, websocket, donotify=True):
     print("Running code in a thread started.")
 
 
+def safe_fn(fn):
+    vc = fn.split("\n")
+    c = vc[0]
+    cs = c.strip()
+    safecode = ""
+    if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.':
+        safecode = c + "\n"
+    return safecode
+
+
 def run_eval(fn):
     global robot, ai, gz
     # try unitl completed
     complete = False
     while not complete:
         try:
-            r = eval(fn)
+            r = eval(save_fn(fn))
             complete = True
         except IndexError as e:
             self.get_logger().error(f"Index Error in run_eval: {e}")
@@ -300,6 +319,7 @@ async def handler(websocket):
                 # single robot function
                 elif "robotfn" in data:
                     received_code = data["robotfn"]  # should be robot.fn(...) 
+
                     while code_running is not None:
                         print("Waiting for code execution to be available....")
                         time.sleep(0.5)
@@ -326,7 +346,7 @@ async def handler(websocket):
                     await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
 
                 elif "gazebo" in data:
-                    gz_fn = data["gazebo"]  # should be gz.fn(...) 
+                    gz_fn = data["gazebo"]  # should be gz.fn(...)
 
                     print(f"Gazebo function: {gz_fn}")
 
@@ -345,7 +365,7 @@ async def handler(websocket):
                     await websocket.send(json.dumps({"status": "gazebo_done", "result": r}))
 
                 elif "ai" in data:
-                    ai_fn = data["ai"]  # should be ai.fn(...) 
+                    ai_fn = data["ai"]  # should be ai.fn(...)
 
                     print(f"AI function: {ai_fn}")
 
