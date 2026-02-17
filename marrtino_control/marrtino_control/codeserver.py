@@ -10,6 +10,7 @@ import threading
 from thread2 import Thread
 import datetime
 import requests
+import ast
 
 # robot object
 from control import MARRtinoController
@@ -69,25 +70,81 @@ def printt(s):
     flog.flush()
     print(s)
 
+def count_commands(code_string):
+    try:
+        # Parse the string into an AST
+        tree = ast.parse(code_string)
+        
+        # ast.parse returns a 'Module' object. 
+        # Its 'body' attribute is a list of all top-level statements.
+        command_count = len(tree.body)
+        
+        return command_count
+    except SyntaxError:
+        return "Invalid Python syntax"
 
-def safe_code(code):
-    safecode = ""
-    vc = code.split("\n")
-    for c in vc:
-        cs = c.strip()
-        if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.':
-            safecode += c + "\n"
-    return safecode
+def count_function_calls(code_string):
+    tree = ast.parse(code_string)
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    print(calls)
+    return len(calls)
+
+
+
+def valid_func(fn):
+    allowed_prefixes = ("robot.", "ai.", "gz.", "math.", "random.")
+    allowed_builtins = {"print", "range", "len"}
+    
+    # Check if the function starts with an allowed prefix
+    if any(fn.startswith(p) for p in allowed_prefixes):
+        return True
+        
+    # Check if it's a whitelisted standalone function
+    if fn in allowed_builtins:
+        return True
+        
+    return False
+
+
+def get_func_name(node):
+    """Recursively resolves function names like 'os.path.join'"""
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        return f"{get_func_name(node.value)}.{node.attr}"
+    return "Unknown"
+
+
+def safe_code(code_string):
+    try:
+        tree = ast.parse(code_string)
+    except SyntaxError:
+        return False, "Syntax Error"
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            # Extract the function name
+            func_name = get_func_name(node.func)
+            
+            # Check if it passes your external valid() function
+            if not valid_func(func_name):
+                return False, f"Unauthorized function: {func_name}"
+                
+    return True, "OK"
+
 
 def run_code(websocket, donotify=True):
     global robot
     if code_running is not None:
         robot.user_stop = False
-        safe_code_running = safe_code(code_running)
-        try:
-            exec(safe_code_running)
-        except Exception:
-            print(traceback.format_exc())
+        s,m = safe_code(code_running)
+        if not s:
+            printt(f"BIG WARNING {current_userid} unsafe code: {m}\n{code_running}\n")
+        else:
+            try:
+                exec(code_running)
+            except Exception:
+                print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
@@ -115,12 +172,23 @@ def run_thread(code, websocket, donotify=True):
 
 
 def safe_fn(fn):
+
+    nc = count_commands(fn)
+    nf = count_function_calls(fn)
+
+    if nc>1 or nf>1:
+        printt(f"BIG WARNING {current_userid} Safety issue with: {fn}")
+        return ""
+
     vc = fn.split("\n")
     c = vc[0]
     cs = c.strip()
     safecode = ""
     if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.':
-        safecode = c + "\n"
+        safecode = c
+    else:
+        printt(f"BIG WARNING {current_userid} Safety issue with: {fn}")
+
     return safecode
 
 
@@ -128,16 +196,23 @@ def run_eval(fn):
     global robot, ai, gz
     # try unitl completed
     complete = False
+    r = None
     while not complete:
         try:
-            r = eval(save_fn(fn))
+            sfn = safe_fn(fn)            
+            if sfn != "":
+                printt(f"RUN {current_userid} {sfn}")
+                r = eval(sfn)
             complete = True
         except IndexError as e:
-            self.get_logger().error(f"Index Error in run_eval: {e}")
+            print(f"Index Error in run_eval: {e}")
             time.sleep(0.1)
- #       except ValueError as e:
- #           self.get_logger().error(f"Value Error in run_eval: {e}")
- #           time.sleep(0.1)
+        #except ValueError as e:
+        #    print(f"Value Error in run_eval: {e}")
+        #    time.sleep(0.1)
+        except Exception as e:
+            print(f"General Error in run_eval: {e}")
+            return None
 
     return r
 
