@@ -25,6 +25,18 @@ def euler_from_orientation(orientation_q):
     orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
     return euler_from_quaternion(orientation_list)
 
+def normalize_angle(angle):
+    """Wraps angle to [-pi, pi] range."""
+    while angle > math.pi: angle -= 2.0 * math.pi
+    while angle < -math.pi: angle += 2.0 * math.pi
+    return angle
+
+def normalize_angle_deg(angle):
+    """Wraps angle to [-180, 180] range."""
+    while angle > 180: angle -= 360
+    while angle < -180: angle += 360
+    return angle
+
 
 # managing concurrent action execution
 class ActionFuture:
@@ -76,6 +88,55 @@ class ActionFuture:
 
 
 
+
+class PID:
+    def __init__(self, Kp, Ki, Kd, output_limits=(None, None)):
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.setpoint = 0
+        self._min_output, self._max_output = output_limits
+        self._integral = 0
+        self._last_error = 0
+
+    def set_target(self, setpoint):
+        self.setpoint = setpoint
+
+    def reset(self):
+        self._integral = 0
+        self._last_error = 0
+
+    def update(self, measurement, dt):
+        """Calculates PID output for a given measurement."""
+        if dt <= 0: return 0  # Avoid division by zero
+
+        error = self.setpoint - measurement
+        
+        # Proportional term
+        p_term = self.Kp * error
+
+        # Integral term with clamping (anti-windup)
+        self._integral += error * dt
+        i_term = self.Ki * self._integral
+        
+        # Derivative term
+        d_term = self.Kd * (error - self._last_error) / dt
+
+        output = p_term + i_term + d_term
+
+        # Apply output limits
+        if self._max_output is not None:
+            output = min(output, self._max_output)
+        if self._min_output is not None:
+            output = max(output, self._min_output)
+
+        # Save state for next update
+        self._last_error = error
+
+        return output
+
+
+
 NODE_NAME = 'marrtino_control_client'
 
 class MARRtinoController(Node):
@@ -98,6 +159,7 @@ class MARRtinoController(Node):
         self.odom = None
         self.joint_states = None
         self.gtpose = None
+        self.gtpose_ts = 0
         self.scan = None
         self.cv_image = None
         self.save_image = False
@@ -118,6 +180,11 @@ class MARRtinoController(Node):
         # simulated speech variables
         self.simulated_say = None
         self.simulated_asr = None
+
+        self.max_vel=0.3
+        self.max_ang_vel=0.75
+        self.dist_pid = PID(0.8, 0.0, 0.01, (-self.max_vel, self.max_vel))
+        self.head_pid = PID(0.9, 0.0, 0.01, (-self.max_ang_vel, self.max_ang_vel))
 
         # Spin in a separate thread  (daemon = quits when the node quits)
         thread = threading.Thread(target=self.my_spin_fn, args=(), daemon=True)
@@ -196,7 +263,7 @@ class MARRtinoController(Node):
             PoseStamped,           # Message type
             f'/model/{self.robot_name}/pose',      # Topic name
             self.gtpose_callback, # Callback function
-            10                  # QoS (Quality of Service) history depth
+            1                     # QoS (Quality of Service) history depth
         )
         self.person_name = "mario"
         self.person_pose = None
@@ -204,13 +271,13 @@ class MARRtinoController(Node):
             PoseStamped,           # Message type
             f'/model/{self.person_name}/pose',      # Topic name
             self.personpose_callback, # Callback function
-            10                  # QoS (Quality of Service) history depth
+            1                         # QoS (Quality of Service) history depth
         )
         self.sub_odom = self.create_subscription(
             Odometry,           # Message type
             f'/diff_drive_controller/odom',      # Topic name
             self.odom_callback, # Callback function
-            10                  # QoS (Quality of Service) history depth
+            1                   # QoS (Quality of Service) history depth
         )
         self.sub_cmd_vel = self.create_subscription(
             TwistStamped,           # Message type
@@ -264,6 +331,10 @@ class MARRtinoController(Node):
         self.inputs_ts = []
         self.inputs = [[],[]]
 
+
+    def resetPID(self, dist_Kp, dist_Kd, head_Kp, head_Kd):
+        self.dist_pid = PID(dist_Kp, 0.0, dist_Kd, (-self.max_vel, self.max_vel))
+        self.head_pid = PID(head_Kp, 0.0, head_Kd, (-self.max_ang_vel, self.max_ang_vel))
 
     def get_ext_parameters(self, param_names):
 
@@ -330,6 +401,7 @@ class MARRtinoController(Node):
         if msg.header.frame_id == 'default':
             ts = self.set_ts(msg)
             self.gtpose = msg
+            self.gtpose_ts = ts
 
             if self.plot_data_collect:
                 self.gt_ts.append(ts)
@@ -840,6 +912,17 @@ class MARRtinoController(Node):
         else:
             print('No control function!')
 
+
+
+    def stop_request(self):
+        self.user_stop = True
+        print("Stop request.")
+
+    def stop_unrequest(self):
+        self.user_stop = False
+        print("Stop unrequest.")
+
+
     def stop(self):
 
         rate100 = self.create_rate(100) # Hz
@@ -1080,6 +1163,9 @@ class MARRtinoController(Node):
 
         return e
 
+
+
+
     # relative forward/backward
     def setLinPos(self, m=1, tol = 0.01, max_vel=0.2, Kp = 0.5):
         init_pose = copy.deepcopy(self.gtpose)
@@ -1090,7 +1176,7 @@ class MARRtinoController(Node):
         ty = init_pose.pose.position.y + m * math.sin(th_rad)
 
         e = self.pos_err(tx,ty,th_rad)
-        while abs(e)>tol:
+        while abs(e)>tol and not self.user_stop:
             # linear velocity
             lx = Kp * e
             if lx > max_vel:
@@ -1101,7 +1187,45 @@ class MARRtinoController(Node):
             if self.emergency_stop:  # check after at least one command sent
                 break
             e = self.pos_err(tx,ty,th_rad)
+
         self.setSpeed(0,0,0.2)
+
+
+
+    def setLinPosPID(self, target_m=1, tol = 0.01):
+        start_x, start_y, start_theta = self.get_pose_rad(frame='gt')
+        self.dist_pid.set_target(0)  # pid on error
+        self.head_pid.set_target(0)  # Lock the current heading
+        self.dist_pid.reset()
+        self.head_pid.reset()
+        dt = 0.1
+        print(f"Moving {target_m} m on heading {start_theta:.2f} rad")
+
+        dist_traveled = 0
+        dist_error = target_m - dist_traveled
+
+        curr_theta = start_theta
+
+        while abs(dist_error) > tol and not self.user_stop:
+            vx = self.dist_pid.update(-dist_error, dt)
+
+            normalized_error = normalize_angle(start_theta - curr_theta)
+            az = self.head_pid.update(-normalized_error, dt)
+
+            self.setSpeed(vx, az, dt)
+
+            curr_x, curr_y, curr_theta = self.get_pose_rad(frame='gt')
+            dist_traveled = math.sqrt((curr_x - start_x)**2 + (curr_y - start_y)**2)
+
+            if target_m < 0:
+                current_pos = -dist_traveled
+            else:
+                current_pos = dist_traveled
+            dist_error = target_m - current_pos
+
+        self.setSpeed(0, 0, dt*2)
+
+
 
     def setAngPos(self, deg=90, tol_deg=1, max_ang_vel=0.5, Kp = 0.5):
         init_pose = copy.deepcopy(self.gtpose)
@@ -1111,7 +1235,7 @@ class MARRtinoController(Node):
         target_rad = th_rad + deg*math.pi/180.0
         tol_rad = tol_deg * math.pi / 180
         e = self.ang_err_rad(target_rad)
-        while abs(e)>tol_rad:
+        while abs(e)>tol_rad and not self.user_stop:
             # angular velocity
             az = Kp * e
             if az > max_ang_vel:
@@ -1120,9 +1244,259 @@ class MARRtinoController(Node):
                 az = -max_ang_vel
             self.setSpeed(0,az,0.1)
             e = self.ang_err_rad(target_rad)
+
         self.setSpeed(0,0,0.2)
 
 
+    def setAngPosPID(self, a_rad=0, tol_rad=0.01):
+        _, _, start_theta = self.get_pose_rad(frame='gt')
+        target_theta = normalize_angle(start_theta + a_rad)
+        dt = 0.1
+        print(f"Turning from {start_theta:.2f} to {target_theta:.2f} rad")
+
+        curr_theta = start_theta
+        error = normalize_angle(target_theta - curr_theta)
+
+        self.head_pid.set_target(0)
+        self.head_pid.reset()
+
+        while abs(error) > tol_rad and not self.user_stop:
+            #self.head_pid.set_target(curr_theta + error)  # dynamic setopint for angle wrapping
+            #az = self.head_pid.update(curr_theta, dt)
+            az = self.head_pid.update(-error, dt)
+            
+            self.setSpeed(0, az, dt)
+
+            _, _, curr_theta = self.get_pose_rad(frame='gt')
+            error = normalize_angle(target_theta - curr_theta)
+
+        self.setSpeed(0,0,dt*2)
+
+
+
+    def setPoseRTR(self, target_x, target_y, target_theta_deg=None):
+        """
+        Navigates to a specific global coordinate and orientation.
+        """
+        # 1. Get current position
+        curr_x, curr_y, curr_theta = self.get_pose_rad(frame='gt')
+        
+        # 2. Calculate the vector to the target
+        delta_x = target_x - curr_x
+        delta_y = target_y - curr_y
+        
+        # 3. Calculate distance and the angle of the target point
+        distance = math.sqrt(delta_x**2 + delta_y**2)
+        # atan2 gives the absolute angle from the origin to the target point
+        angle_to_target = math.atan2(delta_y, delta_x)
+
+        print(f"setPoseRTT distance {distance}")
+
+        if distance > 0.05:
+            # --- STEP A: Rotate toward the target point ---
+            # We turn by the difference between our current heading and the target vector
+            initial_turn = normalize_angle(angle_to_target - curr_theta)
+            #print(f"Phase 1: Rotating {math.degrees(initial_turn):.1f}° toward target.")
+            self.setAngPosPID(initial_turn)
+            
+            # --- STEP B: Drive to the target point ---
+            # We use the forward function which maintains the new heading
+            #print(f"Phase 2: Driving {distance:.2f}m to ({target_x}, {target_y}).")
+            self.setLinPosPID(distance)
+        
+        if target_theta_deg is not None:
+            target_theta = target_theta_deg/180.0*math.pi
+            # --- STEP C: Final rotation to target orientation ---
+            # Get current theta again after moving (it might have drifted slightly)
+            _, _, final_curr_theta = self.get_pose_rad(frame='gt')
+            final_turn = normalize_angle(target_theta - final_curr_theta)
+            
+            #print(f"Phase 3: Final rotation of {math.degrees(final_turn):.1f}° to target pose.")
+            self.setAngPosPID(final_turn)
+
+
+    def setPoseArc(self, target_x, target_y, target_theta, tol=0.01):
+
+        start_x, start_y, start_theta = self.get_pose_rad(frame='gt')
+
+        # 1. Geometry of the Arc
+        dx = target_x - start_x
+        dy = target_y - start_y
+        dist_chord = math.sqrt(dx**2 + dy**2)
+        
+        # Angle of the chord relative to world
+        angle_chord = math.atan2(dy, dx)
+        # Relative angle of the chord from our starting heading
+        alpha = normalize_angle(angle_chord - start_theta)
+        
+        # Calculate Radius of the circle that intersects both points
+        # Formula: R = Chord_Length / (2 * sin(alpha))
+        if abs(math.sin(alpha)) < 1e-4: # Path is essentially a straight line
+            self.setLinPosPID(dist_chord)
+            return
+
+        radius = dist_chord / (2 * math.sin(alpha))
+        arc_angle = 2 * alpha
+        arc_length = abs(radius * arc_angle)
+        dt = 0.1
+
+        self.dist_pid.set_target(arc_length)
+        self.head_pid.set_target(0)
+        self.dist_pid.reset()
+        self.head_pid.reset()
+        #print(f"Arc move: Radius {radius:.2f}m, Length {arc_length:.2f}m")
+
+        current_dist = 0
+        curr_theta = start_theta
+        while (arc_length - current_dist) > tol and not self.user_stop:
+
+            # 3. PID for Linear Velocity
+            vx = self.dist_pid.update(current_dist, dt)
+            
+            # 4. Calculate required Angular Velocity (az)
+            # Since R = vx / az, then az = vx / R
+            # We add the head_pid to "fine tune" the steering if we drift off the curve
+            base_az = vx / radius
+            norm_err = normalize_angle(curr_theta - (start_theta + (current_dist/arc_length)*arc_angle))
+            correction = self.head_pid.update(norm_err)
+            
+            self.setSpeed(vx, base_az + correction, dt)
+
+            curr_x, curr_y, curr_theta = self.get_pose_rad(frame='gt')
+            
+            # 2. Track progress along the arc (Euclidean approximation)
+            current_dist = math.sqrt((curr_x - start_x)**2 + (curr_y - start_y)**2)
+            
+
+        # 5. Final rotation to match target_theta
+        _, _, final_theta = self.get_pose_rad(frame='gt')
+        self.setAngPosPID(normalize_angle(target_theta - final_theta))
+
+
+    def setPoseSCurve(self, target_x, target_y, target_theta, tol=0.01):
+        """
+        Navigates to (x, y, theta) using two connected circular arcs.
+        """
+
+        start_x, start_y, start_theta = self.get_pose_rad(frame='gt')
+        
+        # 1. Calculate the vector between start and end
+        dx = target_x - start_x
+        dy = target_y - start_y
+        dist_total = math.sqrt(dx**2 + dy**2)
+        
+        # 2. Find the transition point (simplified midpoint approach)
+        # For a smooth S-curve, we find a point where the two arcs meet.
+        # We'll use the 'bi-arc' geometric construction logic.
+        
+        # Angle of the vector connecting start and end
+        phi = math.atan2(dy, dx)
+        
+        # Calculate intermediate angles
+        alpha = normalize_angle(start_theta - phi)
+        beta = normalize_angle(target_theta - phi)
+        
+        # Determine the radius for the arcs (simplified bi-arc geometry)
+        # This formula finds a common radius that connects the two poses
+        denom = 2 * (math.sin(alpha) - math.sin(beta))
+        if abs(denom) < 1e-4:
+            # If the headings are parallel, the math simplifies to a straight line 
+            # or a specific symmetrical case.
+            radius = dist_total / (4 * math.sin(alpha)) if abs(math.sin(alpha)) > 1e-4 else float('inf')
+        else:
+            radius = dist_total / denom
+
+        # 3. Execution: First Arc
+        # We move half the distance or until a specific heading is reached
+        # In a symmetric bi-arc, the transition happens at the chord midpoint
+        mid_x = (start_x + target_x) / 2
+        mid_y = (start_y + target_y) / 2
+        
+        print(f"Executing S-Curve. Calculated Radius: {radius:.2f}")
+        
+        # Execute Arc 1 (from start to midpoint)
+        # (Using a simplified version of our previous arc logic)
+        self.execute_arc_to_point(mid_x, mid_y, radius)
+        
+        # Execute Arc 2 (from midpoint to target)
+        # The radius flips direction (inverted curvature)
+        self.execute_arc_to_point(target_x, target_y, -radius)
+
+        # Stop robot
+        self.setSpeed(0, 0, 0.1)
+
+
+    def execute_arc_to_point(self, tx, ty, r):
+        """ Helper to drive a single arc segment toward a specific coordinate """
+        dt = 0.1
+        derr = 0
+        self.dist_pid.set_target(0)
+        self.dist_pid.reset()
+        while derr>0.05 and not self.user_stop: # Arrival tolerance
+            cx, cy, _ = self.get_pose_rad(frame='gt')
+            d_err = math.sqrt((tx - cx)**2 + (ty - cy)**2)
+            
+            vx = self.dist_pid.update(-d_err, dt) # Using negative error logic for distance
+            vx = abs(vx) # Ensure forward velocity
+            
+            # Curvature: az = v / r
+            az = vx / r if r != 0 else 0
+            self.setPpeed(vx, az, dt)
+
+
+
+    def setPoseSmart(self, target_x, target_y, target_theta):
+        """
+        Selects strategy based on geometry and physical turning limits.
+        """
+
+        # Define your robot's physical limit (e.g., 0.2 meters)
+        MIN_RADIUS = 0.2 
+
+        curr_x, curr_y, curr_theta = self.get_pose_rad(frame='gt')
+        
+        # 1. Geometry Calculation
+        dx = target_x - curr_x
+        dy = target_y - curr_y
+        dist = math.sqrt(dx**2 + dy**2)
+        
+        # Angle to target relative to current heading
+        angle_to_target = normalize_angle(math.atan2(dy, dx) - curr_theta)
+        
+        # 2. Calculate the "Theoretical Radius" for a single arc
+        # R = Chord / (2 * sin(alpha))
+        sin_alpha = math.sin(angle_to_target)
+        theoretical_radius = abs(dist / (2 * sin_alpha)) if abs(sin_alpha) > 1e-4 else float('inf')
+
+        #print(f"Distance: {dist:.2f}m | Required Radius: {theoretical_radius:.2f}m")
+
+        # --- DECISION LOGIC ---
+
+        # RULE 1: If it's a very tight squeeze, don't even try to curve
+        if theoretical_radius < MIN_RADIUS:
+            print("Strategy: RTR (Radius too tight for smooth curve)")
+            self.setPoseRTR(target_x, target_y, target_theta)
+
+        # RULE 2: If target is behind us (> 90 degrees)
+        elif abs(angle_to_target) > math.pi / 2:
+            print("Strategy: RTR (Target is behind robot)")
+            self.setPoseRTR(target_x, target_y, target_theta)
+
+        # RULE 3: If it's a "clean" forward move
+        else:
+            # Check if the exit heading matches a single arc
+            relative_target_theta = normalize_angle(target_theta - curr_theta)
+            arc_mismatch = abs(normalize_angle(relative_target_theta - 2 * angle_to_target))
+            
+            if arc_mismatch < math.radians(15):
+                print("Strategy: Single Smooth Arc")
+                self.setPoseArc(target_x, target_y, target_theta)
+            else:
+                print("Strategy: S-Curve (Bi-Arc)")
+                self.setPoseSCurve(target_x, target_y, target_theta)
+
+
+        
     # robot interface
 
     '''
@@ -1139,10 +1513,10 @@ class MARRtinoController(Node):
     def forward(self, m=1, _async=False):
         if _async:
             afuture = ActionFuture()
-            afuture.start(target=self.setLinPos, args=(m), daemon=True)
+            afuture.start(target=self.setLinPosPID, args=(m), daemon=True)
             return afuture
         else:
-            self.setLinPos(m)
+            self.setLinPosPID(m)
             return None
 
     def backward(self, m=1, _async=False):
@@ -1150,12 +1524,13 @@ class MARRtinoController(Node):
 
     # relative turn
     def turn(self, deg=90, _async=False):
+        arad = deg/180.0*math.pi
         if _async:
             afuture = ActionFuture()
-            afuture.start(target=self.setAngPos, args=(deg), daemon=True)
+            afuture.start(target=self.setAngPosPID, args=(arad), daemon=True)
             return afuture        
         else:
-            self.setAngPos(deg)
+            self.setAngPosPID(arad)
 
     def left(self, deg=90, _async=False):
         return self.turn(deg, _async=_async)
@@ -1243,9 +1618,8 @@ class MARRtinoController(Node):
             print(f"listened: {s}")
         return s
 
-    # get. robot pose in the specified frame [m, deg]
-
-    def get_pose(self, frame='odom'):
+    # get robot pose in the specified frame [m, rad]
+    def get_pose_rad(self, frame='odom'):
         if frame=='odom':
             x = self.odom.pose.pose.position.x
             y = self.odom.pose.pose.position.y
@@ -1257,6 +1631,11 @@ class MARRtinoController(Node):
         else:
             print(f"getpose: Unknown frame {frame}")
             return None
+        return x,y,th_rad
+
+    # get robot pose in the specified frame [m, deg]
+    def get_pose(self, frame='odom'):
+        x,y,th_rad = self.get_pose_rad(frame)
         th_deg = th_rad/math.pi*180
         return x,y,th_deg
 
