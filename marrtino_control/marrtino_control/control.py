@@ -1213,6 +1213,8 @@ class MARRtinoController(Node):
             az = self.head_pid.update(-normalized_error, dt)
 
             self.setSpeed(vx, az, dt)
+            if self.emergency_stop:  # check after at least one command sent
+                break
 
             curr_x, curr_y, curr_theta = self.get_pose_rad(frame='gt')
             dist_traveled = math.sqrt((curr_x - start_x)**2 + (curr_y - start_y)**2)
