@@ -30,6 +30,20 @@ WS_PORT = 9876
 robot = None
 gz = None
 ai = None
+human = None
+
+
+class Human():
+    def __init__(self, robot):
+        self.robot = robot
+        pass
+
+    def say(self, content):
+        self.robot.simulated_asr = content
+        print(f"Human say: {content}")
+
+
+
 
 code_running = None
 websocket = None
@@ -91,9 +105,13 @@ def count_function_calls(code_string):
 
 
 def valid_func(fn):
-    allowed_prefixes = ("robot.", "ai.", "gz.", "math.", "random.")
-    allowed_builtins = {"print", "range", "len"}
-    
+    allowed_prefixes = ("robot.", "ai.", "gz.", "human.", "math.", "random.")
+    allowed_builtins = {"print", "range", "len", "exec"}
+
+    # Block Dunder methods (e.g., __init__)
+    if "__" in fn:
+        return False
+
     # Check if the function starts with an allowed prefix
     if any(fn.startswith(p) for p in allowed_prefixes):
         return True
@@ -141,7 +159,19 @@ def run_code(websocket, donotify=True):
             printt(f"BIG WARNING {current_userid} unsafe code: {m}\n{code_running}\n")
         else:
             try:
-                exec(code_running)
+                # Only things in this dict are accessible to the user's code
+                safe_globals = {
+                    "math": math, "random": random,
+                    "range": range,
+                    "len": len, "print": print, "exec": exec,
+                    "robot": robot,
+                    "gz": gz,
+                    "ai": ai,
+                    "human": human,
+                    "__builtins__": {},    # STRIP all default functions like open(), exec(), etc.
+                }
+
+                exec(code_running, safe_globals)
             except Exception:
                 print(traceback.format_exc())
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
@@ -182,7 +212,7 @@ def safe_fn(fn):
     c = vc[0]
     cs = c.strip()
     safecode = ""
-    if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.':
+    if cs[0:6]=='robot.' or cs[0:3]=='gz.' or cs[0:3]=='ai.' or cs[0:6]=='human.':
         safecode = c
     else:
         printt(f"BIG WARNING {current_userid} Safety issue with: {fn}")
@@ -191,7 +221,7 @@ def safe_fn(fn):
 
 
 def run_eval(fn):
-    global robot, ai, gz, code_running
+    global robot, ai, gz, human, code_running
     # try unitl completed
     complete = False
     r = None
@@ -459,6 +489,25 @@ async def handler(websocket):
                     print(f"AI function result: [{r}]")
                     await websocket.send(json.dumps({"status": "ai_done", "result": r}))
 
+                elif "human" in data:
+                    h_fn = data["human"]  # should be human.fn(...)
+
+                    print(f"Human function: {h_fn}")
+
+                    r = None
+                    success = False
+                    #while not success:
+                    try:
+                        r = await asyncio.to_thread(run_eval, h_fn)
+                        success = True
+                    except Exception as e:
+                        print(f"Human Error: {e}")
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                        time.sleep(1)
+
+                    print(f"Human function result: [{r}]")
+                    await websocket.send(json.dumps({"status": "robotfn_done", "result": r}))
+
 
                 elif "keepalive" in data:
                     # keepalive = data["keepalive"] == "True"
@@ -477,8 +526,8 @@ async def handler(websocket):
                         time.sleep(1)
                         terminate_thread()
 
-                elif "say" in data:
-                    received_say = data["say"]
+                elif "hsay" in data:
+                    received_say = data["hsay"]
                     print(f"Human say:\n{received_say}")
                     robot.simulated_asr = received_say
         
@@ -542,7 +591,7 @@ async def handler(websocket):
             simulation_run = False
 
 async def main():
-    global robot, gz, ai, lsb_mode
+    global robot, gz, ai, human, lsb_mode
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
@@ -550,6 +599,7 @@ async def main():
     if lsb_mode:
         gz_pause(True)
     ai = AI()
+    human = Human(robot)
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_interval=30, ping_timeout=10) as server:

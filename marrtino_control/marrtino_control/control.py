@@ -1540,6 +1540,12 @@ class MARRtinoController(Node):
     def right(self, deg=90, _async=False):
         return self.turn(-deg, _async=_async)
 
+
+    # goto
+
+    def goto(self, x, y, theta_deg=None):
+        self.setPoseRTR(x,y,theta_deg)
+
     '''
     odometry velocity control
     robot.setSpeed(lx,az,time,stopend=False)
@@ -1604,10 +1610,10 @@ class MARRtinoController(Node):
         self.simulated_say = sentence
         self.sleep(0.5)  # wait for say message to go through
 
-    def asr(self, timeout=5):
+    def asr(self, timeout=10):
         self.listen(timeout)
 
-    def listen(self, timeout=5):
+    def listen(self, timeout=10):
         t = 0
         dt = 0.5
         print("listening ....")
@@ -1642,7 +1648,7 @@ class MARRtinoController(Node):
         return x,y,th_deg
 
 
-    # return jount position [deg] and velocity [deg/s]
+    # return joint position [deg] and velocity [deg/s]
     def get_joint_pos(self, jname):
         i = self.jointid[jname]
         return self.joint_states.position[i]/math.pi*180 

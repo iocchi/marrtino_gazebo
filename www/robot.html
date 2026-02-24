@@ -39,6 +39,7 @@
 
     <table>
         <td width=160 align=center> <div id="connection">Not connected</div> </td>
+        <td width=160 align=center> <div id="userid"></div> </td>
         <td width=160 align=center> <button id="connectButton">CONNECT</button> </td>
         <td width=160 align=center> <button id="disconnectButton">DISCONNECT</button> </td>
     </table>
@@ -301,8 +302,8 @@
                         appendDialogue(`Robot: ${data.message}`, 'blue');
                     }
                     else if (data.status == 'user') {
-                        console.log("Received robot say: "+ data.message)
-                        appendDialogue(`Robot: ${data.message}`, 'blue');
+                        console.log("User: "+ data.message)
+                        document.getElementById('userid').innerHTML = data.name;
                     }
 				    else {
                         updateStatus('statusrobot', `Robot Error - ${data.message}`, 'red');
@@ -327,6 +328,7 @@
                     //connectButton.disabled = false; 
                     //disconnectButton.disabled = true;
                     document.getElementById('connection').innerHTML = "Not connected";  
+                    document.getElementById('userid').innerHTML = "";
 
                     // Optional: Attempt to reconnect after a delay
                     // setTimeout(connectWebSocket, 5000);
@@ -337,6 +339,7 @@
                     runButton.disabled = true;
                     stopButton.disabled = true;
                     document.getElementById('connection').innerHTML = "Not connected";  
+                    document.getElementById('userid').innerHTML = "";
                 };
 
 
@@ -402,6 +405,12 @@
             humansay.value = "";
             updateStatus('statusrobot', 'Status: Sent HUMAN SAY '+sayToSend, 'purple');
             appendDialogue(`Human: ${sayToSend}`, 'red');
+            if (ws_code && ws_code.readyState === WebSocket.OPEN) {
+                ws_code.send(JSON.stringify({ hsay: sayToSend }));
+            } else {
+                updateStatus('statusrobot', 'Status: Not connected to server. Please refresh or check server.', 'red');
+            }
+            
             // notify_nlpframework("human_say", sayToSend);
             /*
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
