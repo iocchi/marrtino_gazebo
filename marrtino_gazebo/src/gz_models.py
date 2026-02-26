@@ -22,7 +22,7 @@ from marrtino_gazebo.srv import GazeboObjects
 class ModelManager(Node):
     def __init__(self):
         super().__init__('model_spawner')
-        
+
         self.get_logger().info('ModelManager node initialized and service client created.')
 
         self.GAZEBO_MODELS = None
@@ -64,7 +64,7 @@ class ModelManager(Node):
         self.gz_currobj_req.value = value
         # Call the service and return the future
         future = self.cli_gz.call_async(self.gz_currobj_req)
-    
+
         # Spin until the response is received
         self.safe_spin_until_future_complete(future)
 
@@ -366,7 +366,11 @@ class ModelManager(Node):
 
         models = self.GAZEBO_MODELS
         #print(models)
-        
+
+        if model not in models.keys():
+            self.get_logger().error(f'Unknown model {model}')
+            return
+
         try:
             filename = os.path.join(models[model]['path'], models[model]['sdf'][0])
             print(filename)
@@ -396,7 +400,7 @@ class ModelManager(Node):
         self.create_req.entity_factory.pose = object_pose
 
         self.get_logger().info(f'Attempting to spawn model: {name} of type {model} at {pose}')
-        
+
         future = self.create_cli.call_async(self.create_req)
         self.safe_spin_until_future_complete(future)
 
