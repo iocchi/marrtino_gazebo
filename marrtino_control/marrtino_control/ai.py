@@ -1,4 +1,5 @@
-import os
+import os, time
+import threading
 import openai
 #import chromadb
 
@@ -23,28 +24,43 @@ class AI:
         self.gpt_total_tokens = 0
         self.gpt_input_tokens = 0
         self.gpt_output_tokens = 0
-        api_key = None
+
+        self.api_key = None
         try:
-            api_key = os.getenv("OPENAI_API_KEY").strip()
+            self.api_key = os.getenv("OPENAI_API_KEY").strip()
         except:
             pass
-        if api_key is None or api_key=="":
+        if self.api_key is None or self.api_key=="":
             with open("key.txt", "r") as f:
-                api_key = f.read().strip()
-        self.client = openai.OpenAI(api_key = api_key)
+                self.api_key = f.read().strip()
+        self.client = openai.OpenAI(api_key = self.api_key)
         self.logf = open("ai.log", "a")
 
     def __del__(self):
         print(f"Used tokens: input {self.gpt_input_tokens} output {self.gpt_output_tokens} | Est. cost: {(self.gpt_input_tokens*MODEL_cost_input+self.gpt_output_tokens*MODEL_cost_output)/1e6} USD")
         self.logf.close()
 
-    def send_llm_messages(self, messages):
-        response = self.client.responses.create(
-            model = MODEL,
-            input = messages,
-            # temperature = 0.5,
-        )
+    def setkey(self, key):
+        key = key.strip()
+        if key != self.api_key:
+            self.api_key = key
+            self.client = openai.OpenAI(api_key = self.api_key)
 
+    def send_llm_messages(self, messages):
+        if self.api_key is None or self.api_key == '':
+            print("AI: OpenAI key missing")
+            return ''
+
+        try:
+            response = self.client.responses.create(
+                model = MODEL,
+                input = messages,
+                # temperature = 0.5,
+            )
+        except openai.AuthenticationError:
+            print("AI AuthenticationError: OpenAI key valid?")
+            return ''
+        
         self.gpt_total_tokens += response.usage.total_tokens
         self.gpt_input_tokens += response.usage.input_tokens
         self.gpt_output_tokens += response.usage.output_tokens
@@ -76,3 +92,147 @@ class AI:
         return response
 
 
+    def vision(self, image_b64, prompt):
+        # img must be a base64 encoding of the image !!!
+        try:           
+            response = self.client.responses.create(
+                model=MODEL,
+                input=[
+                    {
+                    "role": "user",
+                    "content": [
+                        {
+                          "type": "input_text",
+                          "text":f"{prompt}"
+                        },
+                        {
+                          "type": "input_image",
+                          "image_url": f"data:image/jpeg;base64,{image_b64}"
+                        },
+                    ],
+                    }
+                ],
+                # temperature=0.1,
+                )
+
+            self.gpt_total_tokens += response.usage.total_tokens
+            self.gpt_input_tokens += response.usage.input_tokens
+            self.gpt_output_tokens += response.usage.output_tokens
+
+            self.logf.write("vision\n")
+            self.logf.write(f"{prompt}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
+            self.logf.flush()
+
+            return response.output_text
+        except Exception as e:
+            print(f"AI vision:: Getting response - {e}")
+            return None
+
+
+    def vision_file(self, img_filepath, prompt):
+
+        image_b64 = None
+
+        # Read current image with the view of the robot
+        try:
+            with open(img_filepath, "rb") as img_file:
+                encoded_image = base64.b64encode(img_file.read()).decode("utf-8")
+        except Exception as e:
+            print(f"AI vision:: Reading image {img_filepath} - {e}")
+            return None
+
+        if image_b64 is None:
+            return None
+        
+        return self.vision(image_b64, prompt)
+        
+    def query(self, description, query):
+        query_system = { 
+            'role': 'system',
+            'content': "Answer the user request about this description: " + description
+        }
+        user_message = {
+            'role': 'user',
+            'content': query,
+        }
+        self.logf.write("query\n")
+        self.logf.write(f"{description}\n")        
+        response = self.send_llm_messages([query_system, user_message])
+        return response
+
+
+AIagents = []
+
+def cleanAIagents():
+    global AIagents
+    for ag in AIagents:
+        ag.del_listener()
+    for ag in AIagents:
+        del ag
+    AIagents = []
+
+class AIAgent():
+    def __init__(self, name, system_prompt):
+        self.name = name
+        self.system_prompt = system_prompt
+        self.ai = AI()
+        self.listener = None
+        self.cb_fn = None
+        self.thr_listen = None
+        global AIagents
+        AIagents.append(self)
+
+    def __del__(self):
+        global AIagents
+        AIagents.remove(self)
+
+    def askllm(self, content):
+        user_message = {
+            'role': 'user',
+            'content': content,
+        }
+        self.ai.logf.write(f"{self.name}\n")
+        response = self.ai.send_llm_messages([self.system_prompt, user_message])
+        return response        
+
+    def add_listener(self, md, topic, cb_fn):
+        # only one listener
+        if self.cb_fn is None:
+            self.listener = md.subscriber(self.name, topic)
+            self.cb_fn = cb_fn
+            self.thr_listen = threading.Thread(target=self.listener_thread, args=(), daemon=True)
+            self.thr_listen.start()
+
+    def del_listener(self):
+        # only one listener
+        if self.cb_fn is not None:
+            self.listener = None
+            self.thr_listen.join()
+            self.thr_listen = None
+            self.cb_fn = None
+
+    def listener_thread(self):
+        print(f"AI agent {self.name} listen thread started ...")
+        while self.listener is not None:
+            #print(f"AI agent {self.name} waiting for message ...")
+            try:
+                content = self.listener.receive(timeout=3) # blocking
+                print(f"AI agent {self.name} received speech: {content}")
+            except:
+                content = None
+            if self.cb_fn is not None and content is not None:
+                response = self.askllm(content)
+                self.cb_fn(response)
+                self.response_sent = True
+                #print(f"AI agent {self.name} response {self.response_sent}")
+        print(f"AI agent {self.name} listen thread terminated ...")          
+
+    # blocking until a response is sent or timeout
+    # return True if response sent, False if timeout
+    def waitfor_response(self, timeout=3600): 
+        self.response_sent = False
+        while not self.response_sent and timeout>0:
+            d = 0.5
+            time.sleep(d)
+            timeout -= d
+        return self.response_sent

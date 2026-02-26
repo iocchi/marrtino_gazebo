@@ -20,6 +20,7 @@
         #statusframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
         #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 400px; height: 300px; overflow: auto; }
         #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 400px; min-height: 50px; }
+        #apikey { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 480px; min-height: 60px; }
         #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
         #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #e9a9a9; width: 400px; min-height: 50px; }
         #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f8e5be; width: 400px; min-height: 50px; }
@@ -113,7 +114,11 @@
     <td align="center">
 
     <h3>Programming</h3>
- 
+
+    <div align="left"> OpenAI key  <textarea id="apikey"></textarea> </div>
+
+    <br><br>
+
     <div align="left">   <textarea id="codeEditor"></textarea> </div>
     
     <table>
@@ -130,11 +135,17 @@
     <h2>Main commands</h2>
 
     <pre>
-    # odometry position control
+    # position control
     robot.forward(m)    move forward m [m]
     robot.backward(m)   move backward m [m]
     robot.left(r)       turn left r [deg]
     robot.right(r)      turn right r [deg]
+
+    # robot pose [m, deg])
+    x,y,th_deg = robot.get_pose(frame='odom'/'gt')
+
+    # goto x,y with optional theta_deg final orientation
+    robot.goto(x, y, [theta_deg])  
 
     # odometry velocity control
     robot.setSpeed(lx,az,time,stopend=False)
@@ -157,8 +168,6 @@
     # speech to text
     sentence = robot.asr(timeout=5): sentence said by human (or None after timeout)
 
-    # odometry pose [m, deg])
-    x,y,th_deg = robot.get_pose()
 
     # joints position [deg]
     deg = robot.get_pan_pos()
@@ -371,10 +380,13 @@
 
 
         runButton.addEventListener('click', () => {
-            console.log('PRESSED RUN BUTTON')
+            console.log('RUN')
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 const codeToSend = editor.getValue(); // Get content from CodeMirror
                 if (codeToSend.trim() !== '') {
+                    const key = document.getElementById('apikey').value.trim()
+                    // Send API key
+                    ws_code.send(JSON.stringify({ apikey: key }));
                     // Send code as a JSON object
                     ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
                     // notify_nlpframework("run_code", "started");
@@ -389,6 +401,7 @@
         });
 
         stopButton.addEventListener('click', () => {
+            console.log('STOP')
             if (ws_code && ws_code.readyState === WebSocket.OPEN) {
                 ws_code.send(JSON.stringify({ signal: 'STOP' })); // Changed key to 'code'
                 // notify_???? ("run_code", "interrupted");

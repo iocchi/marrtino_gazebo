@@ -354,6 +354,16 @@ class ModelManager(Node):
         self.del_object(name)
         self.add_object(name, model, pose)
 
+    def valid_model(self, model):
+        r = False
+        if model in self.GAZEBO_MODELS:
+            r = True
+        else:
+            m = model.split('_')[0]
+            if m in ['cylinder','sphere','box','door','line']:
+                r = True
+        return r
+
 
     def add_object(self, name, model, pose):
 
@@ -367,7 +377,7 @@ class ModelManager(Node):
         models = self.GAZEBO_MODELS
         #print(models)
 
-        if model not in models.keys():
+        if not self.valid_model(model):
             self.get_logger().error(f'Unknown model {model}')
             return
 

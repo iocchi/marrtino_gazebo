@@ -1,5 +1,6 @@
 import time, threading, math, os, copy
 from marrtino_control.thread2 import Thread
+from messages import getMessageDispatcher
 
 import rclpy
 from rclpy.node import Node
@@ -304,7 +305,10 @@ class MARRtinoController(Node):
             10                  # QoS (Quality of Service) history depth
         )
         rate10.sleep()
- 
+
+        md = getMessageDispatcher()
+        self.pub_say = md.publisher("robot", "speech")
+
         self.get_logger().info(f'{self.robot_name} controller node initialized ')
 
 
@@ -916,11 +920,11 @@ class MARRtinoController(Node):
 
     def stop_request(self):
         self.user_stop = True
-        print("Stop request.")
+        #print("Stop request.")
 
     def stop_unrequest(self):
         self.user_stop = False
-        print("Stop unrequest.")
+        #print("Stop unrequest.")
 
 
     def stop(self):
@@ -1609,6 +1613,7 @@ class MARRtinoController(Node):
         print(f"saying [{language}] '{sentence}' ...")
         self.simulated_say = sentence
         self.sleep(0.5)  # wait for say message to go through
+        self.pub_say.publish(sentence)
 
     def asr(self, timeout=10):
         self.listen(timeout)

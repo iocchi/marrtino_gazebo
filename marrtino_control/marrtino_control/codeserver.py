@@ -263,6 +263,7 @@ def run_eval(fn):
             complete = True
         except IndexError as e:
             print(f"Index Error in run_eval: {e}")
+            # wait set index too big
             break # time.sleep(0.1)
         except ValueError as e:
             print(f"Value Error in run_eval: {e}")
