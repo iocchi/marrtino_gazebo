@@ -20,7 +20,12 @@ sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
 # ai object
-from ai import AI
+from ai import AI, AIAgent
+
+# message dispatcher
+from messages import getMessageDispatcher
+
+md = getMessageDispatcher()
 
 # config variables
 
@@ -42,6 +47,26 @@ class Human():
         self.robot.simulated_asr = content
         print(f"Human say: {content}")
 
+
+class Door():
+    def __init__(self, gz, name, color, cx, cy, cth_rad, ox, oy, oth_rad):
+        self.gz = gz
+        self.name = name
+        self.color = color
+        self.closed_x = cx
+        self.closed_y = cy
+        self.closed_th_rad = cth_rad
+        self.open_x = ox
+        self.open_y = oy
+        self.open_th_rad = oth_rad
+
+    def open(self):
+        self.gz.move_object(self.name, "door_"+self.color,
+            f"{self.open_x} {self.open_y} 0.5   0 0 {self.open_th_rad}")
+            
+    def close(self):
+        self.gz.move_object(self.name, "door_"+self.color,
+            f"{self.closed_x} {self.closed_y} 0.5   0 0 {self.closed_th_rad}")
 
 
 
@@ -106,20 +131,22 @@ def count_function_calls(code_string):
 
 def valid_func(fn):
     allowed_prefixes = ("robot.", "ai.", "gz.", "human.", "math.", "random.")
-    allowed_builtins = {"print", "range", "len", "exec"}
+    allowed_builtins = {"print", "range", "len", "exec", "Door"}
 
     # Block Dunder methods (e.g., __init__)
     if "__" in fn:
         return False
 
+    return True
+
     # Check if the function starts with an allowed prefix
     if any(fn.startswith(p) for p in allowed_prefixes):
         return True
-        
+
     # Check if it's a whitelisted standalone function
     if fn in allowed_builtins:
         return True
-        
+
     return False
 
 
@@ -165,9 +192,10 @@ def run_code(websocket, donotify=True):
                     "range": range,
                     "len": len, "print": print, "exec": exec,
                     "robot": robot,
-                    "gz": gz,
-                    "ai": ai,
+                    "gz": gz, "Door": Door,
+                    "ai": ai, "AIAgent": AIAgent,
                     "human": human,
+                    "md": md,
                     "__builtins__": {},    # STRIP all default functions like open(), exec(), etc.
                 }
 
@@ -364,7 +392,7 @@ async def handler(websocket):
 
     elif nconnections > 1:
         if current_userid != userid:
-            printt("BIG WARNING: multiple users!!! current {current_userid} - now {userid} !!!")
+            printt(f"BIG WARNING: multiple users!!! current {current_userid} - now {userid} !!!")
 
     await websocket.send(
         json.dumps({ "status": "user",
@@ -383,7 +411,10 @@ async def handler(websocket):
             if message == '__ping__':
                 #print(f"{clientIP} {message}")
                 continue
-            print(f"Received message from client: {message}")
+            if "apikey" in message:
+                print(f"Received message from client: {message[0:12]}... ")
+            else:
+                print(f"Received message from client: {message}")
             try:
                 data = json.loads(message)
                 if "text" in data:
@@ -530,7 +561,11 @@ async def handler(websocket):
                     received_say = data["hsay"]
                     print(f"Human say:\n{received_say}")
                     robot.simulated_asr = received_say
-        
+
+                elif "apikey" in data:
+                    key = data["apikey"]
+                    ai.setkey(key)
+
                 else:
                     print("Received message does not contain known key.")
                     await websocket.send(json.dumps({"status": "error", "message": "Invalid message format."}))
