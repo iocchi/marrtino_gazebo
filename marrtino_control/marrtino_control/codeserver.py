@@ -78,7 +78,7 @@ def printt(s):
     if flog==None:
         flog = open("codeserver.log" , "a", encoding='utf-8')
     #s = s.decode('utf-8')
-    
+
     t = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     flog.write("%s;%s\n" %(t,s))
     flog.flush()
@@ -227,7 +227,7 @@ def run_eval(fn):
     r = None
     while not complete:
         try:
-            sfn = safe_fn(fn)            
+            sfn = safe_fn(fn)
             if sfn != "":
                 printt(f"RUN {current_userid} {sfn}")
                 code_running = sfn
@@ -235,10 +235,10 @@ def run_eval(fn):
             complete = True
         except IndexError as e:
             print(f"Index Error in run_eval: {e}")
-            time.sleep(0.1)
-        #except ValueError as e:
-        #    print(f"Value Error in run_eval: {e}")
-        #    time.sleep(0.1)
+            break # time.sleep(0.1)
+        except ValueError as e:
+            print(f"Value Error in run_eval: {e}")
+            break # time.sleep(0.1)
         except Exception as e:
             print(f"General Error in run_eval: {e}")
             break
