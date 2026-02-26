@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64MultiArray, String 
+from std_msgs.msg import Float64MultiArray, String
 from sensor_msgs.msg import JointState, LaserScan, Image
 from cv_bridge import CvBridge
 import cv2
@@ -47,7 +47,7 @@ class ActionFuture:
         self.stop_event = None
         self.result = None
         self.callback_fn = None
-    
+
     # start the activity in a separate thread (non-blocking)
     def start(self, target, args, daemon=True):
         assert self.thread is None, "ActionFuture cannot start a new activity on an active thread !!!"
@@ -66,7 +66,7 @@ class ActionFuture:
     # request to stop
     def stop_request(self):
         if self.stop_event is not None:
-            self.stop_event.set()      
+            self.stop_event.set()
 
     def terminate(self):
         if self.thread is not None:
@@ -331,7 +331,7 @@ class MARRtinoController(Node):
         self.odom_ts = []
         self.gtposes = [[],[],[]]
         self.odomposes = [[],[],[]]
-        self.velocities = [[],[]]        
+        self.velocities = [[],[]]
         self.inputs_ts = []
         self.inputs = [[],[]]
 
@@ -429,7 +429,7 @@ class MARRtinoController(Node):
 
 
     def odom_callback(self, msg):
-        ts = self.set_ts(msg)       
+        ts = self.set_ts(msg)
         self.odom = msg
 
         if self.plot_data_collect:
@@ -498,7 +498,7 @@ class MARRtinoController(Node):
     def print_joint_states(self):
         print_once = True
         rate10 = self.create_rate(10) # Hz
-        while self.joint_states is None: 
+        while self.joint_states is None:
             rate10.sleep()
             if print_once:
                 print_once = False
@@ -512,17 +512,21 @@ class MARRtinoController(Node):
             )
 
     def print_scan(self):
-        print(f"scan num points = {len(self.scan.ranges)}")
+        ns = len(self.scan.ranges)
+        print(f"scan num points = {ns}")
         print(f"     min-max angle = {self.scan.angle_min}, {self.scan.angle_max} - inc {self.scan.angle_increment} [rad]")
+        print(f"     min-max angle = {self.scan.angle_min/math.pi*180}, {self.scan.angle_max/math.pi*180} - inc {self.scan.angle_increment/math.pi*180} [deg]")
 
         np = (self.scan.angle_max - self.scan.angle_min) / self.scan.angle_increment
         print(f"     mp = {np}")
 
-        for deg in [-90, 0, 90]:
+        for deg in [-90, -60, -45, -30, 0, 30, 45, 60, 90]:
             r = deg/180.0*math.pi
             i = int((r - self.scan.angle_min) / self.scan.angle_increment)
             if (i>len(self.scan.ranges)):
-                i = -1
+                i = ns-1
+            if (i<0):
+                i = 0
             d = self.scan.ranges[i]
             print(f"     {deg} -> range[{i}] = {d}")
 
@@ -530,8 +534,12 @@ class MARRtinoController(Node):
     def check_emergency_stop(self):
         md = min(self.scan.ranges)
         self.emergency_stop = (md <= self.emergency_stop_obstacle_threshold)
-
-
+        if self.emergency_stop:
+            idx =  min(enumerate(self.scan.ranges), key=lambda x: x[1])[0]
+            ang = self.scan.angle_min + idx * self.scan.angle_increment
+            ang = ang * 180/math.pi
+            print(f"DEBUG min scan range = {md} [{ang:.1f} deg]")
+            #self.print_scan()
 
 
 
