@@ -1,4 +1,4 @@
-import time, threading, math, os, copy
+import time, threading, math, random, os, copy
 from marrtino_control.thread2 import Thread
 from messages import getMessageDispatcher
 
@@ -167,7 +167,8 @@ class MARRtinoController(Node):
         self.save_pre_image = False
         self.save_post_image = False
         self.cv_bridge = CvBridge()
-        
+        self.ai = None  # ai or aiagent set externally
+
         # joint name-id map
         self.jointid = None
 
@@ -1623,10 +1624,36 @@ class MARRtinoController(Node):
         self.sleep(0.5)  # wait for say message to go through
         self.pub_say.publish(sentence)
 
-    def asr(self, timeout=10):
+    def ai_say(self, content):
+        if self.ai is not None:
+            r = self.ai.chat(content)
+            self.say(r)
+
+    def ai_code(self, content):
+        if self.ai is not None:
+            p = self.ai.code(content)
+            print(p)
+            #robot = self
+
+            safe_globals = {
+                    "math": math, "random": random,
+                    "range": range, "len": len,
+                    "robot": self,
+                    "__builtins__": {},    # STRIP all default functions
+                }
+
+            exec(p, safe_globals)
+
+    def ai_vision(self, content):
+        if self.ai is not None:
+            img = self.get_image()
+            p = self.ai.vision(img, content)
+            self.say(p)
+
+    def asr(self, timeout=60):
         self.listen(timeout)
 
-    def listen(self, timeout=10):
+    def listen(self, timeout=60):
         t = 0
         dt = 0.5
         print("listening ....")

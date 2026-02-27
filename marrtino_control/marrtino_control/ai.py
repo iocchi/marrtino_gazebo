@@ -186,6 +186,9 @@ class AIAgent():
         global AIagents
         AIagents.remove(self)
 
+    def add_system(self, sysprompt):
+        self.system_prompt['content'] += sysprompt 
+
     def askllm(self, content):
         user_message = {
             'role': 'user',

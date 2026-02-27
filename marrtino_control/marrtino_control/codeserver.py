@@ -25,8 +25,6 @@ from ai import AI, AIAgent
 # message dispatcher
 from messages import getMessageDispatcher
 
-md = getMessageDispatcher()
-
 # config variables
 
 HTTP_PORT = 3080
@@ -34,18 +32,29 @@ WS_PORT = 9876
 
 robot = None
 gz = None
-ai = None
 human = None
-
 
 class Human():
     def __init__(self, robot):
         self.robot = robot
-        pass
+        self.ws = None
+
+    def set_ws(self, ws):
+        self.ws = ws
 
     def say(self, content):
         self.robot.simulated_asr = content
         print(f"Human say: {content}")
+        if self.ws is not None:
+            asyncio.run(send_human_say(self.ws, content))
+
+human_system = { 'role': 'system', \
+    'content': "Sei una persona. Ti chiami Mario. \
+        Rispondi cordialmente, ma in modo molto conciso." 
+    }
+
+def human_action(response):
+    human.say(response)
 
 
 class Door():
@@ -178,7 +187,7 @@ def safe_code(code_string):
 
 
 def run_code(websocket, donotify=True):
-    global robot
+    global robot, human
     if code_running is not None:
         robot.user_stop = False
         s,m = safe_code(code_running)
@@ -193,12 +202,12 @@ def run_code(websocket, donotify=True):
                     "len": len, "print": print, "exec": exec,
                     "robot": robot,
                     "gz": gz, "Door": Door,
-                    "ai": ai, "AIAgent": AIAgent,
+                    #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
-                    "md": md,
+                    #"md": md,
                     "__builtins__": {},    # STRIP all default functions like open(), exec(), etc.
                 }
-
+                human.set_ws(websocket)
                 exec(code_running, safe_globals)
             except Exception:
                 print(traceback.format_exc())
@@ -249,7 +258,7 @@ def safe_fn(fn):
 
 
 def run_eval(fn):
-    global robot, ai, gz, human, code_running
+    global robot, gz, human, code_running
     # try unitl completed
     complete = False
     r = None
@@ -301,6 +310,10 @@ async def send_robot_say(websocket, sentence):
     print(f' -- send robot say: {sentence}')
     await websocket.send(json.dumps({"status": "say", "message": sentence }))
 
+async def send_human_say(websocket, sentence):
+    print(f' -- send human say: {sentence}')
+    await websocket.send(json.dumps({"status": "hsay", "message": sentence }))
+
 
 def gz_pause(flag):
     cmd = "gz service -s /world/default/control --reqtype gz.msgs.WorldControl --reptype gz.msgs.Boolean --timeout 3000 "
@@ -335,7 +348,7 @@ def get_user_path():
     return upath
 
 async def handler(websocket):
-    global code_running, robot, gz, ai, simulation_run, keepalive, lsb_mode
+    global code_running, robot, gz, simulation_run, keepalive, lsb_mode
     global nconnections, G_connections, current_userid
 
     clientIP = websocket.request_headers.get('X-Real-Ip', '')
@@ -565,7 +578,10 @@ async def handler(websocket):
 
                 elif "apikey" in data:
                     key = data["apikey"]
-                    ai.setkey(key)
+                    if key == 'LucaAI':
+                        with open("key.txt", "r") as f:
+                            key = f.read().strip()
+                    robot.ai.setkey(key)
 
                 else:
                     print("Received message does not contain known key.")
@@ -627,15 +643,23 @@ async def handler(websocket):
             simulation_run = False
 
 async def main():
-    global robot, gz, ai, human, lsb_mode
+    global robot, gz, human, lsb_mode
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
     gz = ModelManager()
     if lsb_mode:
         gz_pause(True)
-    ai = AI()
+    robot.ai = AI()
     human = Human(robot)
+
+    human.ai = AIAgent("human", human_system)
+
+    md = getMessageDispatcher()
+
+    human.ai.add_listener(md, "speech", human_action)
+
+
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_interval=30, ping_timeout=10) as server:
