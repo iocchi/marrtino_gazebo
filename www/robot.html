@@ -191,8 +191,9 @@
 
     # AI functionalities (need OpenAI key)
     
-    robot.ai.chat(prompt) # robot says the output of LLM prompt
-    robot.ai.code(prompt) # robot executes the output of LLM prompt
+    robot.ai_say(prompt)    # robot says the output of LLM prompt
+    robot.ai_code(prompt)   # robot executes the output of LLM prompt
+    robot.ai_vision(prompt) # robot takes an image of the current scene and executes the output of VLM prompt on such an image
     
     </pre>
 
