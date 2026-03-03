@@ -578,9 +578,6 @@ async def handler(websocket):
 
                 elif "apikey" in data:
                     key = data["apikey"]
-                    if key == 'LucaAI':
-                        with open("key.txt", "r") as f:
-                            key = f.read().strip()
                     robot.ai.setkey(key)
 
                 else:
