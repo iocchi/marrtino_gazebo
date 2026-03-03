@@ -116,13 +116,13 @@
 
     <h3>Programming</h3>
 
-    <div align="left"> OpenAI key  <textarea id="apikey"></textarea> </div>
+    <div align="left">OpenAI key (not copied on the server)<textarea id="apikey"></textarea> </div>
 
     <br><br>
 
-    <div align="left"> Human AI <textarea id="humanai"></textarea> </div>
+    <!-- div align="left"> Human AI <textarea id="humanai"></textarea> </div>
 
-    <br><br>
+    <br><br -->
 
     <div align="left">   <textarea id="codeEditor"></textarea> </div>
     
@@ -189,6 +189,11 @@
     # faces
     robot.emotion(value)   # normal, happy, sad, angry, surprised, sings
 
+    # AI functionalities (need OpenAI key)
+    
+    robot.ai.chat(prompt) # robot says the output of LLM prompt
+    robot.ai.code(prompt) # robot executes the output of LLM prompt
+    
     </pre>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
