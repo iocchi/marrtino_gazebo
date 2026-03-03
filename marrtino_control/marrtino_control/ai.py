@@ -26,14 +26,16 @@ class AI:
         self.gpt_output_tokens = 0
 
         self.api_key = None
+        self.client = None
         try:
             self.api_key = os.getenv("OPENAI_API_KEY").strip()
+            if self.api_key is None or self.api_key=="":
+                with open("key.txt", "r") as f:
+                    self.api_key = f.read().strip()
         except:
             pass
-        if self.api_key is None or self.api_key=="":
-            with open("key.txt", "r") as f:
-                self.api_key = f.read().strip()
-        self.client = openai.OpenAI(api_key = self.api_key)
+        if self.api_key is not None and self.api_key!="":
+            self.client = openai.OpenAI(api_key = self.api_key)
         self.logf = open("ai.log", "a")
 
     def __del__(self):
@@ -47,7 +49,7 @@ class AI:
             self.client = openai.OpenAI(api_key = self.api_key)
 
     def send_llm_messages(self, messages):
-        if self.api_key is None or self.api_key == '':
+        if self.api_key is None or self.api_key == '' or self.client is None:
             print("AI: OpenAI key missing")
             return ''
 
@@ -93,6 +95,10 @@ class AI:
 
 
     def vision(self, image_b64, prompt):
+        if self.api_key is None or self.api_key == '' or self.client is None:
+            print("AI: OpenAI key missing")
+            return ''
+
         # img must be a base64 encoding of the image !!!
         try:           
             response = self.client.responses.create(
@@ -147,6 +153,10 @@ class AI:
         return self.vision(image_b64, prompt)
         
     def query(self, description, query):
+        if self.api_key is None or self.api_key == '' or self.client is None:
+            print("AI: OpenAI key missing")
+            return ''
+
         query_system = { 
             'role': 'system',
             'content': "Answer the user request about this description: " + description
