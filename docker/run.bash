@@ -21,6 +21,7 @@ if [ "$1" == "x11" ]; then
     DOCKER_RUNTIME="runc"
 fi
 
+mkdir -p cache/chroma
 
 DOCKER_RUNTIME=${DOCKER_RUNTIME} USER_ID=`id -u` docker compose -f $DC up -d --remove-orphans
 

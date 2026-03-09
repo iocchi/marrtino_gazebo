@@ -32,6 +32,7 @@ WS_PORT = 9876
 
 robot = None
 gz = None
+ai = None
 human = None
 
 class Human():
@@ -187,7 +188,7 @@ def safe_code(code_string):
 
 
 def run_code(websocket, donotify=True):
-    global robot, human
+    global robot, ai, human
     if code_running is not None:
         robot.user_stop = False
         s,m = safe_code(code_running)
@@ -200,7 +201,7 @@ def run_code(websocket, donotify=True):
                     "math": math, "random": random,
                     "range": range,
                     "len": len, "print": print, "exec": exec,
-                    "robot": robot,
+                    "robot": robot, "ai": ai,
                     "gz": gz, "Door": Door,
                     #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
@@ -258,7 +259,7 @@ def safe_fn(fn):
 
 
 def run_eval(fn):
-    global robot, gz, human, code_running
+    global robot, gz, ai, human, code_running
     # try unitl completed
     complete = False
     r = None
@@ -266,7 +267,12 @@ def run_eval(fn):
         try:
             sfn = safe_fn(fn)
             if sfn != "":
-                printt(f"RUN {current_userid} {sfn}")
+                if "setkey" in sfn:
+                    printt(f"RUN {current_userid} {sfn[0:14]}")
+                elif len(sfn)>80:
+                    printt(f"RUN {current_userid} {sfn[0:40]}")
+                else:
+                    printt(f"RUN {current_userid} {sfn}")
                 code_running = sfn
                 r = eval(sfn)
             complete = True
@@ -308,7 +314,10 @@ async def notify_thread_completed(websocket, donotify):
 
 async def send_robot_say(websocket, sentence):
     print(f' -- send robot say: {sentence}')
-    await websocket.send(json.dumps({"status": "say", "message": sentence }))
+    try:
+        await websocket.send(json.dumps({"status": "say", "message": sentence }))
+    except Exception as e:
+        print(f"Error send_robot_say: {e}")
 
 async def send_human_say(websocket, sentence):
     print(f' -- send human say: {sentence}')
@@ -426,7 +435,11 @@ async def handler(websocket):
                 #print(f"{clientIP} {message}")
                 continue
             if "apikey" in message:
-                print(f"Received message from client: {message[0:12]}... ")
+                print(f"Received message from client: {message[0:14]}... ")
+            elif "setkey" in message:
+                print(f"Received message from client: {message[0:22]}... ")
+            elif len(message)>80:
+                print(f"Received message from client: {message[0:40]}")
             else:
                 print(f"Received message from client: {message}")
             try:
@@ -518,7 +531,12 @@ async def handler(websocket):
                 elif "ai" in data:
                     ai_fn = data["ai"]  # should be ai.fn(...)
 
-                    print(f"AI function: {ai_fn}")
+                    if "setkey" in ai_fn:
+                        print(f"AI function: {ai_fn[0:14]}")
+                    elif len(data)>80:
+                        print(f"AI function: {ai_fn[0:40]}")
+                    else:
+                        print(f"AI function: {ai_fn}")
 
                     r = None
                     success = False
@@ -640,7 +658,7 @@ async def handler(websocket):
             simulation_run = False
 
 async def main():
-    global robot, gz, human, lsb_mode
+    global robot, gz, ai, human, lsb_mode
     
     gz_pause(False)   # need clock to start the robot
     robot = MARRtinoController()
@@ -648,6 +666,7 @@ async def main():
     if lsb_mode:
         gz_pause(True)
     robot.ai = AI()
+    ai = AI()
     human = Human(robot)
 
     human.ai = AIAgent("human", human_system)

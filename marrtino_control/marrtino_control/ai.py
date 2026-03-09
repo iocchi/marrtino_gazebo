@@ -1,7 +1,7 @@
 import os, time
 import threading
 import openai
-#import chromadb
+import chromadb
 
 MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M token
 MODEL_cost_input = 0.05
@@ -28,14 +28,21 @@ class AI:
         self.api_key = None
         self.client = None
         try:
-            self.api_key = os.getenv("OPENAI_API_KEY").strip()
+            self.api_key = os.getenv("OPENAI_API_KEY")
             if self.api_key is None or self.api_key=="":
                 with open("key.txt", "r") as f:
-                    self.api_key = f.read().strip()
-        except:
-            pass
+                    self.api_key = f.read()
+        except Exception as e:
+            print(f"AI Error reading OPENAI key: {e}")
         if self.api_key is not None and self.api_key!="":
+            self.api_key = self.api_key.strip()
             self.client = openai.OpenAI(api_key = self.api_key)
+            print("AI: OPENAI client OK")
+        else:
+            print("AI: OPENAI client not ready!")
+
+        self.init_chromadb()
+
         self.logf = open("ai.log", "a")
 
     def __del__(self):
@@ -47,6 +54,29 @@ class AI:
         if key != self.api_key:
             self.api_key = key
             self.client = openai.OpenAI(api_key = self.api_key)
+
+
+    def init_chromadb(self):
+        
+        self.clientdb = chromadb.PersistentClient(path="./kb")
+
+        # reset
+        #self.clientdb.delete_collection(name="memory")
+
+        self.memory = self.clientdb.get_or_create_collection(name="memory")
+
+        all_ids = self.memory.get()['ids']
+        
+        if all_ids:
+            self.memoryid = int(all_ids[-1])   # last id for incremental add
+        else:
+            self.memoryid = 0
+
+
+    def log_write(self, content):
+        self.logf.write(content)
+        self.logf.flush()
+
 
     def send_llm_messages(self, messages):
         if self.api_key is None or self.api_key == '' or self.client is None:
@@ -151,7 +181,8 @@ class AI:
             return None
         
         return self.vision(image_b64, prompt)
-        
+
+    # query a description
     def query(self, description, query):
         if self.api_key is None or self.api_key == '' or self.client is None:
             print("AI: OpenAI key missing")
@@ -169,6 +200,84 @@ class AI:
         self.logf.write(f"{description}\n")        
         response = self.send_llm_messages([query_system, user_message])
         return response
+
+
+    # store a content in the vector db
+    def memorize(self, content):
+        self.memoryid += 1    
+        self.memory.add(
+            documents=[content],
+            ids=f"{self.memoryid}"
+        )
+
+
+    # retrieve content from docs in vector db
+    def retrieve(self, content, max_dist=1.0, n_results=3):
+        results = self.memory.query(
+            query_texts=[content],
+            n_results=n_results
+        )
+
+        docs = results['documents'][0]
+        dists = results['distances'][0]
+
+        r = ""
+        for doc,dist in zip(docs, dists):
+            if dist < max_dist:
+                r += doc + ", "
+
+        user_message = {
+            'role': 'user',
+            'content': content,
+        }
+
+        self.logf.write("retrieve\n")
+        self.logf.write(f"{docs}\n{dists}\n{r if r!= '' else '*** nothing ***'}\n")
+
+        if r != '':
+            sys_pr = "Answer the user request according to these facts: " + r
+            remember_system = {
+                'role': 'system',
+                'content': sys_pr
+            }
+        else:
+            sys_pr = "Answer the user that there are no information available in your memory"
+            remember_system = {
+                'role': 'system',
+                'content': sys_pr
+            }
+
+        response = self.send_llm_messages([remember_system, user_message])
+        return response
+
+
+    def forget(self, ids):        
+        self.memory.delete(ids=ids)
+
+
+    def clear_memory(self):
+        all_ids = self.memory.get()['ids']
+        if all_ids:
+            self.memory.delete(ids=all_ids)
+            self.memoryid = 0
+            print(f"Memory: deleted {len(all_ids)} documents.")
+
+
+    def print_memory(self):
+        all_data = self.memory.get()
+        for (a,b) in zip(all_data['ids'], all_data['documents']):
+            print(f"{a}\t| {b}")
+  
+    def list_memory(self):
+        r = ''
+        all_data = self.memory.get()
+        for (a,b) in zip(all_data['ids'], all_data['documents']):
+            r += f"{a}\t| {b}\n"
+        return r
+  
+    
+
+
 
 
 AIagents = []
@@ -249,3 +358,4 @@ class AIAgent():
             time.sleep(d)
             timeout -= d
         return self.response_sent
+
