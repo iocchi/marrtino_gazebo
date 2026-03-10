@@ -42,11 +42,32 @@ class AI:
 
         self.init_chromadb()
 
-        self.logf = open("ai.log", "a")
+        self.logf = open(os.path.join(self.get_user_path(), "ai.log"), "a")
 
     def __del__(self):
         print(f"Used tokens: input {self.gpt_input_tokens} output {self.gpt_output_tokens} | Est. cost: {(self.gpt_input_tokens*MODEL_cost_input+self.gpt_output_tokens*MODEL_cost_output)/1e6} USD")
         self.logf.close()
+
+    def get_user_path(self):
+        upath = os.getenv('PATH_USERS')
+        if upath is None:
+            self.get_logger().warn(f"Gazebo Objects Service: PATH_USERS env not found. Using '/op/users'")
+            upath = '/opt/users'
+
+        cuf = os.path.join(upath,"current_user")
+        try:
+            with open(cuf, "r") as f:
+                l = f.readline().strip()
+        except:
+            l = ''
+        if l == '':
+            l = 'anonymous'
+
+        userpath = os.path.join(upath, l)
+        if not os.path.isdir(userpath):
+            os.mkdir(userpath)
+
+        return userpath
 
     def setkey(self, key):
         self.api_key = key.strip()
@@ -55,7 +76,7 @@ class AI:
 
     def init_chromadb(self):
         
-        self.clientdb = chromadb.PersistentClient(path="./kb")
+        self.clientdb = chromadb.PersistentClient(path=os.path.join(self.get_user_path(), "kb"))
 
         # reset
         #self.clientdb.delete_collection(name="memory")

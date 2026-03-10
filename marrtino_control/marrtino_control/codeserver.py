@@ -412,11 +412,14 @@ async def handler(websocket):
         if current_userid != userid:
             printt(f"BIG WARNING: multiple users!!! current {current_userid} - now {userid} !!!")
 
-    await websocket.send(
-        json.dumps({ "status": "user",
-                        "name": f"{firstname} {lastname}", 
-                        "id": userid, 
-                        "ip": clientIP } ))
+    try:
+        await websocket.send(
+            json.dumps({ "status": "user",
+                            "name": f"{firstname} {lastname}", 
+                            "id": userid, 
+                            "ip": clientIP } ))
+    except websockets.exceptions.ConnectionClosedError as e:
+        printt(f"Client {userid} connection error: {e}")
 
     #os.system("cp noimage.jpg lastimage.png")
     if lsb_mode and not simulation_run: # start simulation
