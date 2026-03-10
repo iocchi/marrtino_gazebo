@@ -344,7 +344,8 @@
                     if (data.disable_send == 'true') {
                         runButton.disabled = true;
                         runButton.color = 'grey';
-                    } else {
+                    } 
+                    else if (data.disable_send == 'false') {
                         runButton.disabled = false;
                         runButton.color = 'white';
                     }
@@ -413,7 +414,6 @@
                     ws_code.send(JSON.stringify({ apikey: key }));
                     // Send code as a JSON object
                     ws_code.send(JSON.stringify({ code: codeToSend })); // Changed key to 'code'
-                    // notify_nlpframework("run_code", "started");
                     updateStatus('statusrobot', 'Status: Sending code...', 'purple');
                     // editor.setValue(''); // Optional: Clear editor after sending
                 } else {

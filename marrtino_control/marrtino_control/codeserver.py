@@ -20,7 +20,7 @@ sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
 # ai object
-from ai import AI, AIAgent
+from ai import AI, AIAgent, analyze, cleanAIagents
 
 # message dispatcher
 from messages import getMessageDispatcher
@@ -49,13 +49,6 @@ class Human():
         if self.ws is not None:
             asyncio.run(send_human_say(self.ws, content))
 
-human_system = { 'role': 'system', \
-    'content': "Sei una persona. Ti chiami Mario. \
-        Rispondi cordialmente, ma in modo molto conciso." 
-    }
-
-def human_action(response):
-    human.say(response)
 
 
 class Door():
@@ -201,7 +194,7 @@ def run_code(websocket, donotify=True):
                     "math": math, "random": random,
                     "range": range,
                     "len": len, "print": print, "exec": exec,
-                    "robot": robot, "ai": ai,
+                    "robot": robot, "ai": ai, "AIAgent": AIAgent, "analyze": analyze,
                     "gz": gz, "Door": Door,
                     #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
@@ -212,6 +205,8 @@ def run_code(websocket, donotify=True):
                 exec(code_running, safe_globals)
             except Exception:
                 print(traceback.format_exc())
+        # clear AI agents
+        cleanAIagents()
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
@@ -546,7 +541,7 @@ async def handler(websocket):
                         success = True
                     except Exception as e:
                         print(f"AI Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}" }))
                         time.sleep(1)
 
                     print(f"AI function result: [{r}]")
@@ -565,7 +560,7 @@ async def handler(websocket):
                         success = True
                     except Exception as e:
                         print(f"Human Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                        await websocket.send(json.dumps({"status": "error", "message": f"{e}"}))
                         time.sleep(1)
 
                     print(f"Human function result: [{r}]")
@@ -584,10 +579,11 @@ async def handler(websocket):
                         await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
                     elif received_signal == 'STOP':
                         print("sending STOP !!!")
-                        await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
                         robot.user_stop = True
                         time.sleep(1)
                         terminate_thread()
+                        cleanAIagents()
+                        await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
 
                 elif "hsay" in data:
                     received_say = data["hsay"]
@@ -666,16 +662,8 @@ async def main():
     if lsb_mode:
         gz_pause(True)
     robot.ai = AI()
-    ai = AI()
+    ai = robot.ai
     human = Human(robot)
-
-    human.ai = AIAgent("human", human_system)
-
-    md = getMessageDispatcher()
-
-    human.ai.add_listener(md, "speech", human_action)
-
-
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_interval=30, ping_timeout=10) as server:

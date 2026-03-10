@@ -1,7 +1,10 @@
 import os, time
 import threading
+import json
 import openai
 import chromadb
+
+from messages import getMessageDispatcher
 
 MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M token
 MODEL_cost_input = 0.05
@@ -28,18 +31,14 @@ class AI:
         self.api_key = None
         self.client = None
         try:
-            self.api_key = os.getenv("OPENAI_API_KEY")
-            if self.api_key is None or self.api_key=="":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key is None or api_key=="":
                 with open("key.txt", "r") as f:
-                    self.api_key = f.read()
+                    api_key = f.read()
         except Exception as e:
             print(f"AI Error reading OPENAI key: {e}")
-        if self.api_key is not None and self.api_key!="":
-            self.api_key = self.api_key.strip()
-            self.client = openai.OpenAI(api_key = self.api_key)
-            print("AI: OPENAI client OK")
-        else:
-            print("AI: OPENAI client not ready!")
+        if api_key is not None and api_key!="":
+            self.setkey(api_key)
 
         self.init_chromadb()
 
@@ -50,10 +49,8 @@ class AI:
         self.logf.close()
 
     def setkey(self, key):
-        key = key.strip()
-        if key != self.api_key:
-            self.api_key = key
-            self.client = openai.OpenAI(api_key = self.api_key)
+        self.api_key = key.strip()
+        self.client = openai.OpenAI(api_key = self.api_key)
 
 
     def init_chromadb(self):
@@ -80,7 +77,7 @@ class AI:
 
     def send_llm_messages(self, messages):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI: OpenAI key missing")
+            print("AI.send_llm_messages: OpenAI key missing")
             return ''
 
         try:
@@ -126,7 +123,7 @@ class AI:
 
     def vision(self, image_b64, prompt):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI: OpenAI key missing")
+            print("AI.vision: OpenAI key missing")
             return ''
 
         # img must be a base64 encoding of the image !!!
@@ -185,7 +182,7 @@ class AI:
     # query a description
     def query(self, description, query):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI: OpenAI key missing")
+            print("AI.query: OpenAI key missing")
             return ''
 
         query_system = { 
@@ -212,7 +209,7 @@ class AI:
 
 
     # retrieve content from docs in vector db
-    def retrieve(self, content, max_dist=1.0, n_results=3):
+    def retrieve(self, content, max_dist=2.0, n_results=3):
         results = self.memory.query(
             query_texts=[content],
             n_results=n_results
@@ -277,7 +274,16 @@ class AI:
   
     
 
+def analyze(response):
+    try:
+        jr = json.loads(response)
+        answer = jr['text']
+        code = jr['code']
+    except json.decoder.JSONDecodeError as e:
+        print(f"Error in JSON format !!!\n{response}\n{e}\n")
+        return '',''
 
+    return answer, code
 
 
 AIagents = []
@@ -291,10 +297,13 @@ def cleanAIagents():
     AIagents = []
 
 class AIAgent():
-    def __init__(self, name, system_prompt):
+    def __init__(self, name, system_prompt, ai=None):
         self.name = name
         self.system_prompt = system_prompt
-        self.ai = AI()
+        if ai is not None:
+            self.ai = ai
+        else:
+            self.ai = AI()  # assumes OPENAI key is readable in 'key.txt' in this folder
         self.listener = None
         self.cb_fn = None
         self.thr_listen = None
@@ -317,9 +326,10 @@ class AIAgent():
         response = self.ai.send_llm_messages([self.system_prompt, user_message])
         return response        
 
-    def add_listener(self, md, topic, cb_fn):
+    def add_listener(self, topic, cb_fn):
         # only one listener
         if self.cb_fn is None:
+            md = getMessageDispatcher()
             self.listener = md.subscriber(self.name, topic)
             self.cb_fn = cb_fn
             self.thr_listen = threading.Thread(target=self.listener_thread, args=(), daemon=True)
