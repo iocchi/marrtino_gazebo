@@ -464,7 +464,12 @@ async def handler(websocket):
                         print("Waiting for code execution to be available....")
                         time.sleep(0.5)
 
-                    print(f"Robot function: {received_code}")
+                    if "setkey" in received_code:
+                        print(f"Robot function: {received_code[0:14]}")
+                    elif len(received_code)>80:
+                        print(f"Robot function: {received_code[0:40]}")
+                    else:
+                        print(f"Robot function: {received_code}")
 
                     r = None
                     success = False
@@ -654,10 +659,10 @@ async def main():
     human_system = "Answer the user prompt. Format the output as a JSON string with only two fields:    \
         'text' and 'code'. \
         The field 'text' should contain only a short sentence you want to reply to the user request. \
-        Never add new lines or any other special character in the 'text' field, \
         The field 'code' must be empty string '' is the sentence was not requesting any specific action, \
         or Python code as a consequence of the user request. It is important that the 'code' field \
-        of the JSON output is a correct Python code. Add comments in Python style. \
+        of the JSON output is a correct Python code. Do not add comments. \
+        Never add new lines or any other special character in the 'text' and 'code' fields, \
         Always answer in the same language of the question."
 
     human.ai = AIAgent("human", human_system, ai)
@@ -668,7 +673,8 @@ async def main():
         The field 'text' must be empty. Do not provide any textual answer to the user request. \
         The field 'code' must be empty string '' is the sentence was not requesting any specific action, \
         or Python code as a consequence of the user request. It is important that the 'code' field \
-        of the JSON output is a correct Python code. Add comments in Python style. \
+        of the JSON output is a correct Python code. Do not add comments. \
+        Never add new lines or any other special character in the 'text' and 'code' fields, \
         Always add comments in the same language of the question."
 
     gz.ai = AIAgent("gazebo", gazebo_system, ai)
