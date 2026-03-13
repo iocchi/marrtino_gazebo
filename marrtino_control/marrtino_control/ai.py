@@ -318,9 +318,10 @@ def cleanAIagents():
     AIagents = []
 
 class AIAgent():
-    def __init__(self, name, system_prompt, ai=None):
+    def __init__(self, name, main_system_prompt='', ai=None):
         self.name = name
-        self.system_prompt = system_prompt
+        self.main_system_prompt = main_system_prompt
+        self.system_prompt = { 'role': 'system', 'content': self.main_system_prompt }
         if ai is not None:
             self.ai = ai
         else:
@@ -328,6 +329,7 @@ class AIAgent():
         self.listener = None
         self.cb_fn = None
         self.thr_listen = None
+        self.enabled = False
         global AIagents
         AIagents.append(self)
 
@@ -335,8 +337,11 @@ class AIAgent():
         global AIagents
         AIagents.remove(self)
 
+    def set_system(self, sysprompt):
+        self.system_prompt['content'] = self.main_system_prompt + " " + sysprompt
+
     def add_system(self, sysprompt):
-        self.system_prompt['content'] += sysprompt 
+        self.system_prompt['content'] += " " + sysprompt 
 
     def askllm(self, content):
         user_message = {
@@ -347,35 +352,50 @@ class AIAgent():
         response = self.ai.send_llm_messages([self.system_prompt, user_message])
         return response        
 
-    def add_listener(self, topic, cb_fn):
+    def add_listener(self, topic, cb_fn, robot, gz):
         # only one listener
         if self.cb_fn is None:
             md = getMessageDispatcher()
             self.listener = md.subscriber(self.name, topic)
             self.cb_fn = cb_fn
-            self.thr_listen = threading.Thread(target=self.listener_thread, args=(), daemon=True)
+            self.thr_listen = threading.Thread(target=self.listener_thread, args=(robot, gz), daemon=True)
             self.thr_listen.start()
 
     def del_listener(self):
         # only one listener
         if self.cb_fn is not None:
+            print(f"AI agent {self.name} delete listener ...")
             self.listener = None
             self.thr_listen.join()
             self.thr_listen = None
             self.cb_fn = None
 
-    def listener_thread(self):
+    def enable(self, val=True):
+        self.enabled = val
+
+    def listener_thread(self, robot, gz):
         print(f"AI agent {self.name} listen thread started ...")
         while self.listener is not None:
             #print(f"AI agent {self.name} waiting for message ...")
+            content = None
             try:
-                content = self.listener.receive(timeout=3) # blocking
-                print(f"AI agent {self.name} received speech: {content}")
+                if self.enabled:
+                    print(f">>> AI agent {self.name} listening ...")
+                    content = self.listener.receive(timeout=3) # blocking
+                    print(f"AI agent {self.name} received speech: {content}")
+                else:
+                    time.sleep(3)
             except:
-                content = None
-            if self.cb_fn is not None and content is not None:
+                pass
+            if content is not None:
                 response = self.askllm(content)
-                self.cb_fn(response)
+                print(f">>> listener {self.name} -> {response}")
+                text, code = analyze(response)
+                if self.cb_fn is not None:
+                    self.cb_fn(text)
+                if code != '':
+                    # print(f">>>> exec\n{code}\n>>>>")
+                    exec(code, {"robot": robot, "gz": gz})
                 self.response_sent = True
                 #print(f"AI agent {self.name} response {self.response_sent}")
         print(f"AI agent {self.name} listen thread terminated ...")          
@@ -384,7 +404,7 @@ class AIAgent():
     # return True if response sent, False if timeout
     def waitfor_response(self, timeout=3600): 
         self.response_sent = False
-        while not self.response_sent and timeout>0:
+        while self.enabled and not self.response_sent and timeout>0:
             d = 0.5
             time.sleep(d)
             timeout -= d

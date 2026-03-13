@@ -19,7 +19,36 @@ from tf_transformations import quaternion_from_euler
 from marrtino_gazebo.srv import GazeboObjects
 
 
+
+
+class Door():
+    def __init__(self, gz, name, color, cx, cy, cth_rad, ox, oy, oth_rad):
+        self.gz = gz
+        self.name = name
+        self.color = color
+        self.closed_x = cx
+        self.closed_y = cy
+        self.closed_th_rad = cth_rad
+        self.open_x = ox
+        self.open_y = oy
+        self.open_th_rad = oth_rad
+
+        self.close()
+
+    def open(self):
+        self.gz.move_object(self.name, "door_"+self.color,
+            f"{self.open_x} {self.open_y} 0.5   0 0 {self.open_th_rad}")
+            
+    def close(self):
+        self.gz.move_object(self.name, "door_"+self.color,
+            f"{self.closed_x} {self.closed_y} 0.5   0 0 {self.closed_th_rad}")
+
+
+
+
+
 class ModelManager(Node):
+    
     def __init__(self):
         super().__init__('model_spawner')
 
@@ -35,6 +64,7 @@ class ModelManager(Node):
 
         # dict of static object strings (for save/load worlds)
         # name: obj_str
+        self.doors = {}  # doors
 
         # Wait for the service to be available
         self.cli_gz = self.create_client(GazeboObjects, 'gz_current_objects')
@@ -585,4 +615,21 @@ class ModelManager(Node):
             return True
         return False
 
+    def add_door(self, name, color, cx, cy, cth_rad, ox, oy, oth_rad):
+        self.doors[name] = Door(self, name, color, cx, cy, cth_rad, ox, oy, oth_rad)
 
+    def del_door(self, name):
+        if name in self.doors.keys():
+            del self.doors[name]
+
+    def close_door(self, name):
+        if name in self.doors.keys():
+            self.doors[name].close()
+        else:
+            print(f"Unknown door {name}")
+
+    def open_door(self, name):
+        if name in self.doors.keys():
+            self.doors[name].open()
+        else:
+            print(f"Unknown door {name}")

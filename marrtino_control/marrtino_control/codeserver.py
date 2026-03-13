@@ -20,7 +20,7 @@ sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
 # ai object
-from ai import AI, AIAgent, analyze, cleanAIagents
+from ai import AI, AIAgent, analyze # , cleanAIagents
 
 # message dispatcher
 from messages import getMessageDispatcher
@@ -48,28 +48,6 @@ class Human():
         print(f"Human say: {content}")
         if self.ws is not None:
             asyncio.run(send_human_say(self.ws, content))
-
-
-
-class Door():
-    def __init__(self, gz, name, color, cx, cy, cth_rad, ox, oy, oth_rad):
-        self.gz = gz
-        self.name = name
-        self.color = color
-        self.closed_x = cx
-        self.closed_y = cy
-        self.closed_th_rad = cth_rad
-        self.open_x = ox
-        self.open_y = oy
-        self.open_th_rad = oth_rad
-
-    def open(self):
-        self.gz.move_object(self.name, "door_"+self.color,
-            f"{self.open_x} {self.open_y} 0.5   0 0 {self.open_th_rad}")
-            
-    def close(self):
-        self.gz.move_object(self.name, "door_"+self.color,
-            f"{self.closed_x} {self.closed_y} 0.5   0 0 {self.closed_th_rad}")
 
 
 
@@ -134,7 +112,7 @@ def count_function_calls(code_string):
 
 def valid_func(fn):
     allowed_prefixes = ("robot.", "ai.", "gz.", "human.", "math.", "random.")
-    allowed_builtins = {"print", "range", "len", "exec", "Door"}
+    allowed_builtins = {"print", "range", "len", "exec"}
 
     # Block Dunder methods (e.g., __init__)
     if "__" in fn:
@@ -195,7 +173,7 @@ def run_code(websocket, donotify=True):
                     "range": range,
                     "len": len, "print": print, "exec": exec,
                     "robot": robot, "ai": ai, "AIAgent": AIAgent, "analyze": analyze,
-                    "gz": gz, "Door": Door,
+                    "gz": gz, 
                     #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
                     #"md": md,
@@ -206,7 +184,7 @@ def run_code(websocket, donotify=True):
             except Exception:
                 print(traceback.format_exc())
         # clear AI agents
-        cleanAIagents()
+        #cleanAIagents()
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
@@ -214,13 +192,13 @@ def notify_robot_say(G_connections):
     global robot
     while True:
         if robot is not None: 
-            if robot.simulated_say is not None:
+            if robot.simulated_say != '':
                 print(f" -- send websocket {robot.simulated_say}")
                 for websocket in G_connections:
                     asyncio.run(send_robot_say(websocket, robot.simulated_say))
                     time.sleep(0.2)
                 time.sleep(1)
-                robot.simulated_say = None
+                robot.simulated_say = ''
         time.sleep(0.5)
 
 
@@ -553,7 +531,10 @@ async def handler(websocket):
                 elif "human" in data:
                     h_fn = data["human"]  # should be human.fn(...)
 
-                    print(f"Human function: {h_fn}")
+                    if len(h_fn)>80:
+                        print(f"Human function: {h_fn[0:40]} ...")
+                    else:
+                        print(f"Human function: {h_fn}")
 
                     r = None
                     success = False
@@ -585,7 +566,7 @@ async def handler(websocket):
                         robot.user_stop = True
                         time.sleep(1)
                         terminate_thread()
-                        cleanAIagents()
+                        #cleanAIagents()
                         await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
 
                 elif "hsay" in data:
@@ -643,6 +624,9 @@ async def handler(websocket):
         if code_running is not None:
             printt(f"{lsb_str}Disconnect with code running {userid} ")
 
+        # Disable AI agents
+        human.ai.enable(False)
+        gz.ai.enable(False)
 
         # send a stop command to the robot (just in case...)
         print("Stop robot on disconnect.")
@@ -664,9 +648,34 @@ async def main():
     gz = ModelManager()
     if lsb_mode:
         gz_pause(True)
-    robot.ai = AI()
-    ai = robot.ai
+    ai = AI()
+    robot.ai = ai
     human = Human(robot)
+    human_system = "Answer the user prompt. Format the output as a JSON string with only two fields:    \
+        'text' and 'code'. \
+        The field 'text' should contain only a short sentence you want to reply to the user request. \
+        Never add new lines or any other special character in the 'text' field, \
+        The field 'code' must be empty string '' is the sentence was not requesting any specific action, \
+        or Python code as a consequence of the user request. It is important that the 'code' field \
+        of the JSON output is a correct Python code. Add comments in Python style. \
+        Always answer in the same language of the question."
+
+    human.ai = AIAgent("human", human_system, ai)
+    human.ai.add_listener("speech", human.say, robot, gz)
+
+    gazebo_system = "Answer the user prompt. Format the output as a JSON string with only two fields:    \
+        'text' and 'code'. \
+        The field 'text' must be empty. Do not provide any textual answer to the user request. \
+        The field 'code' must be empty string '' is the sentence was not requesting any specific action, \
+        or Python code as a consequence of the user request. It is important that the 'code' field \
+        of the JSON output is a correct Python code. Add comments in Python style. \
+        Always add comments in the same language of the question."
+
+    gz.ai = AIAgent("gazebo", gazebo_system, ai)
+    gz.ai.add_listener("speech", None, robot, gz)
+
+    human.ai.enable(False)
+    gz.ai.enable(False)
 
     # Start the WebSocket server on server host
     async with websockets.serve(handler, "0.0.0.0", WS_PORT, ping_interval=30, ping_timeout=10) as server:

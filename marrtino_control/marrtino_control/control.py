@@ -180,8 +180,8 @@ class MARRtinoController(Node):
         self.emergency_stop = False
 
         # simulated speech variables
-        self.simulated_say = None
-        self.simulated_asr = None
+        self.simulated_say = ''
+        self.simulated_asr = ''
 
         self.max_vel=0.3
         self.max_ang_vel=0.75
@@ -1657,12 +1657,12 @@ class MARRtinoController(Node):
         t = 0
         dt = 0.5
         print("listening ....")
-        while (t<timeout) and self.simulated_asr is None and not self.user_stop:
+        while (t<timeout) and self.simulated_asr == '' and not self.user_stop:
             self.sleep(dt)
             t += dt
         s = self.simulated_asr
-        self.simulated_asr = None
-        if s is not None:
+        self.simulated_asr = ''
+        if s != '':
             print(f"listened: {s}")
         return s
 
