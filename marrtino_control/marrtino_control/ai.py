@@ -3,6 +3,7 @@ import threading
 import json
 import openai
 import chromadb
+import queue
 
 from messages import getMessageDispatcher
 
@@ -381,15 +382,24 @@ class AIAgent():
         while self.listener is not None:
             #print(f"AI agent {self.name} waiting for message ...")
             content = None
+            
+            # content = self.listener.receive(timeout=3) # blocking
+            
+            
             try:
-                content = self.listener.receive(timeout=3) # blocking
                 if self.enabled:
                     print(f">>> AI agent {self.name} listening ...")
+                content = self.listener.receive(timeout=3) # blocking
+                if self.enabled:
                     print(f"AI agent {self.name} received speech: {content}")
                 else:
                     content = None
+            except queue.Empty:
+                pass
             except Exception as e:
-                print(f"Error in listener {self.name} receive\n{e}")
+                if e.strip() != '':
+                    print(f"Error in listener {self.name} receive\n{e}")
+                    
             if content is not None:
                 response = self.askllm(content)
                 print(f">>> listener {self.name} -> {response}")
@@ -401,7 +411,7 @@ class AIAgent():
                     try:
                         exec(code, {"robot": robot, "gz": gz})
                     except Exception as e:
-                        print(f"Error in listener {self.name} exec\n{e}")
+                        print(f"Error in listener {self.name} exec\n{e}") 
                 self.response_sent = True
                 #print(f"AI agent {self.name} response {self.response_sent}")
         print(f"AI agent {self.name} listen thread terminated ...")          
