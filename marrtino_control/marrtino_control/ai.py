@@ -343,6 +343,9 @@ class AIAgent():
     def add_system(self, sysprompt):
         self.system_prompt['content'] += " " + sysprompt 
 
+    def get_system(self):
+        return self.system_prompt['content']
+
     def askllm(self, content):
         user_message = {
             'role': 'user',
@@ -395,7 +398,10 @@ class AIAgent():
                     self.cb_fn(text)
                 if code != '':
                     # print(f">>>> exec\n{code}\n>>>>")
-                    exec(code, {"robot": robot, "gz": gz})
+                    try:
+                        exec(code, {"robot": robot, "gz": gz})
+                    except Exception as e:
+                        print(f"Error in listener {self.name} exec\n{e}")
                 self.response_sent = True
                 #print(f"AI agent {self.name} response {self.response_sent}")
         print(f"AI agent {self.name} listen thread terminated ...")          
