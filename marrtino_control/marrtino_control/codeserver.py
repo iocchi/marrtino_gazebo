@@ -465,7 +465,7 @@ async def handler(websocket):
                         time.sleep(0.5)
 
                     if "setkey" in received_code:
-                        print(f"Robot function: {received_code[0:14]}")
+                        print(f"Robot function: {received_code[0:25]}")
                     elif len(received_code)>80:
                         print(f"Robot function: {received_code[0:40]}")
                     else:

@@ -382,14 +382,14 @@ class AIAgent():
             #print(f"AI agent {self.name} waiting for message ...")
             content = None
             try:
+                content = self.listener.receive(timeout=3) # blocking
                 if self.enabled:
                     print(f">>> AI agent {self.name} listening ...")
-                    content = self.listener.receive(timeout=3) # blocking
                     print(f"AI agent {self.name} received speech: {content}")
                 else:
-                    time.sleep(3)
-            except:
-                pass
+                    content = None
+            except Exception as e:
+                print(f"Error in listener {self.name} receive\n{e}")
             if content is not None:
                 response = self.askllm(content)
                 print(f">>> listener {self.name} -> {response}")
