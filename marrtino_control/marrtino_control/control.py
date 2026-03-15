@@ -1656,14 +1656,14 @@ class MARRtinoController(Node):
     def listen(self, timeout=60):
         t = 0
         dt = 0.5
-        print("listening ....")
+        print("robot listening ....")
         while (t<timeout) and self.simulated_asr == '' and not self.user_stop:
             self.sleep(dt)
             t += dt
         s = self.simulated_asr
         self.simulated_asr = ''
         if s != '':
-            print(f"listened: {s}")
+            print(f"robot listened: {s}")
         return s
 
     # get robot pose in the specified frame [m, rad]

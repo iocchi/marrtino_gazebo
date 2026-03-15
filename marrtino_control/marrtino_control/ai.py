@@ -4,8 +4,12 @@ import json
 import openai
 import chromadb
 import queue
+import asyncio
 
 from messages import getMessageDispatcher
+
+ai_G_connections = None
+ai_notify_ai_results = None
 
 MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M token
 MODEL_cost_input = 0.05
@@ -22,6 +26,17 @@ code_system = {
     'content': "You are a small educational mobile robot named SMARRtino. You have two driving wheels and a caster wheel, two arms (left and right arm), and a pan-tilt head. You can move on a planar surface by using the following Python high-level functions: 'robot.forward(m)': move ahead by m meters. If the user does not specify any distance, move by 1 meter. If you are asked to turn left, use 'robot.left(90)' to turn left by 90 degrees. Instead, when you are asked to turn right, use 'robot.right(90)' to turn right by 90 degrees. Always double check that the function corresponds with the user request. For example, to turn left, then turn right use 'robot.left(90)' and then 'robot.right(90)'.  For example, to turn around, use 'robot.left(180)'. You can turn any other angle, for example to turn 30 deg on the left, use 'robot.left(30)'. To raise up your left arm above your head, use 'robot.left_arm(180)'. For raising up the right arm use 'robot.right_arm(180)'. To move arms in front of you use 'robot.left_arm(90)' for the left arm and 'robot.right_arm(90)' for the right arm. To place arms in the rest position down, use 'robot.left_arm(0)' for the left arm and 'robot.right_arm(0)' for the right arm. The head can turn left with the function 'robot.pan(90)' and right with 'robot.pan(-90)'. You can move the head up with 'robot.tilt(30)' and down with 'robot.tilt(-30)'. When the user asks to look somewhere, use head movements. For example, for looking straight ahead use 'robot.pan(0)' and 'robot.tilt(0)', to look left use 'robot.pan(90)', to look right use 'robot.pan(-90)'. When the user asks to turn, use only the functions 'robot.left', 'robot.right'. When the user asks to look somewhere, use only the function 'robot.pan'. When the user asks to execute multiple commands, use Python functions in a sequence. For example, if the user asks to move forward and then turn left, use the sequence of functions 'robot.forward(1)\nrobot.turn(90)'. If the user asks to look forward and put the arms down, use the sequence 'robot.pan(0)\nrobot.tilt(0)\nrobot.left_arm(0)\nrobot.right_arm(0)'. To get a photo of the scene, you can use 'robot.get_image()'. Think step-by-step. Use new line character to separate Python functions in the code. Return only valid Python code as answer. Add Python comments explaining the meaning of any instruction in the code."
 }
 
+def ai_set_connections(G_conn, notify_fn):
+    global ai_G_connections, ai_notify_ai_results
+
+    ai_G_connections = G_conn
+    ai_notify_ai_results = notify_fn
+
+
+def notify_ai_results(content):
+    print(f"!!! notify_ai_results {content}!!!")
+    print(f"*** {ai_notify_ai_results} ***")
+    ai_notify_ai_results(content)
 
 class AI:
     def __init__(self):
@@ -72,7 +87,12 @@ class AI:
 
     def setkey(self, key):
         self.api_key = key.strip()
-        self.client = openai.OpenAI(api_key = self.api_key)
+        if self.api_key is None or self.api_key == '':
+            self.client = None
+            print("OpenAI client OFF")
+        else:
+            self.client = openai.OpenAI(api_key = self.api_key)
+            print("OpenAI client ON")
 
 
     def init_chromadb(self):
@@ -93,13 +113,20 @@ class AI:
 
 
     def log_write(self, content):
-        self.logf.write(content)
+        self.logf.write(content+"\n")
         self.logf.flush()
+        # print(f"*** {notify_ai_results} ***")
+        try:
+            notify_ai_results(content)  # OK when executed from exec in codeserver
+        except Exception as e:
+            print(f"AI log_write: cannot notify ai results {content}")
+            print(e)
 
+    
 
     def send_llm_messages(self, messages):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI.send_llm_messages: OpenAI key missing")
+            self.log_write("AI ERROR: send_llm_messages: OpenAI key missing")
             return ''
 
         try:
@@ -109,15 +136,14 @@ class AI:
                 # temperature = 0.5,
             )
         except openai.AuthenticationError:
-            print("AI AuthenticationError: OpenAI key valid?")
+            self.log_write("AI ERROR: AuthenticationError: OpenAI key valid?")
             return ''
         
         self.gpt_total_tokens += response.usage.total_tokens
         self.gpt_input_tokens += response.usage.input_tokens
         self.gpt_output_tokens += response.usage.output_tokens
         
-        self.logf.write(f"{messages[-1]['content']}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
-        self.logf.flush()
+        self.log_write(f"{messages[-1]['content']}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
 
         return response.output_text
         
@@ -127,7 +153,7 @@ class AI:
             'role': 'user',
             'content': content,
         }
-        self.logf.write("chat\n")
+        self.log_write("chat")
         response = self.send_llm_messages([chat_system, user_message])
         return response
 
@@ -138,14 +164,14 @@ class AI:
             'role': 'user',
             'content': content,
         }
-        self.logf.write("code\n")
+        self.log_write("code")
         response = self.send_llm_messages([code_system, user_message])
         return response
 
 
     def vision(self, image_b64, prompt):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI.vision: OpenAI key missing")
+            self.log_write("AI ERROR: vision: OpenAI key missing")
             return ''
 
         # img must be a base64 encoding of the image !!!
@@ -174,10 +200,8 @@ class AI:
             self.gpt_input_tokens += response.usage.input_tokens
             self.gpt_output_tokens += response.usage.output_tokens
 
-            self.logf.write("vision\n")
-            self.logf.write(f"{prompt}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
-            self.logf.flush()
-
+            self.log_write(f"vision\n{prompt}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
+            
             return response.output_text
         except Exception as e:
             print(f"AI vision:: Getting response - {e}")
@@ -204,7 +228,7 @@ class AI:
     # query a description
     def query(self, description, query):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            print("AI.query: OpenAI key missing")
+            print("AI ERROR: query: OpenAI key missing")
             return ''
 
         query_system = { 
@@ -215,8 +239,7 @@ class AI:
             'role': 'user',
             'content': query,
         }
-        self.logf.write("query\n")
-        self.logf.write(f"{description}\n")        
+        self.log_write(f"query\n{description}\n")        
         response = self.send_llm_messages([query_system, user_message])
         return response
 
@@ -250,8 +273,7 @@ class AI:
             'content': content,
         }
 
-        self.logf.write("retrieve\n")
-        self.logf.write(f"{docs}\n{dists}\n{r if r!= '' else '*** nothing ***'}\n")
+        self.log_write(f"retrieve\n{docs}\n{dists}\n{r if r!= '' else '*** nothing ***'}\n")
 
         if r != '':
             sys_pr = "Answer the user request according to these facts: " + r
@@ -352,7 +374,7 @@ class AIAgent():
             'role': 'user',
             'content': content,
         }
-        self.ai.logf.write(f"{self.name}\n")
+        self.ai.log_write(f"{self.name}")
         response = self.ai.send_llm_messages([self.system_prompt, user_message])
         return response        
 
@@ -377,15 +399,14 @@ class AIAgent():
     def enable(self, val=True):
         self.enabled = val
 
+    def disable(self):
+        self.enabled = False
+
     def listener_thread(self, robot, gz):
         print(f"AI agent {self.name} listen thread started ...")
         while self.listener is not None:
             #print(f"AI agent {self.name} waiting for message ...")
             content = None
-            
-            # content = self.listener.receive(timeout=3) # blocking
-            
-            
             try:
                 if self.enabled:
                     print(f">>> AI agent {self.name} listening ...")
@@ -399,6 +420,7 @@ class AIAgent():
             except Exception as e:
                 if e.strip() != '':
                     print(f"Error in listener {self.name} receive\n{e}")
+                    self.ai.log_write(f"Error in listener {self.name} receive\n{e}")
                     
             if content is not None:
                 response = self.askllm(content)
@@ -412,6 +434,7 @@ class AIAgent():
                         exec(code, {"robot": robot, "gz": gz})
                     except Exception as e:
                         print(f"Error in listener {self.name} exec\n{e}") 
+                        self.ai.log_write(f"Error in listener {self.name} exec\n{e}") 
                 self.response_sent = True
                 #print(f"AI agent {self.name} response {self.response_sent}")
         print(f"AI agent {self.name} listen thread terminated ...")          

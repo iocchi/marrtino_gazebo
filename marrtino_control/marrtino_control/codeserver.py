@@ -20,7 +20,8 @@ sys.path.append("../../marrtino_gazebo/src")
 from gz_models import ModelManager
 
 # ai object
-from ai import AI, AIAgent, analyze # , cleanAIagents
+from ai import AI, AIAgent # , analyze # , cleanAIagents
+from ai import ai_set_connections
 
 # message dispatcher
 from messages import getMessageDispatcher
@@ -89,6 +90,24 @@ def printt(s):
     flog.write("%s;%s\n" %(t,s))
     flog.flush()
     print(s)
+
+
+# websocket send results and errors
+async def notify_error(websocket, content):
+    if type(content) is not str:
+        content = str(content)
+    await websocket.send(json.dumps({"status": "error", "message": content}))
+
+async def notify_ai_result(websocket, content):
+    await websocket.send(json.dumps({"status": "ai", "message": content}))
+
+
+def notify_ai_results(content):
+    print(f" -- send ai result to websockets ...")
+    for websocket in G_connections:
+        asyncio.run(notify_ai_result(websocket, content))
+        time.sleep(0.1)
+
 
 def count_commands(code_string):
     try:
@@ -172,7 +191,7 @@ def run_code(websocket, donotify=True):
                     "math": math, "random": random,
                     "range": range,
                     "len": len, "print": print, "exec": exec,
-                    "robot": robot, "ai": ai, "AIAgent": AIAgent, "analyze": analyze,
+                    "robot": robot, "ai": ai, "AIAgent": AIAgent, # "analyze": analyze,
                     "gz": gz, 
                     #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
@@ -181,8 +200,9 @@ def run_code(websocket, donotify=True):
                 }
                 human.set_ws(websocket)
                 exec(code_running, safe_globals)
-            except Exception:
+            except Exception as e:
                 print(traceback.format_exc())
+                asyncio.run(notify_error(websocket, e))
         # clear AI agents
         #cleanAIagents()
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
@@ -231,8 +251,8 @@ def safe_fn(fn):
     return safecode
 
 
-def run_eval(fn):
-    global robot, gz, ai, human, code_running
+def run_eval(fn, websocket):
+    global robot, gz, ai, human, code_running, notify_ai_results
     # try unitl completed
     complete = False
     r = None
@@ -247,7 +267,8 @@ def run_eval(fn):
                 else:
                     printt(f"RUN {current_userid} {sfn}")
                 code_running = sfn
-                r = eval(sfn)
+                print(f"*** {notify_ai_results} ***")
+                r = eval(sfn, globals(), locals())
             complete = True
         except IndexError as e:
             print(f"Index Error in run_eval: {e}")
@@ -257,7 +278,9 @@ def run_eval(fn):
             print(f"Value Error in run_eval: {e}")
             break # time.sleep(0.1)
         except Exception as e:
+            print(traceback.format_exc())
             print(f"General Error in run_eval: {e}")
+            asyncio.run(notify_error(websocket, e))
             break
 
     code_running = None
@@ -283,6 +306,8 @@ async def notify_thread_completed(websocket, donotify):
         print("Notify termination.")
         # notify termination to JS client websocket
         await websocket.send(json.dumps({"status": "success", "message": "Code completed!", "disable_send": "false"}))
+
+
 
 
 async def send_robot_say(websocket, sentence):
@@ -321,6 +346,11 @@ current_userid = None
 th_robot_say = Thread(target=notify_robot_say, args=(G_connections, ), daemon=True)
 th_robot_say.start()
 
+ai_set_connections(G_connections, notify_ai_results)
+
+
+print(f"*** {notify_ai_result} ***")
+print(f"*** {notify_ai_results} ***")
 
 def get_user_path():
     upath = os.getenv('PATH_USERS')
@@ -476,7 +506,7 @@ async def handler(websocket):
                     #while not success:
                     try:
                         # r = run_eval(received_code)   -- blocking does not allow ping and causes disconnection !!!
-                        r = await asyncio.to_thread(run_eval, received_code)
+                        r = await asyncio.to_thread(run_eval, received_code, websocket)
                         success = True
                     except Exception as e:
                         print(f"Robot Error: {e}")
@@ -499,7 +529,7 @@ async def handler(websocket):
                     success = False
                     #while not success:
                     try:
-                        r = await asyncio.to_thread(run_eval, gz_fn)
+                        r = await asyncio.to_thread(run_eval, gz_fn,websocket)
                         success = True
                     except Exception as e:
                         print(f"Gazebo Error: {e}")
@@ -523,7 +553,7 @@ async def handler(websocket):
                     success = False
                     #while not success:
                     try:
-                        r = await asyncio.to_thread(run_eval, ai_fn)
+                        r = await asyncio.to_thread(run_eval, ai_fn,websocket)
                         success = True
                     except Exception as e:
                         print(f"AI Error: {e}")
@@ -545,7 +575,7 @@ async def handler(websocket):
                     success = False
                     #while not success:
                     try:
-                        r = await asyncio.to_thread(run_eval, h_fn)
+                        r = await asyncio.to_thread(run_eval, h_fn,websocket)
                         success = True
                     except Exception as e:
                         print(f"Human Error: {e}")
@@ -629,15 +659,21 @@ async def handler(websocket):
         if code_running is not None:
             printt(f"{lsb_str}Disconnect with code running {userid} ")
 
+        print("Disable AI agents and reset AI keys.")
+
         # Disable AI agents
         human.ai.enable(False)
         gz.ai.enable(False)
+
+        # Reset keys (all agents share the same ai object)
+        robot.ai.setkey('')
 
         # send a stop command to the robot (just in case...)
         print("Stop robot on disconnect.")
         robot.stop_request()
         time.sleep(1)
         robot.stop_unrequest()
+
 
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation
@@ -653,7 +689,7 @@ async def main():
     gz = ModelManager()
     if lsb_mode:
         gz_pause(True)
-    ai = AI()
+    ai = AI()  # all agents share the same ai object
     robot.ai = ai
     human = Human(robot)
     human_system = "Answer the user prompt. Format the output as a JSON string with only two fields:    \
