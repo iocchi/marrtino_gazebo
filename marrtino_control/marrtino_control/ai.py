@@ -34,8 +34,6 @@ def ai_set_connections(G_conn, notify_fn):
 
 
 def notify_ai_results(content):
-    print(f"!!! notify_ai_results {content}!!!")
-    print(f"*** {ai_notify_ai_results} ***")
     ai_notify_ai_results(content)
 
 class AI:
@@ -137,6 +135,12 @@ class AI:
             )
         except openai.AuthenticationError:
             self.log_write("AI ERROR: AuthenticationError: OpenAI key valid?")
+            return ''
+        except openai.BadRequestError as e:
+            self.log_write(f"AI ERROR: Bad request {e}")
+            return ''
+        except Exception as e:
+            self.log_write(f"AI ERROR: {e}")
             return ''
         
         self.gpt_total_tokens += response.usage.total_tokens

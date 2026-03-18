@@ -28,6 +28,7 @@
         #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #98e1f7; width: 400px; min-height: 50px; }
         #nlpanswer { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #ceced5; width: 400px; min-height: 50px; }
         #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #9ef5b1; width: 400px; height: 270px; overflow: auto; }
+        #printoutput { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #cccccc; width: 600px; height: 300px; overflow: auto; }
 
     </style>
 
@@ -142,6 +143,16 @@
     </td>
 
     </tr>
+    
+    <tr>
+    
+    <td>
+    <b>Print output</b>
+    <div id="printoutput" align="left"></div>
+    <p align="center"> <button id="clearPrintOutputButton">Clear</button> </p>
+    </td>
+    </tr>
+    
     </table>
 
     <p>--------------------------------------</p>
@@ -202,8 +213,19 @@
     
     robot.ai_say(prompt)    # robot says the output of LLM prompt
     robot.ai_code(prompt)   # robot executes the output of LLM prompt
-    robot.ai_vision(prompt) # robot takes an image of the current scene and executes the output of VLM prompt on such an image
+    robot.ai_vision(prompt) # robot takes an image of the current scene and says the output of VLM prompt on such an image
     
+    a = robot.ai.chat(prompt)   # returns the string output of LLM prompt
+    p = robot.ai.code(prompt)   # returns the code output of LLM prompt
+    exec(p)                     # executes a program
+    d = robot.ai.vision(image, prompt)    # returns the string output of VLM prompt on the given image
+    a = robot.ai.query(description, prompt)    # returns the output of LLM prompt on the description
+    robot.ai.memorize(content)    # memorize content in the vector DB
+    a = robot.ai.retrieve(prompt, max_dist=2.0, n_results=3)   # returns output of prompt retrieving documents from the vector DB
+    robot.ai.clear_memory()       # clear the all memory
+    m = robot.ai.list_memory()    # string with items in the current memory
+    robot.ai.forget(ids)          # remove from memory content with specified ids
+
     </pre>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
@@ -259,6 +281,10 @@
 
         function appendDialogue(message, color = 'black') {
             dialogue.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
+        }
+
+        function appendPrintOutput(message, color = 'black') {
+            printoutput.innerHTML += `<span style="color: ${color};">${message}<br></span>`;
         }
 
 
@@ -337,6 +363,18 @@
                     else if (data.status == 'user') {
                         console.log("User: "+ data.message)
                         document.getElementById('userid').innerHTML = data.name;
+                    }
+                    else if (data.status == 'print') {
+                        //console.log("Print: "+ data.message)
+                        appendPrintOutput(data.message)
+                    }
+                    else if (data.status == 'ai') {
+                        //console.log("Print: "+ data.message)
+                        appendPrintOutput(data.message, 'blue')
+                    }
+                    else if (data.status == 'error') {
+                        //console.log("Print: "+ data.message)
+                        appendPrintOutput(data.message, 'red')
                     }
 				    else {
                         updateStatus('statusrobot', `Robot Error - ${data.message}`, 'red');
@@ -467,6 +505,10 @@
 
         clearDialogueButton.addEventListener('click', () => {
             dialogue.innerHTML = "";
+        });
+
+        clearPrintOutputButton.addEventListener('click', () => {
+            printoutput.innerHTML = "";
         });
 
         refreshButton.addEventListener('click', () => {

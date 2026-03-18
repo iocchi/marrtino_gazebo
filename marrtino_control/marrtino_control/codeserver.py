@@ -109,6 +109,28 @@ def notify_ai_results(content):
         time.sleep(0.1)
 
 
+
+# print on terminal and send print message to ws client
+# used in web interface to print in the print-output panel
+def print_ws(*args, **kwargs):
+    sep = kwargs.get('sep', ' ')
+    end = kwargs.get('end', '\n')
+    
+    output_string = sep.join(map(str, args)) + end
+    
+    sys.stdout.write(output_string)
+    #real_print(output_string)   # defined and used in exec
+    
+    for websocket in G_connections:
+        try:
+            asyncio.run(websocket.send(json.dumps({"status": "print", "message": output_string})))
+        except Exception as e:
+            sys.stdout.write(f"print_ws - WS Send Error: {e}\n")
+            #real_print(f"print_ws - WS Send Error: {e}\n")
+
+        time.sleep(0.05)
+
+
 def count_commands(code_string):
     try:
         # Parse the string into an AST
@@ -178,7 +200,7 @@ def safe_code(code_string):
 
 
 def run_code(websocket, donotify=True):
-    global robot, ai, human
+    global robot, human, gz, ai
     if code_running is not None:
         robot.user_stop = False
         s,m = safe_code(code_running)
@@ -189,22 +211,23 @@ def run_code(websocket, donotify=True):
                 # Only things in this dict are accessible to the user's code
                 safe_globals = {
                     "math": math, "random": random,
-                    "range": range,
-                    "len": len, "print": print, "exec": exec,
+                    "range": range, "len": len, "print": print_ws, "real_print": print,
+                    "exec": exec,
                     "robot": robot, "ai": ai, "AIAgent": AIAgent, # "analyze": analyze,
                     "gz": gz, 
                     #"robot_AI": robot_AI, "AIAgent": AIAgent, "human_AI": human_AI,
                     "human": human,
                     #"md": md,
-                    "__builtins__": {},    # STRIP all default functions like open(), exec(), etc.
+                    "__builtins__": {},    # block all other functions 
                 }
                 human.set_ws(websocket)
                 exec(code_running, safe_globals)
             except Exception as e:
                 print(traceback.format_exc())
                 asyncio.run(notify_error(websocket, e))
-        # clear AI agents
-        #cleanAIagents()
+        # disable AI agents
+        human.ai.enable(False)
+        gz.ai.enable(False)
         asyncio.run(notify_thread_completed(websocket, donotify=donotify))
 
 
@@ -267,7 +290,7 @@ def run_eval(fn, websocket):
                 else:
                     printt(f"RUN {current_userid} {sfn}")
                 code_running = sfn
-                print(f"*** {notify_ai_results} ***")
+                # print(f"*** {notify_ai_results} ***")
                 r = eval(sfn, globals(), locals())
             complete = True
         except IndexError as e:
@@ -338,6 +361,7 @@ def gz_gui(flag):
     os.system(cmd)
 
 
+
 # global
 G_connections = []
 nconnections = 0
@@ -348,9 +372,6 @@ th_robot_say.start()
 
 ai_set_connections(G_connections, notify_ai_results)
 
-
-print(f"*** {notify_ai_result} ***")
-print(f"*** {notify_ai_results} ***")
 
 def get_user_path():
     upath = os.getenv('PATH_USERS')
