@@ -4,6 +4,7 @@ import json
 import openai
 import chromadb
 import queue
+import re
 import asyncio
 
 from messages import getMessageDispatcher
@@ -36,6 +37,32 @@ def ai_set_connections(G_conn, notify_fn):
 def notify_ai_results(content):
     ai_notify_ai_results(content)
 
+
+
+
+def detect_ai_provider(key_string):
+    if not isinstance(key_string, str) or not key_string:
+        return "Invalid Input"
+
+    # Define the signature patterns
+    patterns = {
+        "OpenAI": r"^(sk-proj-[a-zA-Z0-9-]{40,}|sk-[a-zA-Z0-9]{32,})$",
+        "Anthropic": r"^sk-ant-api\d{2}-[a-zA-Z0-9\-_]{80,}$",
+        "Google Gemini": r"^AIzaSy[a-zA-Z0-9\-_]{33}$"
+    }
+
+    for provider, pattern in patterns.items():
+        if re.match(pattern, key_string):
+            return provider
+
+    # Fallback: Simple prefix check if the regex is too strict
+    if key_string.startswith("sk-ant-"): return "Anthropic"
+    if key_string.startswith("sk-"):     return "OpenAI"
+    if key_string.startswith("AIza"):    return "Google"
+
+    return "Unknown Provider"
+
+
 class AI:
     def __init__(self):
         self.gpt_total_tokens = 0
@@ -65,7 +92,7 @@ class AI:
     def get_user_path(self):
         upath = os.getenv('PATH_USERS')
         if upath is None:
-            self.get_logger().warn(f"Gazebo Objects Service: PATH_USERS env not found. Using '/op/users'")
+            self.get_logger().warn(f"PATH_USERS env not found. Using '/op/users'")
             upath = '/opt/users'
 
         cuf = os.path.join(upath,"current_user")
@@ -84,13 +111,44 @@ class AI:
         return userpath
 
     def setkey(self, key):
-        self.api_key = key.strip()
+
+        self.api_key = ''
+        key = key.strip()
+        prov = detect_ai_provider(key)
+        if prov=="OpenAI":
+            self.api_key = key.strip()
+        elif prov in ["Anthropic","Google"]:
+            self.log_write(f"AI ERROR: {prov} not yet supported")
+        else:
+            # read secrets from file
+
+            print(f"read {key} from secrets...")
+
+            try:
+                upath = os.getenv('PATH_USERS')
+                if upath is None:
+                    self.get_logger().warn(f"PATH_USERS env not found. Using '/op/users'")
+                    upath = '/opt/users'
+                secfile = os.path.join(upath, "aisecrets.txt")
+                with open(secfile, 'r', encoding='utf-8') as file:
+                    data = json.load(file)
+                    if key in data.keys():
+                        self.api_key = data[key].strip()
+            except FileNotFoundError:
+                print("The file was not found.")
+            except json.JSONDecodeError:
+                print("The file contains invalid JSON.")
+
+            if key!='':
+                self.log_write(f"AI ERROR: Unknown key {key}")
+
         if self.api_key is None or self.api_key == '':
             self.client = None
             print("OpenAI client OFF")
         else:
             self.client = openai.OpenAI(api_key = self.api_key)
             print("OpenAI client ON")
+
 
 
     def init_chromadb(self):

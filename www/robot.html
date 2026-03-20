@@ -9,7 +9,7 @@
         .CodeMirror {
             border: 1px solid #929292;
             height: 250px; /* Adjust height as needed */
-            width: 600px; /* Adjust width as needed */
+            width: 620px; /* Adjust width as needed */
             margin-bottom: 10px;
             font-size: 14px; /* Adjust font size */
         }
@@ -137,17 +137,27 @@
     <div align="left">   <textarea id="codeEditor"></textarea> </div>
     
     <table>
-        <td width=160 align=center> <button id="runButton">RUN</button> </td>
-        <td width=160 align=center> <button id="stopButton">STOP</button> </td>
+        <tr>
+            <td width=160 align="center"> <button id="runButton">RUN</button> </td>
+            <td width=160 align="center"> <button id="stopButton">STOP</button> </td>
+            <td width=160 align="center"> <button id="loadButton">Load</button> </td>
+            <td width=160 align="center"> <button id="saveButton">Save</button> </td>
+        </tr>    
     </table>
+
     </td>
 
     </tr>
-    
+        
     <tr>
-    
-    <td>
-    <b>Print output</b>
+        <td align="center">
+            <br><br><h3>Print output</h3>
+        </td>
+    </tr>
+
+    <tr>
+
+    <td align="center">
     <div id="printoutput" align="left"></div>
     <p align="center"> <button id="clearPrintOutputButton">Clear</button> </p>
     </td>
@@ -233,7 +243,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/display/rulers.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.js"></script> <script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.js"></script> 
+    <script>
         // Initialize CodeMirror
         const codeEditorElement = document.getElementById('codeEditor');
         const editor = CodeMirror.fromTextArea(codeEditorElement, {
@@ -268,6 +279,11 @@
         const connectButton = document.getElementById('connectButton');
         const runButton = document.getElementById('runButton');
         const stopButton = document.getElementById('stopButton');
+
+        runButton.disabled = true;
+        runButton.color = 'grey';
+        stopButton.disabled = true;
+        stopButton.color = 'grey';
 
         const sayButton = document.getElementById('sayButton');
                         
@@ -320,7 +336,6 @@
 
             // change if needed
             var robot_host = host; 
-            var nlp_host = host;       //  "10.95.1.5"
 
 //            document.getElementById('iframesim').src = "http://" + host + ":8081/vnc.html?autoconnect=1&resize=scale&quality=9&compression=2"
 
@@ -370,7 +385,10 @@
                     }
                     else if (data.status == 'ai') {
                         //console.log("Print: "+ data.message)
-                        appendPrintOutput(data.message, 'blue')
+                        if (data.message.includes('ERROR'))
+                            appendPrintOutput(data.message, 'red')
+                        else
+                            appendPrintOutput(data.message, 'blue')
                     }
                     else if (data.status == 'error') {
                         //console.log("Print: "+ data.message)
@@ -513,6 +531,43 @@
 
         refreshButton.addEventListener('click', () => {
             refreshImage();
+        });
+
+
+        async function saveFile(code) {
+            const options = {
+                suggestedName: 'program.rpy',
+            };            
+            fileHandle = await window.showSaveFilePicker(options);
+            // WritableStream
+            const writable = await fileHandle.createWritable();
+            await writable.write(code);
+            await writable.close();
+            alert("Saved successfully!");
+        }
+
+        async function openFile() {
+            try {
+                // This opens the file picker directly without an <input> tag
+                const [handle] = await window.showOpenFilePicker();
+                const file = await handle.getFile();
+                content = await file.text();
+                return content;
+            } catch (err) {
+                console.log("User cancelled or browser doesn't support this.");
+                return '';
+            }
+        }
+
+
+        saveButton.addEventListener('click', async () => {
+            const code = editor.getValue();
+            await saveFile(code);
+        });
+
+        loadButton.addEventListener('click', async () => {
+            code = await openFile();
+            editor.setValue(code);
         });
 
 

@@ -98,14 +98,11 @@ async def notify_error(websocket, content):
         content = str(content)
     await websocket.send(json.dumps({"status": "error", "message": content}))
 
-async def notify_ai_result(websocket, content):
-    await websocket.send(json.dumps({"status": "ai", "message": content}))
-
 
 def notify_ai_results(content):
-    print(f" -- send ai result to websockets ...")
+    #print(f" -- send ai result [{content}] to websockets ...")
     for websocket in G_connections:
-        asyncio.run(notify_ai_result(websocket, content))
+        asyncio.run(websocket.send(json.dumps({"status": "ai", "message": content})))
         time.sleep(0.1)
 
 
@@ -275,7 +272,7 @@ def safe_fn(fn):
 
 
 def run_eval(fn, websocket):
-    global robot, gz, ai, human, code_running, notify_ai_results
+    global robot, gz, ai, human, code_running
     # try unitl completed
     complete = False
     r = None
@@ -290,7 +287,6 @@ def run_eval(fn, websocket):
                 else:
                     printt(f"RUN {current_userid} {sfn}")
                 code_running = sfn
-                # print(f"*** {notify_ai_results} ***")
                 r = eval(sfn, globals(), locals())
             complete = True
         except IndexError as e:
@@ -632,7 +628,8 @@ async def handler(websocket):
 
                 elif "apikey" in data:
                     key = data["apikey"]
-                    robot.ai.setkey(key)
+                    api_code = f"robot.ai.setkey('{key}')"
+                    r = await asyncio.to_thread(run_eval, api_code, websocket)
 
                 else:
                     print("Received message does not contain known key.")
