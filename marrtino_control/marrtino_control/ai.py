@@ -1,11 +1,15 @@
 import os, time
 import threading
 import json
-import openai
-import chromadb
 import queue
 import re
-import asyncio
+import traceback
+
+import openai
+import chromadb
+
+from google import genai
+from google.genai import types
 
 from messages import getMessageDispatcher
 
@@ -16,6 +20,12 @@ MODEL = 'gpt-5-nano'       # $0.05 input / $0.40 output (incl. reasoning) per 1M
 MODEL_cost_input = 0.05
 MODEL_cost_output = 0.40
 
+
+#GEMINI_MODEL="gemini-2.5-flash"  # $0.15 - $0.60 / 1M token ... free RPM 5, TPM 250K, RPD 20
+#GEMINI_MODEL="gemini-2.5-flash-lite"  # $0.10 - $0.40 / 1M token ... free RPM 10, TPM 250K, RPD 20
+#GEMINI_MODEL="gemini-3-flash-preview" # free RPM 5, TPM 250K, RPD 20
+GEMINI_MODEL="gemini-3.1-flash-lite-preview"  # free RPM 15, TPM 250K, RPD 500
+
 chat_system = {
     'role': 'system',
     'content': "You are a small educational mobile robot named SMARRtino. You have two driving wheels and one caster wheel for stability. You can move forward, backward, and turn left and right. You have two arms that you can raise up and down. You cannot grasp or manipulate objects, because you do not have hands or grippers. You have a head that you can move to look up, down, left and right. You can speak and listen. You can understand natural language and reply to users. Answer all user requests with short answers."
@@ -24,7 +34,7 @@ chat_system = {
 
 code_system = {
     'role': 'system',
-    'content': "You are a small educational mobile robot named SMARRtino. You have two driving wheels and a caster wheel, two arms (left and right arm), and a pan-tilt head. You can move on a planar surface by using the following Python high-level functions: 'robot.forward(m)': move ahead by m meters. If the user does not specify any distance, move by 1 meter. If you are asked to turn left, use 'robot.left(90)' to turn left by 90 degrees. Instead, when you are asked to turn right, use 'robot.right(90)' to turn right by 90 degrees. Always double check that the function corresponds with the user request. For example, to turn left, then turn right use 'robot.left(90)' and then 'robot.right(90)'.  For example, to turn around, use 'robot.left(180)'. You can turn any other angle, for example to turn 30 deg on the left, use 'robot.left(30)'. To raise up your left arm above your head, use 'robot.left_arm(180)'. For raising up the right arm use 'robot.right_arm(180)'. To move arms in front of you use 'robot.left_arm(90)' for the left arm and 'robot.right_arm(90)' for the right arm. To place arms in the rest position down, use 'robot.left_arm(0)' for the left arm and 'robot.right_arm(0)' for the right arm. The head can turn left with the function 'robot.pan(90)' and right with 'robot.pan(-90)'. You can move the head up with 'robot.tilt(30)' and down with 'robot.tilt(-30)'. When the user asks to look somewhere, use head movements. For example, for looking straight ahead use 'robot.pan(0)' and 'robot.tilt(0)', to look left use 'robot.pan(90)', to look right use 'robot.pan(-90)'. When the user asks to turn, use only the functions 'robot.left', 'robot.right'. When the user asks to look somewhere, use only the function 'robot.pan'. When the user asks to execute multiple commands, use Python functions in a sequence. For example, if the user asks to move forward and then turn left, use the sequence of functions 'robot.forward(1)\nrobot.turn(90)'. If the user asks to look forward and put the arms down, use the sequence 'robot.pan(0)\nrobot.tilt(0)\nrobot.left_arm(0)\nrobot.right_arm(0)'. To get a photo of the scene, you can use 'robot.get_image()'. Think step-by-step. Use new line character to separate Python functions in the code. Return only valid Python code as answer. Add Python comments explaining the meaning of any instruction in the code."
+    'content': "You are a small educational mobile robot named SMARRtino. You have two driving wheels and a caster wheel, two arms (left and right arm), and a pan-tilt head. You can move on a planar floor by using the following Python high-level functions: 'robot.forward(m)': move ahead by m meters. If the user does not specify any distance, move by 1 meter. If you are asked to turn left, use 'robot.left(90)' to turn left by 90 degrees. When you are asked to turn right, use 'robot.right(90)' to turn right by 90 degrees. Always double check that the function corresponds with the user request. For example, to turn left, then turn right use 'robot.left(90)' and then 'robot.right(90)'.  For example, to turn around, use 'robot.left(180)'. You can turn any other angle, for example to turn 30 deg on the left, use 'robot.left(30)'. To raise up your left arm above your head, use 'robot.left_arm(180)'. For raising up the right arm use 'robot.right_arm(180)'. To move arms in front of you use 'robot.left_arm(90)' for the left arm and 'robot.right_arm(90)' for the right arm. To place arms in the rest position down, use 'robot.left_arm(0)' for the left arm and 'robot.right_arm(0)' for the right arm. The head can turn left with the function 'robot.pan(90)' and right with 'robot.pan(-90)'. You can move the head up with 'robot.tilt(30)' and down with 'robot.tilt(-30)'. When the user asks to look somewhere, use head movements. For example, for looking straight ahead use 'robot.pan(0)' and 'robot.tilt(0)', to look left use 'robot.pan(90)', to look right use 'robot.pan(-90)'. When the user asks to turn, use only the functions 'robot.left', 'robot.right'. When the user asks to look somewhere, use only the function 'robot.pan'. When the user asks to execute multiple commands, use Python functions in a sequence. For example, if the user asks to move forward and then turn left, use the sequence of functions 'robot.forward(1)\nrobot.turn(90)'. If the user asks to look forward and put the arms down, use the sequence 'robot.pan(0)\nrobot.tilt(0)\nrobot.left_arm(0)\nrobot.right_arm(0)'. To get a photo of the scene, you can use 'robot.get_image()'. Think step-by-step. Use new line character to separate Python functions in the code. Return ONLY valid Python code. DO NOT ADD any tag such as '''python  ''' around the code. Do not add any sentence before the code, such as 'Here is the Python code'. Add Python comments explaining the meaning of any instruction in the code."
 }
 
 def ai_set_connections(G_conn, notify_fn):
@@ -48,7 +58,7 @@ def detect_ai_provider(key_string):
     patterns = {
         "OpenAI": r"^(sk-proj-[a-zA-Z0-9-]{40,}|sk-[a-zA-Z0-9]{32,})$",
         "Anthropic": r"^sk-ant-api\d{2}-[a-zA-Z0-9\-_]{80,}$",
-        "Google Gemini": r"^AIzaSy[a-zA-Z0-9\-_]{33}$"
+        "Google": r"^AIzaSy[a-zA-Z0-9\-_]{33}$"
     }
 
     for provider, pattern in patterns.items():
@@ -70,7 +80,9 @@ class AI:
         self.gpt_output_tokens = 0
 
         self.api_key = None
+        self.ai_provider = None
         self.client = None
+        '''
         try:
             api_key = os.getenv("OPENAI_API_KEY")
             if api_key is None or api_key=="":
@@ -80,6 +92,7 @@ class AI:
             print(f"AI Error reading OPENAI key: {e}")
         if api_key is not None and api_key!="":
             self.setkey(api_key)
+        '''
 
         self.init_chromadb()
 
@@ -113,17 +126,23 @@ class AI:
     def setkey(self, key):
 
         self.api_key = ''
+        self.client = None
+        self.ai_provider = None
         key = key.strip()
         prov = detect_ai_provider(key)
-        if prov=="OpenAI":
-            self.api_key = key.strip()
-        elif prov in ["Anthropic","Google"]:
+        print(f"Detected AI provider: {prov}")
+        if prov == "OpenAI":
+            self.api_key = key
+            self.ai_provider = "OpenAI"
+        elif prov == "Google":
+            self.api_key = key
+            self.ai_provider = "Google"
+        elif prov in ["Anthropic"]:
             self.log_write(f"AI ERROR: {prov} not yet supported")
+            return
         else:
             # read secrets from file
-
-            print(f"read {key} from secrets...")
-
+            # print(f"read {key} from secrets...")
             try:
                 upath = os.getenv('PATH_USERS')
                 if upath is None:
@@ -134,20 +153,26 @@ class AI:
                     data = json.load(file)
                     if key in data.keys():
                         self.api_key = data[key].strip()
+                    else:
+                        self.log_write(f"AI ERROR: Unknown secret key {key}")
+                        return
             except FileNotFoundError:
                 print("The file was not found.")
             except json.JSONDecodeError:
                 print("The file contains invalid JSON.")
 
-            if key!='':
-                self.log_write(f"AI ERROR: Unknown key {key}")
+        if self.api_key is not None and self.api_key != '':
+            if self.ai_provider is None:
+                self.ai_provider = detect_ai_provider(self.api_key)
+            if self.ai_provider == "OpenAI":
+                self.client = openai.OpenAI(api_key = self.api_key)
+            elif self.ai_provider == "Google":
+                self.client = genai.Client(api_key=self.api_key)
+            else:
+                self.log_write(f"AI ERROR: Unknown provider {self.ai_provider}")
 
-        if self.api_key is None or self.api_key == '':
-            self.client = None
-            print("OpenAI client OFF")
-        else:
-            self.client = openai.OpenAI(api_key = self.api_key)
-            print("OpenAI client ON")
+        if self.client is not None:
+            print(f"AI client: {self.ai_provider} - ACTIVE")
 
 
 
@@ -182,32 +207,55 @@ class AI:
 
     def send_llm_messages(self, messages):
         if self.api_key is None or self.api_key == '' or self.client is None:
-            self.log_write("AI ERROR: send_llm_messages: OpenAI key missing")
+            self.log_write("AI ERROR: send_llm_messages: AI key missing")
             return ''
 
-        try:
-            response = self.client.responses.create(
-                model = MODEL,
-                input = messages,
-                # temperature = 0.5,
+        if self.ai_provider == "OpenAI":
+
+            try:
+                response = self.client.responses.create(
+                    model = MODEL,
+                    input = messages,
+                    # temperature = 0.5,
+                )
+            except openai.AuthenticationError:
+                self.log_write("AI ERROR: AuthenticationError: OpenAI key valid?")
+                return ''
+            except openai.BadRequestError as e:
+                self.log_write(f"AI ERROR: Bad request {e}")
+                return ''
+            except Exception as e:
+                self.log_write(f"AI ERROR: {e}")
+                return ''
+            
+            self.gpt_total_tokens += response.usage.total_tokens
+            self.gpt_input_tokens += response.usage.input_tokens
+            self.gpt_output_tokens += response.usage.output_tokens
+            
+            self.log_write(f"{messages[-1]['content']}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
+
+            return response.output_text
+
+        elif self.ai_provider == "Google":
+
+            response = self.client.models.generate_content(
+                model = GEMINI_MODEL, 
+                contents = messages[1]['content'],  # user prompt
+                config=types.GenerateContentConfig(
+                    system_instruction = messages[0]['content']   # system prompt
+                )
             )
-        except openai.AuthenticationError:
-            self.log_write("AI ERROR: AuthenticationError: OpenAI key valid?")
-            return ''
-        except openai.BadRequestError as e:
-            self.log_write(f"AI ERROR: Bad request {e}")
-            return ''
-        except Exception as e:
-            self.log_write(f"AI ERROR: {e}")
-            return ''
-        
-        self.gpt_total_tokens += response.usage.total_tokens
-        self.gpt_input_tokens += response.usage.input_tokens
-        self.gpt_output_tokens += response.usage.output_tokens
-        
-        self.log_write(f"{messages[-1]['content']}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
 
-        return response.output_text
+            usage = response.usage_metadata
+
+            self.gpt_total_tokens += usage.total_token_count
+            self.gpt_input_tokens += usage.prompt_token_count
+            self.gpt_output_tokens += usage.candidates_token_count
+
+            self.log_write(f"{messages[-1]['content']}\n{response.text}\n{usage.prompt_token_count};{usage.candidates_token_count}\n----\n")
+
+            return response.text
+
         
     # returns chat message for content
     def chat(self, content):
@@ -236,38 +284,77 @@ class AI:
             self.log_write("AI ERROR: vision: OpenAI key missing")
             return ''
 
-        # img must be a base64 encoding of the image !!!
-        try:           
-            response = self.client.responses.create(
-                model=MODEL,
-                input=[
-                    {
-                    "role": "user",
-                    "content": [
+        if self.ai_provider == "OpenAI":
+
+            # img must be a base64 encoding of the image !!!
+            try:           
+                response = self.client.responses.create(
+                    model=MODEL,
+                    input=[
                         {
-                          "type": "input_text",
-                          "text":f"{prompt}"
-                        },
-                        {
-                          "type": "input_image",
-                          "image_url": f"data:image/jpeg;base64,{image_b64}"
-                        },
+                        "role": "user",
+                        "content": [
+                            {
+                            "type": "input_text",
+                            "text":f"{prompt}"
+                            },
+                            {
+                            "type": "input_image",
+                            "image_url": f"data:image/jpeg;base64,{image_b64}"
+                            },
+                        ],
+                        }
                     ],
-                    }
-                ],
-                # temperature=0.1,
+                    # temperature=0.1,
+                    )
+
+                self.gpt_total_tokens += response.usage.total_tokens
+                self.gpt_input_tokens += response.usage.input_tokens
+                self.gpt_output_tokens += response.usage.output_tokens
+
+                self.log_write(f"vision\n{prompt}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
+                
+                return response.output_text
+            except Exception as e:
+                print(f"AI vision:: Getting response - {e}")
+                return None
+
+        elif self.ai_provider == "Google":
+
+            try:
+                response = self.client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=[
+                        types.Part.from_bytes(
+                            data=image_b64, 
+                            mime_type="image/jpeg"
+                        ),
+                        prompt
+                    ]
                 )
 
-            self.gpt_total_tokens += response.usage.total_tokens
-            self.gpt_input_tokens += response.usage.input_tokens
-            self.gpt_output_tokens += response.usage.output_tokens
+                if response is None:
+                    self.log_write(f"AI ERROR: response None\n")
+                    return None
 
-            self.log_write(f"vision\n{prompt}\n{response.output_text}\n{response.usage.input_tokens};{response.usage.output_tokens}\n----\n")
-            
-            return response.output_text
-        except Exception as e:
-            print(f"AI vision:: Getting response - {e}")
-            return None
+                usage = response.usage_metadata
+                print(usage)
+                if usage is None:
+                    self.log_write(f"vision\n{prompt}\n{response.text}\n")
+                else:
+                    self.gpt_total_tokens += usage.total_token_count
+                    self.gpt_input_tokens += usage.prompt_token_count
+                    self.gpt_output_tokens += usage.candidates_token_count
+
+                    self.log_write(f"vision\n{prompt}\n{response.text}\n{usage.prompt_token_count};{usage.candidates_token_count}\n----\n")
+
+                return response.text
+
+            except Exception as e:
+                print(traceback.format_exc())
+                print(f"AI vision:: Getting response - {e}")
+                return None
+
 
 
     def vision_file(self, img_filepath, prompt):
@@ -308,11 +395,12 @@ class AI:
 
     # store a content in the vector db
     def memorize(self, content):
-        self.memoryid += 1    
-        self.memory.add(
-            documents=[content],
-            ids=f"{self.memoryid}"
-        )
+        if content is not None:
+            self.memoryid += 1    
+            self.memory.add(
+                documents=[content],
+                ids=f"{self.memoryid}"
+            )
 
 
     # retrieve content from docs in vector db
@@ -505,6 +593,7 @@ class AIAgent():
     # return True if response sent, False if timeout
     def waitfor_response(self, timeout=3600): 
         self.response_sent = False
+        time.sleep(1)  # min time to wait for
         while self.enabled and not self.response_sent and timeout>0:
             d = 0.5
             time.sleep(d)

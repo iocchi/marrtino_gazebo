@@ -90,6 +90,8 @@ USER robot
 
 RUN pip install  --break-system-packages openai chromadb
 
+RUN pip install  --break-system-packages google-genai google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
 WORKDIR /home/robot
 
 ENTRYPOINT sudo service ssh start && sudo service nginx start && tmux

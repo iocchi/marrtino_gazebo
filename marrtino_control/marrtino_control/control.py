@@ -1620,6 +1620,7 @@ class MARRtinoController(Node):
 
     def say(self, sentence, language='en'):
         print(f"saying [{language}] '{sentence}' ...")
+        self.sleep(0.5)
         self.simulated_say = sentence
         self.sleep(0.5)  # wait for say message to go through
         self.pub_say.publish(sentence)
@@ -1657,6 +1658,7 @@ class MARRtinoController(Node):
         t = 0
         dt = 0.5
         print("robot listening ....")
+        self.sleep(dt)
         while (t<timeout) and self.simulated_asr == '' and not self.user_stop:
             self.sleep(dt)
             t += dt

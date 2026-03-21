@@ -380,7 +380,10 @@ async def handler(websocket):
     global code_running, robot, gz, simulation_run, keepalive, lsb_mode
     global nconnections, G_connections, current_userid
 
-    clientIP = websocket.request_headers.get('X-Real-Ip', '')
+    # clientIP = websocket.request_headers.get('X-Real-Ip', '')  - old version
+
+    clientIP = websocket.request.headers.get('X-Real-Ip', '')
+
     printt(f"Client connected from {clientIP} id: {websocket.id}")
     
     nconnections += 1
@@ -717,6 +720,7 @@ async def main():
         or Python code as a consequence of the user request. It is important that the 'code' field \
         of the JSON output is a correct Python code. Do not add comments. \
         Never add new lines or any other special character in the 'text' and 'code' fields, \
+        DO NOT ADD any tag such as '''json  ''' around the output. \
         Always answer in the same language of the question."
 
     human.ai = AIAgent("human", human_system, ai)
@@ -729,6 +733,7 @@ async def main():
         or Python code as a consequence of the user request. It is important that the 'code' field \
         of the JSON output is a correct Python code. Do not add comments. \
         Never add new lines or any other special character in the 'text' and 'code' fields, \
+        DO NOT ADD any tag such as '''json  ''' around the output. \
         Always add comments in the same language of the question."
 
     gz.ai = AIAgent("gazebo", gazebo_system, ai)
