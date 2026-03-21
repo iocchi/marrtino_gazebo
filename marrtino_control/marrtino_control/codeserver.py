@@ -338,7 +338,10 @@ async def send_robot_say(websocket, sentence):
 
 async def send_human_say(websocket, sentence):
     print(f' -- send human say: {sentence}')
-    await websocket.send(json.dumps({"status": "hsay", "message": sentence }))
+    try:
+        await websocket.send(json.dumps({"status": "hsay", "message": sentence }))
+    except Exception as e:
+        print(f"Error send_human_say: {e}")
 
 
 def gz_pause(flag):
