@@ -4,218 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot+AI programming</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
-    
     <style>
-        :root {
-            --primary: #007bff;
-            --bg-light: #f4f7f6;
-            --border: #ddd;
-            --text: #333;
-        }
-
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            background-color: var(--bg-light);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Top Header Navigation */
-        header {
-            width: 100%;
-            background: #fff;
-            padding: 15px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .connection-bar {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            background: #eee;
-            padding: 10px 20px;
-            border-radius: 8px;
-        }
-
-        /* Main Dashboard Grid */
-        .dashboard {
-            display: grid;
-            grid-template-columns: 450px 1fr;
-            gap: 20px;
-            max-width: 1200px;
-            width: 95%;
-            margin: 20px 0;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-
-        h1, h2, h3 { margin-top: 0; color: #444; }
-
-        /* Buttons */
-        button { 
-            padding: 8px 16px; 
-            background-color: var(--primary); 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #565757; cursor: not-allowed; }
-        #stopButton { background-color: #dc3545; }
-        #stopButton:disabled { background-color: #565757; cursor: not-allowed; }
-
-        /* Editor and Status Areas */
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
         .CodeMirror {
             border: 1px solid #929292;
-            height: 350px; 
-            width: 100%; 
-            font-size: 14px;
+            height: 250px; /* Adjust height as needed */
+            width: 620px; /* Adjust width as needed */
+            margin-bottom: 10px;
+            font-size: 14px; /* Adjust font size */
         }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { color:#ffffff; background-color: #0056b3; }
+        button:disabled { color:#000000; background-color: #565757; }
+        #statusrobot { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
+        #statusframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 600px; min-height: 50px; }
+        #dialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; width: 400px; height: 300px; overflow: auto; }
+        #humansay { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 400px; min-height: 50px; }
+        #apikey { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 480px; min-height: 60px; }
+        #humanai { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #6a0303; background-color: #f9f9f9; width: 480px; min-height: 180px; }
+        #humanchat { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #c9f9c9; width: 400px; min-height: 50px; }
+        #nlprog { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #e9a9a9; width: 400px; min-height: 50px; }
+        #nlpsystem { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #f8e5be; width: 400px; min-height: 50px; }
+        #nlpframework { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #98e1f7; width: 400px; min-height: 50px; }
+        #nlpanswer { margin-top: 20px; padding: 10px; border: 1px solid #ddd; color: #0000f9; background-color: #ceced5; width: 400px; min-height: 50px; }
+        #progdialogue { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #9ef5b1; width: 400px; height: 270px; overflow: auto; }
+        #printoutput { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background-color: #cccccc; width: 600px; height: 300px; overflow: auto; }
 
-        #statusrobot, #statusframework { width: 100%; box-sizing: border-box; background: #fffbe6; }
-        
-        #dialogue, #progdialogue, #printoutput { 
-            border: 1px solid var(--border); 
-            background-color: #fafafa; 
-            overflow: auto; 
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-
-        /* Specific Sizes from Original */
-        #dialogue { height: 300px; }
-        #printoutput { height: 300px; background: #bbbaba; color: #00ff00; font-family: monospace; }
-        #apikey { width: 100%; min-height: 40px; box-sizing: border-box; }
-        #humansay { width: 100%; min-height: 50px; box-sizing: border-box; }
-        
-        .image-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-        }
-
-        .controls-row {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 10px;
-        }
-
-        .note { font-size: 0.85em; color: #666; font-style: italic; }
     </style>
-</head>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    </head>
 <body>
+    <h1>Robot AI Interface</h1>
 
-    <header>
-        <h1>Robot+AI Programming</h1>
-        <div class="connection-bar">
-            <div id="connection">🔴 Not connected</div>
-            <div id="userid"></div>
-            <button id="connectButton">CONNECT</button>
-            <button id="disconnectButton">DISCONNECT</button>
-        </div>
+    <h2>Connection and execution status</h2>
 
-        <div style="width: 90%; max-width: 800px;" id="statusrobot" class="card">
-            <p><strong>Robot Status:</strong> Not connected.</p>
-        </div>
+    <table>
+        <td width=160 align=center> <div id="connection">Not connected</div> </td>
+        <td width=160 align=center> <div id="userid"></div> </td>
+        <td width=160 align=center> <button id="connectButton">CONNECT</button> </td>
+        <td width=160 align=center> <button id="disconnectButton">DISCONNECT</button> </td>
+    </table>
 
-    </header>
+    <div id="statusrobot">
+        <p>Robot connection: Not connected.</p>
+    </div>
+    
 
-    <main class="dashboard">
+    <br><br><br>
+
+    <p>--------------------------------------</p>    
+    
+    <br><br><br>
+    
+    
+
+    <h2>Robot Interaction with the environment</h2>
+
+    <table>
+    <tr>
+    <!-- td width=400 align=center> 
+    
+    < location.hostname >
+    
+    <iframe id="iframesim" src="http://localhost:8080/stream?topic=/top_camera/image" width="640" height="480" scrolling="no"   title="sim"></iframe>
+    </td -->
+
+            
         
-        <section class="left-col">
-            <div class="card">
-                <h3>Robot View</h3>
-                <div align="center">
-                    <iframe src="marrtina02.html" width="300" height="200" scrolling="no" title="face" style="border:none;"></iframe>
-                    <div class="image-container">
-                        <h4>Camera</h4>
-                        <img id="cameraimage" src="lastimage.png" alt="Camera image">
-                        <div class="controls-row">
-                            <button id="refreshButton">Refresh Image</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <td width=360 align=center>
+    <br><br>
+    <iframe src="marrtina02.html" width="300" height="200" scrolling="no"   title="face"></iframe>
+    <br><br>
+    <h3>Photo</h3>
+    <img width=320 id="cameraimage" src="lastimage.png" alt="Camera image"><br>
+    <p> <button id="refreshButton">Refresh</button> </p>
+    </td>
+   
+    <td align="center">
 
-            <div class="card">
-                <h3>Dialogue</h3>
-                <label for="humansay"><strong>Human says:</strong></label>
-                <textarea id="humansay"></textarea>
-                <div class="controls-row">
-                    <button id="sayButton">SAY TO ROBOT</button>
-                </div>
-                
-                <div id="dialogue"></div>
-                <div class="controls-row">
-                    <button id="clearDialogueButton">Clear Chat</button>
-                </div>
-            </div>
+    <br><br><br>
 
-        </section>
+    <table>
+    <tr><td><b>Human says:</b></td> 
+    <td><textarea id="humansay"></textarea></td>
+    <td> <button id="sayButton">SAY</button> </td>
+    </tr>
+    </table>
 
-        <section class="right-col">
+    <br><br>
 
-            <div class="card">
-                <label for="apikey"><strong>AI Key:</strong> (Not copied to server)</label>
-                <textarea id="apikey" placeholder="Enter API Key here..."></textarea>
-            </div>
+    <b>Human-Robot dialogue</b>
+    <div id="dialogue" align="left"></div>
+    <p align="center"> <button id="clearDialogueButton">Clear</button> </p>
 
-            <div class="card">
-                <h3>Programming</h3>
-                <textarea id="codeEditor"></textarea>
-                
-                <div class="controls-row">
-                    <button id="runButton">▶ RUN</button>
-                    <button id="stopButton">⏹ STOP</button>
-                    <button id="loadButton">📂 Load</button>
-                    <button id="saveButton">💾 Save</button>
-                </div>
-            </div>
+    </td>
 
-            <div class="card">
-                <h3>Console Output</h3>
-                <div id="printoutput"></div>
-                <div class="controls-row">
-                    <button id="clearPrintOutputButton">Clear Console</button>
-                </div>
-            </div>
+    </tr>
+    </table>
+    
+    <br><br><br>    
 
-            <div class="card note">
-                <p><strong>Note:</strong> Load/Save available in Chrome. Enable <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> for <code>http://10.112.0.11:3080</code>.</p>
-            </div>
-        </section>
-    </main>
+    <p>--------------------------------------</p>
 
-    <div id="statusframework" style="display:none;"></div>
-    <div id="humanai" style="display:none;"></div>
-    <div id="humanchat" style="display:none;"></div>
-    <div id="nlprog" style="display:none;"></div>
-    <div id="nlpsystem" style="display:none;"></div>
-    <div id="nlpframework" style="display:none;"></div>
-    <div id="nlpanswer" style="display:none;"></div>
-    <div id="progdialogue" style="display:none;"></div>
+    <br><br><br>    
+
+    <table>
+    <tr>
+
+    <td align="center">
+
+    <h3>Programming</h3>
+
+    <table>
+    <tr>
+    <td width=100>
+    <div align="left">AI key (not copied on the server) </div>
+    </td>
+    <td>
+    <textarea id="apikey"></textarea> 
+    </td>
+    </tr>
+    </table>
+
+    <br><br>
+
+    <!-- div align="left"> Human AI <textarea id="humanai"></textarea> </div>
+
+    <br><br -->
 
 
+    
+    <table>
+        <tr><td>
+        <div align="left">   <textarea id="codeEditor"></textarea> </div>
+        </td>
+        </tr>
+    </table>
+
+    <table>
+        <tr>
+            <td width=160 align="center"> <button id="runButton">RUN</button> </td>
+            <td width=160 align="center"> <button id="stopButton">STOP</button> </td>
+            <td width=160 align="center"> <button id="loadButton">Load</button> </td>
+            <td width=160 align="center"> <button id="saveButton">Save</button> </td>
+        </tr>    
+    </table>
+
+    </td>
+
+    </tr>
+
+    <tr>
+        <td align="center">
+            <br><br><h3>Print output</h3>
+        </td>
+    </tr>
+
+    <tr>
+
+    <td align="center">
+    <div id="printoutput" align="left"></div>
+    <p align="center"> <button id="clearPrintOutputButton">Clear</button> </p>
+    </td>
+    </tr>
+
+    <tr>
+        <td align="left">
+            <br><br><b>Note:</b> Load and Save buttons are available in Chrome. Open settings with URL
+            <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>,
+            enable the feature, add <code>http://10.112.0.11:3080</code> as secure origin, 
+            restart Chrome or reboot the system.
+            Note: this is secure because you are using a secure encrypted VPN.
+        </td>
+    </tr>
+
+    </table>
 
     <p>--------------------------------------</p>
 
@@ -228,7 +193,7 @@
     robot.left(r)       turn left r [deg]
     robot.right(r)      turn right r [deg]
 
-    # robot pose [m, deg]
+    # robot pose [m, deg])
     x,y,th_deg = robot.get_pose(frame='odom'/'gt')
 
     # goto x,y with optional theta_deg final orientation
@@ -329,14 +294,16 @@
 
 
         const connectButton = document.getElementById('connectButton');
-        const disconnectButton = document.getElementById('disconnectButton');
         const runButton = document.getElementById('runButton');
         const stopButton = document.getElementById('stopButton');
-        const sayButton = document.getElementById('sayButton');
 
         runButton.disabled = true;
+        runButton.color = 'grey';
         stopButton.disabled = true;
-        disconnectButton.disabled = true;
+        stopButton.color = 'grey';
+
+        const sayButton = document.getElementById('sayButton');
+                        
 
         let ws_code;
 
@@ -401,8 +368,8 @@
                     updateStatus('statusrobot', 'Connected to Robot server.', 'green');
                     runButton.disabled = false;
                     stopButton.disabled = false;
-                    connectButton.disabled = true;
-                    disconnectButton.disabled = false;
+                    //connectButton.disabled = true;
+                    //disconnectButton.disabled = false;
                     document.getElementById('connection').innerHTML = "Connected";
                     refreshImage();  
                 };
@@ -430,7 +397,7 @@
                         document.getElementById('userid').innerHTML = data.name;
                     }
                     else if (data.status == 'print') {
-                        console.log("### Print: "+ data.message)
+                        //console.log("Print: "+ data.message)
                         appendPrintOutput(data.message)
                     }
                     else if (data.status == 'ai') {
@@ -449,9 +416,11 @@
                     }
                     if (data.disable_send == 'true') {
                         runButton.disabled = true;
+                        runButton.color = 'grey';
                     } 
                     else if (data.disable_send == 'false') {
                         runButton.disabled = false;
+                        runButton.color = 'white';
                     }
                 };
 
@@ -463,8 +432,8 @@
                     }
                     runButton.disabled = true;
                     stopButton.disabled = true;
-                    connectButton.disabled = false; 
-                    disconnectButton.disabled = true;
+                    //connectButton.disabled = false; 
+                    //disconnectButton.disabled = true;
                     document.getElementById('connection').innerHTML = "Not connected";  
                     document.getElementById('userid').innerHTML = "";
 
@@ -624,6 +593,5 @@
         
         
     </script>
-
 </body>
 </html>

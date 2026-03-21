@@ -153,7 +153,7 @@ class AI:
                     data = json.load(file)
                     if key in data.keys():
                         self.api_key = data[key].strip()
-                    else:
+                    elif key!='':
                         self.log_write(f"AI ERROR: Unknown secret key {key}")
                         return
             except FileNotFoundError:
