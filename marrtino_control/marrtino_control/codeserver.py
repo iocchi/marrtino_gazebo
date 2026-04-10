@@ -310,19 +310,23 @@ def run_eval(fn, websocket, reset_code_running=True):
 
 
 def terminate_thread(connID):
-    global code_running, run_code_thread
+    global code_running, run_code_thread, robot
     if connID in run_code_thread.keys() and run_code_thread[connID] is not None:
         print(f"Running code terminating for connection {connID} ....")
         run_code_thread[connID].terminate()
         print("Running code terminated.")
         run_code_thread[connID] = None
         code_running = None
+        # reset user stop at the end of the run
+        robot.user_stop = False
 
 
 async def notify_thread_completed(websocket, donotify):
-    global code_running
+    global code_running, robot
     print('Code execution completed.')
     code_running = None
+    # reset user stop at the end of the run
+    robot.user_stop = False
     if donotify:
         print("Notify termination.")
         # notify termination to JS client websocket
@@ -465,9 +469,6 @@ async def handler(websocket):
         gz_gui(True)   # start gz gui
         simulation_run = True
 
-    # reset user stop at any new connection
-    robot.user_stop = False
-
     try:
         async for message in websocket:
             if message == '__ping__':
@@ -506,8 +507,8 @@ async def handler(websocket):
                 elif "code" in data:
                     received_code = data["code"]
 
-                    print(f"DEBUG\ncode running\n{code_running}")
-                    print("DEBUG DEBUG DEBUG")
+                    #print(f"DEBUG\ncode running\n{code_running}")
+                    #print("DEBUG DEBUG DEBUG")
 
                     cnt_while = 0
                     code_aborted = False
@@ -728,8 +729,7 @@ async def handler(websocket):
         print("Stop robot on disconnect.")
         robot.stop_request()
         time.sleep(1)
-        robot.stop_unrequest()
-
+        robot.stop_unrequest()    # robot.user_stop = False
 
         #os.system("cp noimage.jpg lastimage.png")
         if lsb_mode and simulation_run and not keepalive: # stop simulation
