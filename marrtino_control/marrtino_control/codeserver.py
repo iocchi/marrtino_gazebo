@@ -55,7 +55,7 @@ class Human():
 code_running = None
 websocket = None
 
-run_code_thread = None
+run_code_thread = {}
 
 simulation_run = False  # simulation is running
 keepalive = True  # keep alive when client disconnects
@@ -242,12 +242,12 @@ def notify_robot_say(G_connections):
         time.sleep(0.5)
 
 
-def run_thread(code, websocket, donotify=True):
+def run_thread(code, websocket, connID, donotify=True):
     global code_running, run_code_thread
-    print("Running code in a thread ...")
+    print(f"Running code in a thread for connection {connID}...")
     code_running = code
-    run_code_thread = Thread(target=run_code, args=(websocket, donotify), daemon=True)
-    run_code_thread.start()
+    run_code_thread[connID] = Thread(target=run_code, args=(websocket, donotify), daemon=True)
+    run_code_thread[connID].start()
     print("Running code in a thread started.")
 
 
@@ -307,13 +307,13 @@ def run_eval(fn, websocket):
     return r
 
 
-def terminate_thread():
+def terminate_thread(connID):
     global code_running, run_code_thread
-    if run_code_thread is not None:
-        print("Running code terminating ....")
-        run_code_thread.terminate()
+    if connID in run_code_thread.keys() and run_code_thread[connID] is not None:
+        print(f"Running code terminating for connection {connID} ....")
+        run_code_thread[connID].terminate()
         print("Running code terminated.")
-        run_code_thread = None
+        run_code_thread[connID] = None
         code_running = None
 
 
@@ -365,6 +365,7 @@ def gz_gui(flag):
 G_connections = []
 nconnections = 0
 current_userid = None
+G_connID = 0  # global connection ID
 
 th_robot_say = Thread(target=notify_robot_say, args=(G_connections, ), daemon=True)
 th_robot_say.start()
@@ -381,17 +382,21 @@ def get_user_path():
 
 async def handler(websocket):
     global code_running, robot, gz, simulation_run, keepalive, lsb_mode
-    global nconnections, G_connections, current_userid
+    global nconnections, G_connID, G_connections, current_userid
 
     # clientIP = websocket.request_headers.get('X-Real-Ip', '')  - old version
 
     clientIP = websocket.request.headers.get('X-Real-Ip', '')
 
-    printt(f"Client connected from {clientIP} id: {websocket.id}")
+    
     
     nconnections += 1
+    connID = G_connID   # this connection ID
+    G_connID += 1
     G_connections.append(websocket)
     
+    printt(f"Client connected from {clientIP} id: {websocket.id} - conn ID: {connID}")
+
     print(f"Connected clients: {nconnections}")
     #print(f"WS Connections: {G_connections}")
 
@@ -484,7 +489,7 @@ async def handler(websocket):
                         print(f"Python system code:\n{received_code}")
                         # do not send code running message
                         try:
-                            run_thread(received_code, websocket, donotify=False)
+                            run_thread(received_code, websocket, connID, donotify=False)
                         except Exception as e:
                             print(f"Error: {e}")
                             await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
@@ -495,14 +500,22 @@ async def handler(websocket):
                 # full code
                 elif "code" in data:
                     received_code = data["code"]
+
+                    cnt_while = 0
                     while code_running is not None:
-                        print("Waiting for code execution to be available....")
-                        time.sleep(0.5)
+                        if cnt_while==0:
+                            print("Waiting for code execution to be available....")
+                        time.sleep(1)
+                        cnt_while += 1
+                        if cnt_while >= 10:
+                            print(f"Code aborted")
+                            await websocket.send(json.dumps({"status": "error", "message": "abort for code already running"}))
+                            continue
 
                     print(f"Python code:\n{received_code}")
                     await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
                     try:
-                        run_thread(received_code, websocket)
+                        run_thread(received_code, websocket, connID)
                     except Exception as e:
                         print(f"Error: {e}")
                         await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
@@ -513,9 +526,16 @@ async def handler(websocket):
                 elif "robotfn" in data:
                     received_code = data["robotfn"]  # should be robot.fn(...) 
 
+                    cnt_while = 0
                     while code_running is not None:
-                        print("Waiting for code execution to be available....")
-                        time.sleep(0.5)
+                        if cnt_while==0:
+                            print("Waiting for code execution to be available....")
+                        time.sleep(1)
+                        cnt_while += 1
+                        if cnt_while >= 10:
+                            print(f"Robot function aborted")
+                            await websocket.send(json.dumps({"status": "error", "message": "abort for code already running"}))
+                            continue
 
                     if "setkey" in received_code:
                         print(f"Robot function: {received_code[0:25]}")
@@ -623,7 +643,7 @@ async def handler(websocket):
                         print("sending STOP !!!")
                         robot.user_stop = True
                         time.sleep(1)
-                        terminate_thread()
+                        terminate_thread(connID)
                         #cleanAIagents()
                         await websocket.send(json.dumps({"status": "success", "message": "Code stopped!", "disable_send": "false"}))
 
