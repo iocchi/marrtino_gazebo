@@ -197,7 +197,7 @@ def safe_code(code_string):
 
 
 def run_code(websocket, donotify=True):
-    global robot, human, gz, ai
+    global robot, human, gz, ai, code_running
     if code_running is not None:
         robot.user_stop = False
         s,m = safe_code(code_running)
@@ -271,7 +271,7 @@ def safe_fn(fn):
     return safecode
 
 
-def run_eval(fn, websocket):
+def run_eval(fn, websocket, reset_code_running=True):
     global robot, gz, ai, human, code_running
     # try unitl completed
     complete = False
@@ -286,7 +286,8 @@ def run_eval(fn, websocket):
                     printt(f"RUN {current_userid} {sfn[0:40]}")
                 else:
                     printt(f"RUN {current_userid} {sfn}")
-                code_running = sfn
+                if reset_code_running:
+                    code_running = sfn
                 r = eval(sfn, globals(), locals())
             complete = True
         except IndexError as e:
@@ -302,7 +303,8 @@ def run_eval(fn, websocket):
             asyncio.run(notify_error(websocket, e))
             break
 
-    code_running = None
+    if reset_code_running:
+        code_running = None
 
     return r
 
@@ -463,6 +465,9 @@ async def handler(websocket):
         gz_gui(True)   # start gz gui
         simulation_run = True
 
+    # reset user stop at any new connection
+    robot.user_stop = False
+
     try:
         async for message in websocket:
             if message == '__ping__':
@@ -501,8 +506,12 @@ async def handler(websocket):
                 elif "code" in data:
                     received_code = data["code"]
 
+                    print(f"DEBUG\ncode running\n{code_running}")
+                    print("DEBUG DEBUG DEBUG")
+
                     cnt_while = 0
-                    while code_running is not None:
+                    code_aborted = False
+                    while code_running is not None and not code_aborted:
                         if cnt_while==0:
                             print("Waiting for code execution to be available....")
                         time.sleep(1)
@@ -510,15 +519,16 @@ async def handler(websocket):
                         if cnt_while >= 10:
                             print(f"Code aborted")
                             await websocket.send(json.dumps({"status": "error", "message": "abort for code already running"}))
-                            continue
+                            code_aborted = True
 
-                    print(f"Python code:\n{received_code}")
-                    await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
-                    try:
-                        run_thread(received_code, websocket, connID)
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
+                    if not code_aborted:
+                        print(f"Python code:\n{received_code}")
+                        await websocket.send(json.dumps({"status": "success", "message": "Code running ...", "disable_send": "true"}))
+                        try:
+                            run_thread(received_code, websocket, connID)
+                        except Exception as e:
+                            print(f"Error: {e}")
+                            await websocket.send(json.dumps({"status": "error", "message": f"{e}", "disable_send": "false"}))
 
 
 
@@ -655,7 +665,7 @@ async def handler(websocket):
                 elif "apikey" in data:
                     key = data["apikey"]
                     api_code = f"robot.ai.setkey('{key}')"
-                    r = await asyncio.to_thread(run_eval, api_code, websocket)
+                    r = await asyncio.to_thread(run_eval, api_code, websocket, reset_code_running=False)
 
                 else:
                     print("Received message does not contain known key.")
@@ -678,7 +688,7 @@ async def handler(websocket):
     except Exception as e:
         printt(f"An unexpected error occurred: {e}")
     finally:
-        printt(f"Finally client {clientIP} connection closed.")
+        printt(f"Finally client {clientIP} connection {connID} closed.")
 
         lsb_str = "LSB " if lsb_user else ''
         printt(f"{lsb_str}User Disconnect {userid} {firstname} {lastname} {email} {clientIP}")
@@ -701,7 +711,9 @@ async def handler(websocket):
             current_userid = None
 
         if code_running is not None:
-            printt(f"{lsb_str}Disconnect with code running {userid} ")
+            printt(f"{lsb_str}Disconnect with code running {userid}")
+
+        terminate_thread(connID)
 
         print("Disable AI agents and reset AI keys.")
 

@@ -442,6 +442,7 @@
                     }
                     else if (data.status == 'error') {
                         //console.log("Print: "+ data.message)
+                        updateStatus('statusrobot', `Error: ${data.message}`, 'red');
                         appendPrintOutput(data.message, 'red')
                     }
 				    else {
