@@ -372,6 +372,7 @@ G_connections = []
 nconnections = 0
 current_userid = None
 G_connID = 0  # global connection ID
+disconnecting = False # during disconnect
 
 th_robot_say = Thread(target=notify_robot_say, args=(G_connections, ), daemon=True)
 th_robot_say.start()
@@ -389,13 +390,17 @@ def get_user_path():
 async def handler(websocket):
     global code_running, robot, gz, simulation_run, keepalive, lsb_mode
     global nconnections, G_connID, G_connections, current_userid
+    global disconnecting
 
     # clientIP = websocket.request_headers.get('X-Real-Ip', '')  - old version
 
+    # wait for disconnect to complete ...
+    while disconnecting:
+        print("Wait for disconnect to complete ...")
+        time.sleep(1)
+
     clientIP = websocket.request.headers.get('X-Real-Ip', '')
 
-    
-    
     nconnections += 1
     connID = G_connID   # this connection ID
     G_connID += 1
@@ -445,7 +450,7 @@ async def handler(websocket):
         cuf = os.path.join(get_user_path(),"current_user")
         with open(cuf, "w") as f:
             f.write(userid+"\n")
-        if lsb_mode:
+        if lsb_mode or True:
             gz.load_world("autosave")
             gz.move_robot(0,0,0)
 
@@ -689,7 +694,10 @@ async def handler(websocket):
     except Exception as e:
         printt(f"An unexpected error occurred: {e}")
     finally:
-        printt(f"Finally client {clientIP} connection {connID} closed.")
+
+        disconnecting = True
+
+        printt(f"Finally client {clientIP} connection {connID} closing...")
 
         lsb_str = "LSB " if lsb_user else ''
         printt(f"{lsb_str}User Disconnect {userid} {firstname} {lastname} {email} {clientIP}")
@@ -702,7 +710,7 @@ async def handler(websocket):
         #print(f"WS Connections: {G_connections}")
 
         if nconnections == 0:
-            if lsb_mode:
+            if lsb_mode or True:
                 gz.save_world("autosave")
                 gz.del_all_objects()
                 gz.move_robot(0,0,0)
@@ -736,6 +744,10 @@ async def handler(websocket):
             gz_pause(True)   # pause simulation
             gz_gui(False)    # kill gz gui
             simulation_run = False
+
+        printt(f"Client {clientIP} connection {connID} disconnected completed.")
+        disconnecting = False
+
 
 async def main():
     global robot, gz, ai, human, lsb_mode
