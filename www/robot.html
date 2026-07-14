@@ -271,7 +271,7 @@
     # faces
     robot.emotion(value)   # normal, happy, sad, angry, surprised, sings
 
-    # AI functionalities (need OpenAI key)
+    # AI functionalities (need OpenAI/Gemini key)
     
     robot.ai_say(prompt)    # robot says the output of LLM prompt
     robot.ai_code(prompt)   # robot executes the output of LLM prompt
@@ -442,6 +442,7 @@
                     }
                     else if (data.status == 'error') {
                         //console.log("Print: "+ data.message)
+                        updateStatus('statusrobot', `Error: ${data.message}`, 'red');
                         appendPrintOutput(data.message, 'red')
                     }
 				    else {
