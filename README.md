@@ -104,6 +104,8 @@ This option autodetects if nvidia drivers are present and uses nvidia runtime in
 
 Use a browser on `http://localhost:3000` to see the simulation.
 
+Use this option for remote lab.
+
 ## Option 3: force X11
 
 To force use of X11 driver and runc runtime
@@ -127,33 +129,45 @@ Or enter the container from another host terminal with
 
     docker exec -it marrtino_gazebo tmux a
 
-Check in the first tab that gazebo is running correctly (no errors)
+Check in the first tab [0:robot] that gazebo is running correctly (no errors)
 and wait for the completion of the starting process (it may take several seconds)
 
-Move to other tabs in tmux to run the websocker server and populate the world with some
-objects. Just press Enter after the commands already written in the tmux windows.
+Move to tab [2:ws] in tmux to run the websocker server 
 
-Use the web interface (see below) to control the robot.
-
-
-# Control with web interface
-
-1. Start the websocket server
-
-    cd ~/src/marrtino_gazebo/bin
     ./start_codeserver.bash
 
-or
 
-    cd ~/src/marrtino_gazebo/marrtino_control/marrtino_control
-    python codeserver.py
+# Remote lab (LSB) mode
 
+1. Check VPN is working 
+
+From the container
+
+    sudo wg
+    ping 10.96.0.1
+    ifconfig  --> check IP like 10.112.0.11
+
+
+2. Connect from SRL
+
+
+# Control with web interface (without remote lab)
+
+TODO: you may need to manually unpause the simulation and to kill the tcp_monitor
+to avoid timeout checks. 
+
+
+1. Populate the world with some objects. 
+
+Go to tab [3:world] and use gz_objects 
+Shortcut: just press Enter after the commands already written in the tmux pane.
 
 2. Start the simulation GUI
 
 The simulation GUI is off at startup. In SRL-LSB mode, it is automatically activated upon user connection and deactivated when the user disconnects from the service. In other modes, it must be run manually
 
-    cd ~/src/marrtino_gazebo/bin
+Go to tab [4:gui] and run
+
     ./smarrtino_gui.bash
 
 
@@ -172,7 +186,7 @@ If you are using a VPN inside the container, activate the VPN and then use
     http://<VPN_IP>:3080/
 
 
-3. From the browser interface you can edit and run robot programs and access the web-based viewer if you are using VNC.
+4. From the browser interface you can edit and run robot programs and access the web-based viewer if you are using VNC.
 
 For example,
 
@@ -183,6 +197,10 @@ Web interface to control the robot
 Web interface to view the simulation (in VNC mode)
 
     http://<host>:3080/viewer
+
+
+
+
 
 
 # Manual test and detailed operations
